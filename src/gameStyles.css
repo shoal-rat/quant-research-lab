@@ -662,11 +662,11 @@
 
 /* Bubbles near the stage edge shift inward instead of clipping offscreen */
 .agent-2d-sprite.bubble-edge-left .speech-bubble-2d {
-  transform: translateX(-14%);
+  transform: translateX(0);
 }
 
 .agent-2d-sprite.bubble-edge-right .speech-bubble-2d {
-  transform: translateX(-86%);
+  transform: translateX(-100%);
 }
 
 /* In-world leaderboard: rows share the box evenly, never overlap */
@@ -689,19 +689,33 @@
   position: absolute;
   inset: 13% 13% 27% 13%;
   z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
   min-width: 0;
   max-width: none;
   overflow: hidden;
+  text-align: center;
+}
+
+.speech-bubble-2d .bubble-safe::before,
+.speech-bubble-2d .bubble-safe::after {
+  content: "";
+  width: 22%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.speech-bubble-2d .bubble-safe::before {
+  float: left;
+  shape-outside: polygon(0 0, 100% 0, 58% 15%, 20% 50%, 58% 85%, 100% 100%, 0 100%);
+}
+
+.speech-bubble-2d .bubble-safe::after {
+  float: right;
+  shape-outside: polygon(0 0, 100% 0, 100% 100%, 0 100%, 42% 85%, 80% 50%, 42% 15%);
 }
 
 .speech-bubble-2d .bubble-safe em {
-  display: -webkit-box;
-  width: 100%;
-  max-height: 100%;
-  overflow: hidden;
+  display: inline;
   color: #2f2721;
   font-style: normal;
   font-size: clamp(9px, 0.78vw, 13px);
@@ -711,8 +725,7 @@
   text-align: center;
   overflow-wrap: anywhere;
   word-break: break-word;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+  hyphens: auto;
 }
 
 /* per-balloon-type safe regions */
@@ -724,20 +737,30 @@
   font-size: clamp(7.5px, 4.4cqw, 11px);
 }
 .speech-bubble-2d.bubble-sweat .bubble-safe { inset: 14% 16% 30% 16%; }
+.speech-bubble-2d.bubble-whisper .bubble-safe::before,
+.speech-bubble-2d.bubble-whisper .bubble-safe::after,
+.speech-bubble-2d.bubble-sweat .bubble-safe::before,
+.speech-bubble-2d.bubble-sweat .bubble-safe::after {
+  width: 24%;
+}
+.speech-bubble-2d.bubble-shout .bubble-safe::before,
+.speech-bubble-2d.bubble-shout .bubble-safe::after,
+.speech-bubble-2d.bubble-explosion .bubble-safe::before,
+.speech-bubble-2d.bubble-explosion .bubble-safe::after {
+  width: 18%;
+}
 
 /* size variants now target the inner text */
 .agent-2d-sprite.bubble-lg .speech-bubble-2d .bubble-safe em {
   font-size: clamp(8.5px, 0.74vw, 12.5px);
   font-size: clamp(7.5px, 4.2cqw, 11.5px);
   line-height: 1.14;
-  -webkit-line-clamp: 4;
 }
 
 .agent-2d-sprite.bubble-xl .speech-bubble-2d .bubble-safe em {
   font-size: clamp(8px, 0.7vw, 12px);
   font-size: clamp(7px, 3.75cqw, 10.5px);
   line-height: 1.12;
-  -webkit-line-clamp: 6;
 }
 
 /* Bubble side-push: the balloon slides toward the emptier side and rises a
@@ -1039,11 +1062,11 @@
   }
 
   .agent-2d-sprite.bubble-edge-left .speech-bubble-2d {
-    transform: translateX(-20%);
+    transform: translateX(0);
   }
 
   .agent-2d-sprite.bubble-edge-right .speech-bubble-2d {
-    transform: translateX(-80%);
+    transform: translateX(-100%);
   }
 
   .speech-bubble-2d .bubble-safe {

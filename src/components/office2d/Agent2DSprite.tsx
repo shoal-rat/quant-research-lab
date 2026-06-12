@@ -27,12 +27,12 @@ export function Agent2DSprite({ agent, state, reducedMotion, onClick }: Agent2DS
     "--agent-scale": manifest?.scale ?? 1
   } as CSSProperties;
 
-  // long lines get a bigger bubble; near the stage edge the bubble shifts
-  // inward so it is never clipped offscreen. CJK glyphs are wider, so they
-  // count extra toward the size thresholds.
-  const cjkCount = (state.message?.match(/[　-鿿＀-￯]/g) ?? []).length;
+  // Long lines get a bigger bubble; near stage edges the bubble shifts inward
+  // or drops below the sprite so it is not clipped offscreen.
+  const cjkCount = (state.message?.match(/[\u3400-\u9fff]/g) ?? []).length;
   const messageLength = (state.message?.length ?? 0) + cjkCount * 0.9;
   const bubbleSize = messageLength > 88 ? "bubble-xl" : messageLength > 44 ? "bubble-lg" : "";
+  const vertical = state.y < office2DMapSize.height * 0.36 ? "bubble-below" : "";
   const edge =
     state.x < office2DMapSize.width * 0.16
       ? "bubble-edge-left"
@@ -44,7 +44,7 @@ export function Agent2DSprite({ agent, state, reducedMotion, onClick }: Agent2DS
 
   return (
     <button
-      className={`agent-2d-sprite activity-${state.activity} facing-${state.facing} ${state.expression ? "has-expression" : ""} ${bubbleSize} ${edge}`}
+      className={`agent-2d-sprite activity-${state.activity} facing-${state.facing} ${state.expression ? "has-expression" : ""} ${bubbleSize} ${vertical} ${edge}`}
       style={style}
       onClick={onClick}
       aria-label={`Inspect ${agent.name}`}

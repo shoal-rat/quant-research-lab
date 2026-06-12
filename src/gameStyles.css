@@ -15,8 +15,10 @@
   position: absolute;
   inset: 0;
   display: grid;
+  --hud-reserve: 52px;
+  --bottom-reserve: 136px;
   place-items: center;
-  padding: 52px 12px 96px;
+  padding: var(--hud-reserve) 12px var(--bottom-reserve);
 }
 
 .game-screen.wallpaper {
@@ -25,7 +27,8 @@
 
 .game-stage-wrap {
   position: relative;
-  width: min(100%, calc((100vh - 150px) * 16 / 9));
+  min-width: 0;
+  width: min(calc(100vw - 24px), calc((100vh - var(--hud-reserve) - var(--bottom-reserve)) * 16 / 9));
 }
 
 .game-screen.wallpaper .game-stage-wrap {
@@ -51,6 +54,7 @@
   align-items: center;
   gap: 10px;
   padding: 8px 14px;
+  overflow: hidden;
   pointer-events: none;
 }
 
@@ -61,7 +65,8 @@
 
 .game-hud-top .brand-button {
   display: flex;
-  flex-shrink: 0;
+  flex: 0 1 280px;
+  min-width: 0;
   align-items: center;
   gap: 9px;
   padding: 6px 12px;
@@ -73,7 +78,14 @@
   text-align: left;
 }
 
+.game-hud-top .brand-button > span:last-child {
+  min-width: 0;
+}
+
 .game-hud-top .brand-button strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -92,8 +104,12 @@
 
 .hud-right {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .hud-right .task-strip {
@@ -150,22 +166,45 @@
   left: 50%;
   z-index: 1200;
   display: grid;
-  width: min(860px, 94vw);
+  width: min(860px, calc(100vw - 24px));
   gap: 7px;
   transform: translateX(-50%);
 }
 
 .game-bottom-stack .speech-ticker {
-  max-height: 54px;
+  max-height: 62px;
   margin: 0;
+  padding: 6px 8px;
   overflow: hidden;
   opacity: 0.96;
+}
+
+.game-bottom-stack .ticker-track {
+  min-height: 48px;
+}
+
+.game-bottom-stack .ticker-bubble {
+  min-height: 42px;
+  padding: 5px 8px;
+}
+
+.game-bottom-stack .ticker-bubble strong {
+  overflow: hidden;
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-bottom-stack .ticker-bubble span {
+  font-size: 12px;
+  line-height: 1.2;
 }
 
 .boss-bar {
   display: flex;
   align-items: center;
   gap: 9px;
+  min-width: 0;
   padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--amber) 55%, var(--line) 45%);
   border-radius: 14px;
@@ -175,6 +214,7 @@
 
 .boss-bar-badge {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 5px;
   padding: 5px 10px;
@@ -194,6 +234,12 @@
   border-radius: 10px;
   background: var(--surface-solid);
   color: var(--ink);
+}
+
+.boss-bar .primary-button.compact {
+  flex: 0 0 48px;
+  min-width: 48px;
+  padding-inline: 8px;
 }
 
 /* Love & Whip side panel */
@@ -619,12 +665,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 0;
   max-width: none;
   overflow: hidden;
 }
 
 .speech-bubble-2d .bubble-safe em {
   display: -webkit-box;
+  width: 100%;
+  max-height: 100%;
   overflow: hidden;
   color: #2f2721;
   font-style: normal;
@@ -632,7 +681,8 @@
   font-weight: 800;
   line-height: 1.16;
   text-align: center;
-  word-break: break-word;
+  overflow-wrap: anywhere;
+  word-break: normal;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
 }
@@ -660,6 +710,17 @@
    little, so it clears the heads of close-by colleagues */
 .agent-2d-sprite.bubble-push-left .speech-bubble-2d { bottom: 88%; transform: translateX(-84%); }
 .agent-2d-sprite.bubble-push-right .speech-bubble-2d { bottom: 88%; transform: translateX(-16%); }
+
+.agent-2d-sprite.bubble-below .speech-bubble-2d {
+  top: 70%;
+  bottom: auto;
+}
+
+.agent-2d-sprite.bubble-below.bubble-push-left .speech-bubble-2d,
+.agent-2d-sprite.bubble-below.bubble-push-right .speech-bubble-2d {
+  top: 78%;
+  bottom: auto;
+}
 
 /* HUD boss chip */
 .boss-chip .chip-title {
@@ -836,7 +897,7 @@
 
 /* Ticker cards: two full lines, no mid-line clipping */
 .game-bottom-stack .speech-ticker {
-  max-height: 84px;
+  max-height: 62px;
 }
 
 .game-bottom-stack .ticker-bubble {
@@ -848,4 +909,164 @@
   overflow: hidden;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+@media (max-width: 720px), (max-height: 460px) {
+  .game-screen {
+    --hud-reserve: 64px;
+    --bottom-reserve: 136px;
+    padding-inline: 8px;
+  }
+
+  .game-stage-wrap {
+    width: min(calc(100vw - 16px), calc((100vh - var(--hud-reserve) - var(--bottom-reserve)) * 16 / 9));
+  }
+
+  .game-hud-top {
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .game-hud-top .brand-button {
+    flex-basis: auto;
+    width: 44px;
+    padding: 5px;
+    justify-content: center;
+  }
+
+  .game-hud-top .brand-button > span:last-child,
+  .hud-right .task-strip,
+  .loop-controls .phase-pill,
+  .hud-nav {
+    display: none;
+  }
+
+  .loop-controls {
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .game-hud-top .compact {
+    width: 38px;
+    min-width: 38px;
+    min-height: 34px;
+    padding: 6px;
+  }
+
+  .love-whip-panel {
+    display: none;
+  }
+}
+
+@media (max-width: 520px), (max-height: 340px) {
+  .speech-bubble-2d {
+    width: clamp(132px, 42vw, 190px);
+    min-height: clamp(62px, 18vw, 92px);
+  }
+
+  .agent-2d-sprite.bubble-lg .speech-bubble-2d {
+    width: clamp(164px, 52vw, 230px);
+    min-height: clamp(72px, 21vw, 106px);
+  }
+
+  .agent-2d-sprite.bubble-xl .speech-bubble-2d {
+    width: clamp(184px, 56vw, 230px);
+    min-height: clamp(84px, 24vw, 122px);
+  }
+
+  .agent-2d-sprite.bubble-push-left .speech-bubble-2d {
+    transform: translateX(-64%);
+  }
+
+  .agent-2d-sprite.bubble-push-right .speech-bubble-2d {
+    transform: translateX(-36%);
+  }
+
+  .agent-2d-sprite.bubble-edge-left .speech-bubble-2d {
+    transform: translateX(-20%);
+  }
+
+  .agent-2d-sprite.bubble-edge-right .speech-bubble-2d {
+    transform: translateX(-80%);
+  }
+
+  .speech-bubble-2d .bubble-safe {
+    inset: 14% 12% 29% 12%;
+  }
+
+  .speech-bubble-2d .bubble-safe em,
+  .agent-2d-sprite.bubble-lg .speech-bubble-2d .bubble-safe em,
+  .agent-2d-sprite.bubble-xl .speech-bubble-2d .bubble-safe em {
+    font-size: clamp(8px, 2.35vw, 10.5px);
+    line-height: 1.12;
+    -webkit-line-clamp: 5;
+  }
+
+  .office-current-card {
+    left: 8px;
+    right: 8px;
+    bottom: 6px;
+    display: flex;
+    gap: 6px;
+    min-width: 0;
+    padding: 6px 8px;
+  }
+
+  .office-current-card > div {
+    min-width: 0;
+  }
+
+  .office-current-card small {
+    display: none;
+  }
+
+  .office-current-card strong {
+    max-width: none;
+    font-size: 12px;
+  }
+
+  .office-current-card .status-badge {
+    min-height: 20px;
+    padding: 2px 5px;
+    font-size: 10px;
+  }
+
+  .office-current-card button {
+    flex: 0 0 auto;
+    padding: 5px 7px;
+    font-size: 12px;
+  }
+}
+
+@media (max-height: 340px) {
+  .game-screen {
+    --bottom-reserve: 66px;
+  }
+
+  .game-bottom-stack {
+    bottom: 8px;
+  }
+
+  .game-bottom-stack .speech-ticker {
+    display: none;
+  }
+
+  .boss-bar {
+    gap: 6px;
+    padding: 7px 8px;
+  }
+
+  .boss-bar-badge {
+    padding-inline: 8px;
+  }
+
+  .boss-bar input {
+    padding: 7px 9px;
+    font-size: 14px;
+  }
+
+  .boss-bar .primary-button.compact {
+    flex-basis: 42px;
+    min-width: 42px;
+  }
 }

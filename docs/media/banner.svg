@@ -21,7 +21,7 @@
     </radialGradient>
     <style>
       .title { font: 800 54px 'Segoe UI', system-ui, sans-serif; fill: #f6ecd9; letter-spacing: 0.5px; }
-      .sub { font: 500 19px 'Segoe UI', system-ui, sans-serif; fill: #cdbb9b; }
+      .sub { font: 500 18.5px 'Segoe UI', system-ui, sans-serif; fill: #cdbb9b; }
       .chip { font: 700 13px 'Segoe UI', system-ui, sans-serif; fill: #1f1812; }
       .tick { animation: dashmove 6s linear infinite; }
       @keyframes dashmove { to { stroke-dashoffset: -240; } }
@@ -37,6 +37,25 @@
   <rect x="1.5" y="1.5" width="1197" height="317" rx="17" fill="none" stroke="#7a5232" stroke-opacity="0.65" stroke-width="2"/>
   <circle cx="980" cy="60" r="190" fill="url(#glow)"/>
 
+  <!-- real-market candles under the curve -->
+  <g opacity="0.5">
+    <g fill="#56e4bc">
+      <rect x="618" y="236" width="9" height="26" rx="2"/><rect x="668" y="222" width="9" height="30" rx="2"/>
+      <rect x="744" y="206" width="9" height="24" rx="2"/><rect x="818" y="212" width="9" height="34" rx="2"/>
+      <rect x="934" y="180" width="9" height="30" rx="2"/><rect x="1058" y="158" width="9" height="34" rx="2"/>
+    </g>
+    <g fill="#ef6f6c">
+      <rect x="643" y="232" width="9" height="22" rx="2"/><rect x="706" y="218" width="9" height="26" rx="2"/>
+      <rect x="781" y="216" width="9" height="22" rx="2"/><rect x="876" y="196" width="9" height="28" rx="2"/>
+      <rect x="996" y="176" width="9" height="24" rx="2"/><rect x="1096" y="166" width="9" height="20" rx="2"/>
+    </g>
+    <g stroke="#9bd9c4" stroke-width="1.6">
+      <line x1="622.5" y1="228" x2="622.5" y2="268"/><line x1="672.5" y1="214" x2="672.5" y2="258"/>
+      <line x1="748.5" y1="198" x2="748.5" y2="236"/><line x1="822.5" y1="204" x2="822.5" y2="252"/>
+      <line x1="938.5" y1="172" x2="938.5" y2="216"/><line x1="1062.5" y1="150" x2="1062.5" y2="198"/>
+    </g>
+  </g>
+
   <!-- equity curve -->
   <path d="M 60 268 L 150 252 L 230 258 L 320 230 L 410 238 L 520 198 L 640 210 L 760 168 L 880 178 L 1000 132 L 1140 112"
         fill="none" stroke="url(#curve)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"
@@ -48,19 +67,23 @@
         fill="none" stroke="#ef6f6c" stroke-width="2.4" opacity="0.55" stroke-linecap="round"/>
 
   <!-- title block -->
-  <text x="64" y="118" class="title">Quant Research Lab</text>
-  <text x="66" y="152" class="sub">an autonomous anime quant office — you are the BOSS</text>
+  <text x="64" y="112" class="title">Quant Research Lab</text>
+  <text x="66" y="146" class="sub">an autonomous anime quant office mining 20 years of real markets — you are the BOSS</text>
 
   <!-- feature chips -->
   <g font-family="'Segoe UI', system-ui, sans-serif">
-    <rect x="64" y="178" rx="12" width="178" height="26" fill="url(#gold)"/>
-    <text x="78" y="196" class="chip">15 strategy families</text>
-    <rect x="252" y="178" rx="12" width="166" height="26" fill="url(#gold)"/>
-    <text x="266" y="196" class="chip">deflated Sharpe gate</text>
-    <rect x="428" y="178" rx="12" width="150" height="26" fill="url(#gold)"/>
-    <text x="442" y="196" class="chip">live conversations</text>
-    <rect x="588" y="178" rx="12" width="160" height="26" fill="url(#gold)"/>
-    <text x="602" y="196" class="chip">desktop wallpaper</text>
+    <rect x="64" y="172" rx="12" width="170" height="26" fill="url(#gold)"/>
+    <text x="78" y="190" class="chip">20y real market data</text>
+    <rect x="244" y="172" rx="12" width="140" height="26" fill="url(#gold)"/>
+    <text x="258" y="190" class="chip">Thompson bandit</text>
+    <rect x="394" y="172" rx="12" width="166" height="26" fill="url(#gold)"/>
+    <text x="408" y="190" class="chip">deflated Sharpe gate</text>
+    <rect x="570" y="172" rx="12" width="150" height="26" fill="url(#gold)"/>
+    <text x="584" y="190" class="chip">MAP-Elites niches</text>
+    <rect x="730" y="172" rx="12" width="160" height="26" fill="url(#gold)"/>
+    <text x="744" y="190" class="chip">desktop wallpaper</text>
+    <rect x="900" y="172" rx="12" width="94" height="26" fill="url(#gold)"/>
+    <text x="914" y="190" class="chip">EN / 中文</text>
   </g>
 
   <!-- crown -->
@@ -72,26 +95,26 @@
 
   <!-- heart & whip motifs -->
   <g class="floaty2">
-    <path d="M 940 196 c -7 -12 -26 -10 -28 4 c -2 12 12 20 28 32 c 16 -12 30 -20 28 -32 c -2 -14 -21 -16 -28 -4 Z"
+    <path d="M 940 222 c -7 -12 -26 -10 -28 4 c -2 12 12 20 28 32 c 16 -12 30 -20 28 -32 c -2 -14 -21 -16 -28 -4 Z"
           fill="#ef6f6c" stroke="#a33b35" stroke-width="2.4"/>
   </g>
-  <path d="M 1020 232 q 50 -34 86 -8 q 26 20 -4 30 q -22 7 -18 -12" fill="none" stroke="#9a6a3c" stroke-width="6" stroke-linecap="round" class="floaty"/>
+  <path d="M 1020 246 q 50 -34 86 -8 q 26 20 -4 30 q -22 7 -18 -12" fill="none" stroke="#9a6a3c" stroke-width="6" stroke-linecap="round" class="floaty"/>
 
   <!-- speech bubbles: the desk talking -->
   <g class="pulse">
-    <rect x="780" y="60" rx="11" width="186" height="34" fill="#fffaf0" opacity="0.93"/>
-    <path d="M 812 94 l -7 13 l 18 -13 Z" fill="#fffaf0" opacity="0.93"/>
-    <text x="794" y="83" font-family="'Segoe UI', system-ui, sans-serif" font-size="14.5" font-weight="700" fill="#46382a">OOS Sharpe 1.21 — promote?</text>
+    <rect x="745" y="58" rx="11" width="240" height="34" fill="#fffaf0" opacity="0.93"/>
+    <path d="M 780 92 l -7 13 l 18 -13 Z" fill="#fffaf0" opacity="0.93"/>
+    <text x="760" y="81" font-family="'Segoe UI', system-ui, sans-serif" font-size="14" font-weight="700" fill="#46382a">OOS Sharpe 1.04 — on real data.</text>
   </g>
   <g class="pulse" style="animation-delay: 1.2s">
-    <rect x="700" y="112" rx="11" width="158" height="32" fill="#efe2ff" opacity="0.92"/>
-    <path d="M 736 144 l -6 12 l 16 -12 Z" fill="#efe2ff" opacity="0.92"/>
-    <text x="714" y="133" font-family="'Segoe UI', system-ui, sans-serif" font-size="14" font-weight="700" fill="#4a3866">trial #7 — deflate it.</text>
+    <rect x="688" y="112" rx="11" width="180" height="32" fill="#efe2ff" opacity="0.92"/>
+    <path d="M 724 144 l -6 12 l 16 -12 Z" fill="#efe2ff" opacity="0.92"/>
+    <text x="702" y="133" font-family="'Segoe UI', system-ui, sans-serif" font-size="14" font-weight="700" fill="#4a3866">pool ΔSharpe +1.12. In.</text>
   </g>
 
   <!-- phase dots -->
   <g>
-    <circle cx="78" cy="234" r="5" fill="#56e4bc" class="pulse"/>
-    <text x="92" y="239" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" fill="#9bd9c4">hypothesis → backtest → risk gate → debate → iterate</text>
+    <circle cx="78" cy="228" r="5" fill="#56e4bc" class="pulse"/>
+    <text x="92" y="233" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" fill="#9bd9c4">bandit → hypothesis → real backtest → risk gates → debate → fund</text>
   </g>
 </svg>

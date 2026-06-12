@@ -58,8 +58,19 @@ function debateFor(
   ];
 }
 
-export async function runResearchIteration(adapter: LLMCapabilities, input: IterationInput): Promise<ExperimentRecord> {
-  const { settings, memory, iteration, experiments, bossDirective, explorationBias, strictnessBias } = input;
+export interface IterationDraft {
+  iteration: number;
+  strategy: StrategySpec;
+  generatedCode: string;
+}
+
+// Phase 1: the hypothesis exists from the moment "proposing" starts, so the
+// office can narrate the real new idea during data_check/coding.
+export async function prepareIteration(
+  adapter: LLMCapabilities,
+  input: Omit<IterationInput, "strictnessBias">
+): Promise<IterationDraft> {
+  const { settings, memory, iteration, experiments, bossDirective, explorationBias } = input;
   const strategy = await adapter.proposeHypothesis({
     settings,
     memory,
@@ -69,6 +80,17 @@ export async function runResearchIteration(adapter: LLMCapabilities, input: Iter
     explorationBias
   });
   const generatedCode = await adapter.generateStrategyLogic(strategy);
+  return { iteration, strategy, generatedCode };
+}
+
+// Phase 2: backtest + review + debate for a previously prepared draft.
+export async function completeIteration(
+  adapter: LLMCapabilities,
+  input: IterationInput,
+  draft: IterationDraft
+): Promise<ExperimentRecord> {
+  const { settings, memory, iteration, experiments, strictnessBias } = input;
+  const { strategy, generatedCode } = draft;
   const marketRows = makeMockMarketData(settings.startDate, 430);
   const params: BacktestParameters = {
     universe: strategy.universe,
@@ -131,4 +153,9 @@ export async function runResearchIteration(adapter: LLMCapabilities, input: Iter
     nextIterationSuggestion,
     agentSpeechSummary: debate.map((line) => `${line.speaker}: ${line.message}`)
   };
+}
+
+export async function runResearchIteration(adapter: LLMCapabilities, input: IterationInput): Promise<ExperimentRecord> {
+  const draft = await prepareIteration(adapter, input);
+  return completeIteration(adapter, input, draft);
 }

@@ -53,15 +53,15 @@ const DIRECTIVE_FAMILY_KEYWORDS: Array<[RegExp, string]> = [
   [/earning|盈余|财报|drift|pead/i, "pead"],
   [/news|新闻|sentiment|情绪|舆情/i, "news_sentiment_momentum"],
   [/fade|拥挤|crowd|过热/i, "crowded_news_fade"],
-  [/low.?vol|低波|defensive|防御|beta/i, "low_volatility"],
+  [/low.?vol|低波|defensive|防御|\bbeta\b/i, "low_volatility"],
   [/quality|质量|profit|盈利/i, "quality"],
   [/season|季节|month|月末|calendar|日历/i, "seasonality"],
   [/pair|配对|spread|价差|statarb|套利/i, "pairs_statarb"],
   [/supply|供应链|spillover|lead.?lag|联动|peer/i, "lead_lag_spillover"],
   [/vol.?manag|波动率管理|target.?vol|risk.?parity/i, "vol_managed"],
   [/revision|评级|analyst|分析师/i, "earnings_revision"],
-  [/trend|均线|moving average|ma\b/i, "trend_overlay"],
-  [/52|高点|high anchor|breakout|突破/i, "fifty_two_week_high"]
+  [/trend|均线|moving average|(?<![a-z])ma\b/i, "trend_overlay"],
+  [/\b52\b|高点|high anchor|breakout|突破/i, "fifty_two_week_high"]
 ];
 
 export function parseBossDirective(text: string): DirectiveHints {
@@ -95,8 +95,10 @@ function mutateParameters(
     const previous = typeof base?.[parameter.name] === "number" ? (base?.[parameter.name] as number) : parameter.default;
     const span = parameter.max - parameter.min;
     const drift = wide ? (rng() - 0.5) * span * 0.8 : (rng() - 0.5) * span * 0.25;
-    const steps = Math.round(clamp(previous + drift, parameter.min, parameter.max) / parameter.step);
-    parameters[parameter.name] = Number((steps * parameter.step).toFixed(4));
+    // snap to a min-anchored grid and re-clamp so off-grid bounds never leak
+    const clamped = clamp(previous + drift, parameter.min, parameter.max);
+    const snapped = parameter.min + Math.round((clamped - parameter.min) / parameter.step) * parameter.step;
+    parameters[parameter.name] = Number(clamp(snapped, parameter.min, parameter.max).toFixed(4));
   });
   return parameters;
 }

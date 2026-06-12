@@ -6,10 +6,13 @@
 
 **An autonomous anime quant research office. Six chibi researchers hunt for alpha — propose, backtest, gate, debate, iterate — while you rule the desk as the BOSS**
 
+**English** · [简体中文](README.zh-CN.md)
+
 [![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=white)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-7-646cff?logo=vite&logoColor=white)](https://vite.dev)
-[![Tests](https://img.shields.io/badge/tests-6%20passing-2f9c95)](#verify)
+[![Tests](https://img.shields.io/badge/tests-8%20passing-2f9c95)](#verify)
+[![Language](https://img.shields.io/badge/UI-EN%20%2F%20中文-3f88c5)](#you-are-the-boss)
 [![Wallpaper](https://img.shields.io/badge/desktop-wallpaper%20ready-e9b455)](#-put-it-on-your-desktop)
 [![License](https://img.shields.io/badge/license-MIT-8f5a2a)](LICENSE)
 
@@ -45,6 +48,7 @@ It displays historical simulations only. It is not investment advice and does no
 - **❤️ Love** — praise a researcher: hearts burst, morale rises, the strategy desk explores more boldly.
 - **🪢 Whip** — criticize one: the team gossips about it, and whipping the risk desk *genuinely raises the promotion bar* (stricter status thresholds, harsher gates).
 - **🖱️ Click anything** — the leaderboard screen, data cabinet, whiteboard, meeting table, and workstations all open live panels. The office is the only screen; there is no website around it.
+- **🌏 Bilingual** — flip the globe icon in the HUD (or Settings) to switch the whole game, characters' dialogue included, between English and 中文.
 
 ## 🖥️ Put it on your desktop
 
@@ -96,7 +100,7 @@ Conversations are always generated locally from real loop data (free, offline). 
 ## Verify
 
 ```bash
-npm test           # 6 engine tests: determinism, cost monotonicity, deflated-Sharpe shrinkage, directive parsing, gates
+npm test           # 8 engine tests: determinism, cost monotonicity, deflated-Sharpe shrinkage, directive parsing, parameter bounds, gates
 npm run build      # tsc + vite
 ```
 
@@ -110,7 +114,12 @@ From the research doc, in priority order:
 - [ ] **PBO via CSCV** — probability of backtest overfitting as a research-review set piece
 - [ ] Real LLM research loop through the Claude Code / Codex bridge adapters
 
-## Credits
+## Contributors
+
+| | |
+|---|---|
+| **Weike Zhang** ([@shoal-rat](https://github.com/shoal-rat)) | The Boss · concept & direction · art assets |
+| **Claude** (Anthropic) | full-stack implementation · research synthesis · character writing |
 
 Built with Claude Code. Character art, office renders, and the Love & Whip set are project-generated assets. Strategy priors cite their original papers inside [`src/engines/strategyKnowledge.ts`](src/engines/strategyKnowledge.ts).
 

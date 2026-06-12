@@ -3,6 +3,7 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import { navigate } from "../../App";
 import { getGeneratedAgent2DManifest } from "../../lib/assets/agent2dAssetManifest";
 import { office2DAssets, office2DDisplays, office2DMapSize, office2DZones, rectToPercentStyle } from "../../lib/office2d/mapLayout";
+import { t } from "../../i18n";
 import { useAppStore } from "../../store/AppStore";
 import { AgentProfile, OfficeAreaId } from "../../types";
 import { StatusBadge } from "../StatusBadge";
@@ -23,6 +24,17 @@ const areaTitles: Record<OfficeAreaId, string> = {
   leaderboard: "Leaderboard Screen",
   backtest_computer: "Backtest Rig",
   window: "Quiet Window"
+};
+
+const areaTitlesZh: Record<OfficeAreaId, string> = {
+  workstations: "工位",
+  whiteboard: "白板",
+  meeting: "会议桌",
+  tea: "茶水角",
+  data_cabinet: "数据柜",
+  leaderboard: "排行榜大屏",
+  backtest_computer: "回测机",
+  window: "安静窗边"
 };
 
 // Clicking an in-world object opens the matching detail overlay - the office
@@ -50,6 +62,7 @@ export function OfficeMap2D({ bossTool, onBossToolUsed }: OfficeMap2DProps): JSX
   const { agents, currentExperiment, setActiveObject, addManualBubble, settings, director, applyBossAction, wallpaperMode } =
     useAppStore();
   const [selectedAgent, setSelectedAgent] = useState<AgentProfile | null>(null);
+  const lang = settings.language;
   const snapshot = useSyncExternalStore(director.subscribe, director.getSnapshot);
   const visibleAgents = useMemo(() => agents.filter((agent) => agent.visible), [agents]);
   const debugVisible = window.location.search.includes("debug2d") || window.location.hash.includes("debug2d");
@@ -64,11 +77,12 @@ export function OfficeMap2D({ bossTool, onBossToolUsed }: OfficeMap2DProps): JSX
     }
     const talker = visibleAgents.find((agent) => agent.role === "experiment_manager") ?? visibleAgents[0];
     if (talker) {
+      const teaLine = lang === "zh" ? "茶歇五分钟，循环不停转。" : "Short tea break. The loop keeps moving.";
       addManualBubble({
         agentId: talker.id,
         role: talker.role,
         speaker: talker.name,
-        message: label === "Tea Corner" ? "Short tea break. The loop keeps moving." : label,
+        message: area === "tea" ? teaLine : label,
         tone: area === "tea" ? "drinking_tea" : "thinking"
       });
     }
@@ -117,10 +131,10 @@ export function OfficeMap2D({ bossTool, onBossToolUsed }: OfficeMap2DProps): JSX
               key={key}
               className="office2d-hotspot"
               style={rectToPercentStyle(zone.interaction, 18)}
-              onClick={() => clickArea(area, areaTitles[area])}
+              onClick={() => clickArea(area, lang === "zh" ? areaTitlesZh[area] : areaTitles[area])}
               aria-label={`Open ${zone.label}`}
             >
-              <span>{zone.label}</span>
+              <span>{lang === "zh" ? areaTitlesZh[area] : zone.label}</span>
             </button>
           );
         })}
@@ -180,7 +194,7 @@ export function OfficeMap2D({ bossTool, onBossToolUsed }: OfficeMap2DProps): JSX
           </div>
           <p>{selectedAgent.personality}</p>
           <button className="secondary-button" onClick={() => navigate("/agents")}>
-            Edit profile <ArrowUpRight size={14} />
+            {t(lang, "editProfile")} <ArrowUpRight size={14} />
           </button>
         </div>
       )}
@@ -188,11 +202,11 @@ export function OfficeMap2D({ bossTool, onBossToolUsed }: OfficeMap2DProps): JSX
       {currentExperiment && !wallpaperMode && (
         <div className="office-current-card">
           <div>
-            <small>Current experiment</small>
+            <small>{t(lang, "currentExperiment")}</small>
             <strong>{currentExperiment.strategyName}</strong>
           </div>
           <StatusBadge status={currentExperiment.status} />
-          <button onClick={() => navigate(`/experiment/${currentExperiment.id}`)}>Open</button>
+          <button onClick={() => navigate(`/experiment/${currentExperiment.id}`)}>{t(lang, "open")}</button>
         </div>
       )}
     </section>

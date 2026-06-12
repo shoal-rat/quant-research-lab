@@ -22,7 +22,7 @@ import {
 } from "../engines/agentStateMachine";
 import { MockQuantLLMAdapter } from "../engines/llmAdapters";
 import { deriveResearchMemory } from "../engines/researchMemory";
-import { runResearchIteration } from "../engines/researchLoop";
+import { completeIteration, IterationDraft, prepareIteration } from "../engines/researchLoop";
 import {
   bossDirectiveConversation,
   gossipConversation,
@@ -32,6 +32,7 @@ import {
   whippedConversation
 } from "../engines/dialogue/dialogueLocal";
 import { condenseConversation } from "../engines/dialogue/llmCondenser";
+import { phaseStatus, t } from "../i18n";
 import { OfficeDirector } from "../lib/office2d/officeDirector";
 import { isWallpaperMode } from "../lib/wallpaperMode";
 import { readStored, writeStored } from "./persistence";
@@ -44,25 +45,13 @@ const STORAGE = {
   mood: "qrl.mood"
 };
 
-const phaseText: Record<LoopPhase, string> = {
-  idle: "Waiting for a research task.",
-  proposing: "Strategy Researcher is proposing a hypothesis.",
-  data_check: "Data Manager is checking timestamps and universe coverage.",
-  coding: "Code Engineer is generating controlled strategy logic.",
-  backtesting: "Backtest computer is simulating the experiment.",
-  risk_review: "Risk Reviewer is checking bias, costs, drawdown, and robustness.",
-  debate: "The research desk is debating the result.",
-  decision: "Experiment Manager is making the final call.",
-  saved: "Experiment saved to memory."
-};
-
 const defaultLoop: ResearchLoopState = {
   phase: "idle",
   running: false,
   autoRun: false,
   iteration: 0,
   loopCountCompleted: 0,
-  statusMessage: phaseText.idle
+  statusMessage: phaseStatus("en", "idle")
 };
 
 const factorToFamily: Record<string, string> = {
@@ -169,6 +158,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
   const experimentsRef = useRef(experiments);
   const moodRef = useRef(mood);
   const pendingDirectiveRef = useRef<string | undefined>(undefined);
+  const draftRef = useRef<IterationDraft | null>(null);
   const directorRef = useRef<OfficeDirector | null>(null);
   const wallpaperMode = useMemo(() => isWallpaperMode(), []);
 
@@ -273,16 +263,19 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
       setLoop((prev) => ({
         ...prev,
         phase,
-        statusMessage: phaseText[phase],
+        statusMessage: phaseStatus(settingsRef.current.language, phase),
         currentExperimentId: experiment?.id ?? prev.currentExperimentId
       }));
       setAgentRuntime((prev) => runtimeForPhase(phase, agentsRef.current, prev, timestamp));
-      const conversationExperiment = ["risk_review", "debate", "decision", "saved"].includes(phase)
-        ? experiment
-        : undefined;
+      // late phases narrate the finished experiment; early phases narrate the
+      // freshly proposed draft (never the previous iteration's record)
+      const earlyPhase = ["proposing", "data_check", "coding", "backtesting"].includes(phase);
       const script = phaseConversation({
         phase,
-        experiment: conversationExperiment ?? (phase === "data_check" || phase === "coding" || phase === "backtesting" ? experiment : undefined),
+        experiment: earlyPhase ? undefined : experiment,
+        draft: earlyPhase ? draftRef.current?.strategy : undefined,
+        costBps: settingsRef.current.transactionCostBps,
+        language: settingsRef.current.language,
         agents: agentsRef.current,
         memory: deriveResearchMemory(experimentsRef.current),
         timestamp
@@ -304,9 +297,21 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
 
       if (activeLoop.phase === "idle" || activeLoop.phase === "saved") {
         if (activeLoop.phase === "saved" && activeLoop.autoRun && activeLoop.loopCountCompleted >= activeSettings.maximumLoopCount) {
-          setLoop((prev) => ({ ...prev, running: false, autoRun: false, phase: "idle", statusMessage: "Maximum loop count reached." }));
+          setLoop((prev) => ({ ...prev, running: false, autoRun: false, phase: "idle", statusMessage: t(settingsRef.current.language, "maxLoops") }));
           return;
         }
+        // propose the new strategy NOW so every early phase narrates it
+        const { explorationBias } = moraleBiases();
+        const bossDirective = pendingDirectiveRef.current;
+        pendingDirectiveRef.current = undefined;
+        draftRef.current = await prepareIteration(adapterRef.current, {
+          settings: activeSettings,
+          memory: activeMemory,
+          iteration: activeLoop.iteration + 1,
+          experiments: activeExperiments,
+          bossDirective,
+          explorationBias
+        });
         await setPhase("proposing", current);
         return;
       }
@@ -325,27 +330,41 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
         await setPhase("backtesting", current);
         const nextIterationNumber = activeLoop.iteration + 1;
         const { explorationBias, strictnessBias } = moraleBiases();
-        const bossDirective = pendingDirectiveRef.current;
-        pendingDirectiveRef.current = undefined;
-        const experiment = await runResearchIteration(adapterRef.current, {
-          settings: activeSettings,
-          memory: activeMemory,
-          iteration: nextIterationNumber,
-          experiments: activeExperiments,
-          bossDirective,
-          explorationBias,
-          strictnessBias
-        });
+        const draft =
+          draftRef.current && draftRef.current.iteration === nextIterationNumber
+            ? draftRef.current
+            : await prepareIteration(adapterRef.current, {
+                settings: activeSettings,
+                memory: activeMemory,
+                iteration: nextIterationNumber,
+                experiments: activeExperiments,
+                bossDirective: pendingDirectiveRef.current,
+                explorationBias
+              });
+        draftRef.current = null;
+        const experiment = await completeIteration(
+          adapterRef.current,
+          {
+            settings: activeSettings,
+            memory: activeMemory,
+            iteration: nextIterationNumber,
+            experiments: activeExperiments,
+            explorationBias,
+            strictnessBias
+          },
+          draft
+        );
         setExperiments((prev) => [...prev, experiment]);
         setLoop((prev) => ({
           ...prev,
           iteration: nextIterationNumber,
           currentExperimentId: experiment.id,
-          statusMessage: "Backtest complete. Risk desk is opening the folder."
+          statusMessage: t(settingsRef.current.language, "backtestDone")
         }));
         const reveal = ideaRevealConversation({
           phase: "backtesting",
           experiment,
+          language: settingsRef.current.language,
           agents: agentsRef.current,
           memory: activeMemory,
           timestamp: Date.now()
@@ -379,7 +398,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
           ...prev,
           loopCountCompleted: prev.loopCountCompleted + 1,
           running: prev.autoRun,
-          statusMessage: experiment?.managerDecision ?? phaseText.saved
+          statusMessage: experiment?.managerDecision ?? phaseStatus(settingsRef.current.language, "saved")
         }));
       }
     } finally {
@@ -401,6 +420,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
           gossipConversation({
             phase,
             experiment: currentExperimentRef.current,
+            language: settingsRef.current.language,
             agents: agentsRef.current,
             memory: deriveResearchMemory(experimentsRef.current),
             timestamp: now
@@ -460,28 +480,33 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
       running: true,
       autoRun: false,
       phase: prev.phase === "idle" ? "proposing" : prev.phase,
-      statusMessage: prev.phase === "idle" ? phaseText.proposing : prev.statusMessage
+      statusMessage: prev.phase === "idle" ? phaseStatus(settingsRef.current.language, "proposing") : prev.statusMessage
     }));
     setAgentRuntime((prev) => runtimeForPhase("proposing", agentsRef.current, prev, Date.now()));
     void advancePhase();
   }, [advancePhase]);
 
   const pauseResearch = useCallback(() => {
-    setLoop((prev) => ({ ...prev, running: false, autoRun: false, statusMessage: "Paused by user." }));
+    setLoop((prev) => ({ ...prev, running: false, autoRun: false, statusMessage: t(settingsRef.current.language, "pausedByUser") }));
   }, []);
 
   const toggleAutoRun = useCallback(() => {
-    setLoop((prev) => {
-      const autoRun = !prev.autoRun;
-      return {
-        ...prev,
-        running: autoRun,
-        autoRun,
-        phase: prev.phase === "idle" && autoRun ? "proposing" : prev.phase,
-        statusMessage: autoRun ? "Auto Run is advancing the desk." : "Auto Run stopped."
-      };
-    });
-    void advancePhase();
+    // compute from the committed ref and sync it eagerly so advancePhase sees
+    // the post-toggle state; only kick the machine when turning ON
+    const next = !loopRef.current.autoRun;
+    setLoop((prev) => ({
+      ...prev,
+      running: next,
+      autoRun: next,
+      phase: prev.phase === "idle" && next ? "proposing" : prev.phase,
+      statusMessage: next ? t(settingsRef.current.language, "autoRunOn") : t(settingsRef.current.language, "autoRunOff")
+    }));
+    if (next) {
+      loopRef.current = { ...loopRef.current, running: true, autoRun: true };
+      void advancePhase();
+    } else {
+      loopRef.current = { ...loopRef.current, running: false, autoRun: false };
+    }
   }, [advancePhase]);
 
   const nextIteration = useCallback(() => {
@@ -521,6 +546,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
           bossDirectiveConversation({
             phase: loopRef.current.phase,
             experiment: currentExperimentRef.current,
+            language: settingsRef.current.language,
             agents: agentsRef.current,
             memory: deriveResearchMemory(experimentsRef.current),
             timestamp: Date.now(),
@@ -528,7 +554,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
           })
         );
       }, 2400);
-      setLoop((prev) => ({ ...prev, statusMessage: `Boss directive queued for the next hypothesis: "${trimmed.slice(0, 60)}"` }));
+      setLoop((prev) => ({ ...prev, statusMessage: `${t(settingsRef.current.language, "directiveQueued")}"${trimmed.slice(0, 60)}"` }));
     },
     [director]
   );
@@ -559,6 +585,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
       const context = {
         phase: loopRef.current.phase,
         experiment: currentExperimentRef.current,
+        language: settingsRef.current.language,
         agents: agentsRef.current,
         memory: deriveResearchMemory(experimentsRef.current),
         timestamp: now,

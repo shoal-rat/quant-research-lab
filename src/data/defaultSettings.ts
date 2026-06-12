@@ -19,5 +19,6 @@ export const defaultSettings: Settings = {
   officeViewMode: "2d",
   dialogueBackend: "local",
   anthropicApiKey: "",
-  openaiApiKey: ""
+  openaiApiKey: "",
+  language: "en"
 };

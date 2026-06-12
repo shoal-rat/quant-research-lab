@@ -18,7 +18,7 @@ function rankExperiments(experiments: ExperimentRecord[]): ExperimentRecord[] {
         b.outOfSampleResult.overfittingRiskScore * 0.35;
       return scoreB - scoreA;
     })
-    .slice(0, 4);
+    .slice(0, 3);
 }
 
 export function InWorldLeaderboard2D(): JSX.Element {

@@ -1,6 +1,7 @@
 import { Crown, Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { readStored, writeStored } from "../store/persistence";
+import { t } from "../i18n";
 import { useAppStore } from "../store/AppStore";
 
 interface BossOrbProps {
@@ -26,7 +27,8 @@ function clampPosition(position: OrbPosition): OrbPosition {
 // Desktop-wallpaper boss key: a draggable floating ball. Tap it to unfold
 // Love, Whip, and the directive input right on the wallpaper.
 export function BossOrb({ tool, onPickTool }: BossOrbProps): JSX.Element {
-  const { sendBossDirective } = useAppStore();
+  const { sendBossDirective, settings } = useAppStore();
+  const lang = settings.language;
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [position, setPosition] = useState<OrbPosition>(() =>
@@ -113,17 +115,17 @@ export function BossOrb({ tool, onPickTool }: BossOrbProps): JSX.Element {
           <div className="boss-orb-tools">
             <button className={`boss-orb-tool ${tool === "love" ? "active" : ""}`} onClick={() => arm("love")} title="Praise a researcher">
               <img src="/assets/generated/ui/love-whip/heart.png" alt="Love" draggable={false} />
-              <span>Love</span>
+              <span>{t(lang, "love")}</span>
             </button>
             <button className={`boss-orb-tool ${tool === "whip" ? "active" : ""}`} onClick={() => arm("whip")} title="Criticize a researcher">
               <img src="/assets/generated/ui/love-whip/whip.png" alt="Whip" draggable={false} />
-              <span>Whip</span>
+              <span>{t(lang, "whip")}</span>
             </button>
           </div>
           <div className="boss-orb-input">
             <input
               value={text}
-              placeholder="Boss directive…"
+              placeholder={t(lang, "bossDirective")}
               onChange={(event) => setText(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") submit();
@@ -138,7 +140,7 @@ export function BossOrb({ tool, onPickTool }: BossOrbProps): JSX.Element {
         </div>
       )}
 
-      {tool && !open && <span className="boss-orb-hint">click a researcher</span>}
+      {tool && !open && <span className="boss-orb-hint">{t(lang, "clickResearcher")}</span>}
     </div>
   );
 }

@@ -27,9 +27,20 @@ export function Agent2DSprite({ agent, state, reducedMotion, onClick }: Agent2DS
     "--agent-scale": manifest?.scale ?? 1
   } as CSSProperties;
 
+  // long lines get a bigger bubble; near the stage edge the bubble shifts
+  // inward so it is never clipped offscreen
+  const messageLength = state.message?.length ?? 0;
+  const bubbleSize = messageLength > 90 ? "bubble-xl" : messageLength > 48 ? "bubble-lg" : "";
+  const edge =
+    state.x < office2DMapSize.width * 0.16
+      ? "bubble-edge-left"
+      : state.x > office2DMapSize.width * 0.84
+        ? "bubble-edge-right"
+        : "";
+
   return (
     <button
-      className={`agent-2d-sprite activity-${state.activity} facing-${state.facing} ${state.expression ? "has-expression" : ""}`}
+      className={`agent-2d-sprite activity-${state.activity} facing-${state.facing} ${state.expression ? "has-expression" : ""} ${bubbleSize} ${edge}`}
       style={style}
       onClick={onClick}
       aria-label={`Inspect ${agent.name}`}

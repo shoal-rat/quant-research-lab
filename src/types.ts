@@ -98,6 +98,7 @@ export interface AgentRuntime {
 }
 
 export type DialogueBackend = "local" | "anthropic" | "openai";
+export type Language = "en" | "zh";
 
 export interface Settings {
   researchTaskName: string;
@@ -119,6 +120,7 @@ export interface Settings {
   dialogueBackend: DialogueBackend;
   anthropicApiKey: string;
   openaiApiKey: string;
+  language: Language;
 }
 
 export interface MarketRow {

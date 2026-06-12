@@ -17,6 +17,13 @@ export function SettingsPage(): JSX.Element {
 
       <section className="page-card settings-card">
         <div className="form-grid">
+          <label className="field">
+            <span>Language / 语言</span>
+            <select value={settings.language} onChange={(event) => set("language", event.target.value as Settings["language"])}>
+              <option value="en">English</option>
+              <option value="zh">中文（界面 + 角色对话）</option>
+            </select>
+          </label>
           <label className="field full">
             <span>Research task name</span>
             <input value={settings.researchTaskName} onChange={(event) => set("researchTaskName", event.target.value)} />

@@ -30,6 +30,7 @@ export interface BossEffect {
 interface WalkPlan {
   path: Office2DPoint[];
   index: number;
+  targetZone: Office2DZoneId;
   onArrive?: () => void;
 }
 
@@ -57,13 +58,17 @@ interface DirectorAgent {
 interface ActiveConversation {
   script: ConversationScript;
   spotZone?: Office2DZoneId;
-  state: "gathering" | "talking";
+  state: "pending" | "gathering" | "talking";
   lineIndex: number;
   lineUntil: number;
   startedAt: number;
+  enqueuedAt: number;
   positions: Map<string, Office2DPoint>;
   upgraded: boolean;
 }
+
+const QUEUE_LIMIT = 3; // pending conversations behind the active one
+const PENDING_STALE_MS = 45000;
 
 export interface DirectorSnapshot {
   version: number;
@@ -199,7 +204,11 @@ export class OfficeDirector {
   // ---- event intake -------------------------------------------------------
 
   onPhaseChange(phase: LoopPhase, loop: ResearchLoopState, experiment: ExperimentRecord | undefined, script?: ConversationScript): void {
-    // assign role work targets for this phase
+    // Swap conversations first so agents freed from a preempted chat are
+    // eligible for phase work, and new participants keep their gather walk.
+    if (script) {
+      this.scheduleConversation(script);
+    }
     this.agents.forEach((agent) => {
       if (agent.conversationId) return;
       const action = phaseAction(agent.profile, { ...loop, phase }, experiment);
@@ -214,55 +223,70 @@ export class OfficeDirector {
         });
       }
     });
-    if (script) {
-      this.scheduleConversation(script);
-    }
   }
 
   scheduleConversation(script: ConversationScript): void {
     if (script.lines.length === 0) return;
-    const current = this.conversations[0];
-    if (current && current.script.priority >= script.priority && Date.now() - current.startedAt < 25000) {
-      return; // do not interrupt a same-or-higher priority chat that just started
-    }
-    this.conversations.forEach((conversation) => this.endConversation(conversation, true));
-    this.conversations = [];
-
+    const now = Date.now();
     const spotZone = script.spot !== "none" && script.spot in office2DZones ? (script.spot as Office2DZoneId) : undefined;
     const conversation: ActiveConversation = {
       script,
       spotZone,
-      state: spotZone ? "gathering" : "talking",
+      state: "pending",
       lineIndex: -1,
       lineUntil: 0,
-      startedAt: Date.now(),
+      startedAt: 0,
+      enqueuedAt: now,
       positions: new Map(),
       upgraded: false
     };
-    this.conversations.push(conversation);
 
-    if (spotZone) {
-      script.participantIds.forEach((agentId, index) => {
-        const agent = this.agents.get(agentId);
-        if (!agent) return;
-        agent.conversationId = script.id;
+    const current = this.conversations[0];
+    if (!current) {
+      this.conversations = [conversation];
+      this.activateConversation(conversation, now);
+      return;
+    }
+
+    if (script.priority > current.script.priority) {
+      // preempt the running chat, keep the rest of the queue
+      this.endConversation(current, true);
+      const pending = this.conversations.slice(1).filter((item) => item.script.topicKey !== script.topicKey);
+      this.conversations = [conversation, ...pending].slice(0, QUEUE_LIMIT + 1);
+      this.activateConversation(conversation, now);
+      return;
+    }
+
+    // queue it: replace any pending chat on the same topic, keep highest priorities
+    const pending = this.conversations.slice(1).filter((item) => item.script.topicKey !== script.topicKey);
+    pending.push(conversation);
+    pending.sort((a, b) => b.script.priority - a.script.priority);
+    this.conversations = [current, ...pending.slice(0, QUEUE_LIMIT)];
+  }
+
+  private activateConversation(conversation: ActiveConversation, now: number): void {
+    conversation.state = "gathering";
+    conversation.startedAt = now;
+    const { script, spotZone } = conversation;
+
+    script.participantIds.forEach((agentId, index) => {
+      const agent = this.agents.get(agentId);
+      if (!agent) return;
+      agent.conversationId = script.id;
+      if (spotZone) {
         const point = zoneIdlePoint(spotZone, index);
         conversation.positions.set(agentId, point);
         this.walkToPoint(agent, spotZone, point);
-      });
-    } else {
-      script.participantIds.forEach((agentId) => {
-        const agent = this.agents.get(agentId);
-        if (agent) agent.conversationId = script.id;
-      });
-    }
+      }
+    });
 
-    // fire the cheap-model condenser; swap lines in if it returns in time
+    // fire the cheap-model condenser; swap lines in only before the first
+    // original line has been spoken (the gather beat gives it a window)
     if (this.condense) {
       void this.condense(script).then((lines) => {
         if (!lines) return;
         const active = this.conversations.find((item) => item.script.id === script.id);
-        if (active && active.lineIndex <= 0 && !active.upgraded) {
+        if (active && active.lineIndex < 0 && !active.upgraded) {
           active.upgraded = true;
           active.script = { ...active.script, lines };
         }
@@ -316,11 +340,12 @@ export class OfficeDirector {
   }
 
   private walkToPoint(agent: DirectorAgent, zone: Office2DZoneId, point: Office2DPoint, onArrive?: () => void): void {
+    // agent.zone stays the agent's physical location until arrival, so a
+    // rerouted walk always pathfinds from where the agent actually is.
     const waypoints = buildWaypointPath(agent.zone, zone).slice(0, -1);
     const path = [...waypoints, point];
     agent.occupation = undefined;
-    agent.walk = { path, index: 0, onArrive };
-    agent.zone = zone;
+    agent.walk = { path, index: 0, targetZone: zone, onArrive };
   }
 
   private advanceWalk(agent: DirectorAgent, dt: number): void {
@@ -346,6 +371,7 @@ export class OfficeDirector {
     }
     if (walk.index >= walk.path.length) {
       agent.walk = undefined;
+      agent.zone = walk.targetZone;
       walk.onArrive?.();
     }
   }
@@ -363,15 +389,27 @@ export class OfficeDirector {
   }
 
   private tickConversation(now: number): void {
-    const conversation = this.conversations[0];
+    let conversation = this.conversations[0];
+    // activate the next queued chat, dropping entries that went stale waiting
+    while (conversation && conversation.state === "pending") {
+      if (now - conversation.enqueuedAt > PENDING_STALE_MS) {
+        this.conversations.shift();
+        conversation = this.conversations[0];
+        continue;
+      }
+      this.activateConversation(conversation, now);
+    }
     if (!conversation) return;
 
     if (conversation.state === "gathering") {
-      const allArrived = conversation.script.participantIds.every((agentId) => {
-        const agent = this.agents.get(agentId);
-        return agent && !agent.walk;
-      });
-      if (allArrived || now - conversation.startedAt > 9000) {
+      // spotless chats hold a short beat so the condenser can land its swap
+      const ready = conversation.spotZone
+        ? conversation.script.participantIds.every((agentId) => {
+            const agent = this.agents.get(agentId);
+            return agent && !agent.walk;
+          }) || now - conversation.startedAt > 9000
+        : now - conversation.startedAt > 1200;
+      if (ready) {
         conversation.state = "talking";
         conversation.lineUntil = now + 250;
       }
@@ -490,7 +528,7 @@ export class OfficeDirector {
         return {
           agentId: agent.profile.id,
           zone: agent.zone,
-          targetZone: agent.zone,
+          targetZone: agent.walk?.targetZone ?? agent.zone,
           x: agent.x,
           y: agent.y,
           facing,

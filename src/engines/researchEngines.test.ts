@@ -5,6 +5,7 @@ import { MockQuantLLMAdapter } from "./llmAdapters";
 import { runBacktest } from "./backtestEngine";
 import { reviewBacktestRisk } from "./riskReviewEngine";
 import { parseBossDirective, proposeStrategy } from "./hypothesisEngine";
+import { getFamily } from "./strategyKnowledge";
 import { ProposalContext } from "../types";
 
 function proposalContext(overrides: Partial<ProposalContext> = {}): ProposalContext {
@@ -38,6 +39,24 @@ describe("research engines", () => {
     // deterministic for the same context
     const again = proposeStrategy(proposalContext());
     expect(again.familyKey).toBe(strategy.familyKey);
+  });
+
+  it("mutated parameters always stay inside their documented [min, max] ranges", () => {
+    for (let iteration = 1; iteration <= 40; iteration += 1) {
+      const strategy = proposeStrategy(proposalContext({ iteration }));
+      const family = getFamily(strategy.familyKey);
+      family.parameters.forEach((parameter) => {
+        const value = strategy.parameters[parameter.name] as number;
+        expect(value).toBeGreaterThanOrEqual(parameter.min);
+        expect(value).toBeLessThanOrEqual(parameter.max);
+      });
+    }
+  });
+
+  it("directive keywords do not fire on lookalike words", () => {
+    expect(parseBossDirective("watch the two sigma crowd and gamma exposure").familyKeys).not.toContain("trend_overlay");
+    expect(parseBossDirective("universe of 152 stocks please").familyKeys).not.toContain("fifty_two_week_high");
+    expect(parseBossDirective("use a 200ma trend filter").familyKeys).toContain("trend_overlay");
   });
 
   it("boss directives steer family choice and horizon", () => {

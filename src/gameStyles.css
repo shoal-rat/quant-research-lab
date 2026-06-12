@@ -575,3 +575,48 @@
   transform: translateY(-50%);
   animation: love-whip-pulse 1.1s ease-in-out infinite;
 }
+
+/* Speech bubble sizing: long lines get a bigger balloon, more visible lines */
+.agent-2d-sprite.bubble-lg .speech-bubble-2d {
+  width: clamp(195px, 19.5vw, 305px);
+  min-height: clamp(88px, 10vw, 138px);
+}
+
+.agent-2d-sprite.bubble-lg .speech-bubble-2d span {
+  max-width: 78%;
+  font-size: clamp(9.5px, 0.74vw, 12.5px);
+  -webkit-line-clamp: 4;
+}
+
+.agent-2d-sprite.bubble-xl .speech-bubble-2d {
+  width: clamp(225px, 23vw, 350px);
+  min-height: clamp(102px, 11.5vw, 158px);
+}
+
+.agent-2d-sprite.bubble-xl .speech-bubble-2d span {
+  max-width: 80%;
+  font-size: clamp(9px, 0.7vw, 12px);
+  line-height: 1.18;
+  -webkit-line-clamp: 5;
+}
+
+/* Bubbles near the stage edge shift inward instead of clipping offscreen */
+.agent-2d-sprite.bubble-edge-left .speech-bubble-2d {
+  transform: translateX(-14%);
+}
+
+.agent-2d-sprite.bubble-edge-right .speech-bubble-2d {
+  transform: translateX(-86%);
+}
+
+/* In-world leaderboard: rows share the box evenly, never overlap */
+.leaderboard-2d {
+  grid-template-rows: auto auto;
+  grid-auto-rows: minmax(0, 1fr);
+  row-gap: 1px;
+}
+
+.leaderboard-2d-row {
+  overflow: hidden;
+  align-content: center;
+}

@@ -1,10 +1,12 @@
 import { Crown, Send } from "lucide-react";
 import { useState } from "react";
+import { t } from "../i18n";
 import { useAppStore } from "../store/AppStore";
 
 // The boss speaks; the office reacts and the next hypothesis is steered.
 export function BossBar(): JSX.Element {
-  const { sendBossDirective, bossEvents } = useAppStore();
+  const { sendBossDirective, bossEvents, settings } = useAppStore();
+  const lang = settings.language;
   const [text, setText] = useState("");
   const lastDirective = [...bossEvents].reverse().find((event) => event.kind === "directive");
 
@@ -24,8 +26,8 @@ export function BossBar(): JSX.Element {
         value={text}
         placeholder={
           lastDirective?.text
-            ? `Last order: ${lastDirective.text.slice(0, 60)}`
-            : "Give the desk a directive… e.g. \"try momentum with 5-day holds\" / \"被新闻情绪坑过了，换条路\""
+            ? `${t(lang, "bossLastOrder")}${lastDirective.text.slice(0, 60)}`
+            : t(lang, "bossPlaceholder")
         }
         onChange={(event) => setText(event.target.value)}
         onKeyDown={(event) => {
@@ -33,7 +35,7 @@ export function BossBar(): JSX.Element {
         }}
         aria-label="Boss directive"
       />
-      <button className="primary-button compact" onClick={submit} aria-label="Send directive">
+      <button className="primary-button compact" onClick={submit} aria-label={t(lang, "bossSend")}>
         <Send size={15} />
       </button>
     </div>

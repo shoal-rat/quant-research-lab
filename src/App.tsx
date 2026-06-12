@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BarChart3, Bot, FlaskConical, History, Images, Settings } from "lucide-react";
+import { BarChart3, Bot, FlaskConical, History, Images, Languages, Settings } from "lucide-react";
 import { OfficePage } from "./pages/OfficePage";
 import { ExperimentDetailPage } from "./pages/ExperimentDetailPage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
@@ -9,6 +9,7 @@ import { HistoryPage } from "./pages/HistoryPage";
 import { AssetPreviewPage } from "./pages/AssetPreviewPage";
 import { GameModal } from "./components/GameModal";
 import { LoopControls } from "./components/LoopControls";
+import { phaseLabel, t } from "./i18n";
 import { useAppStore } from "./store/AppStore";
 
 type Route =
@@ -42,7 +43,8 @@ export function navigate(path: string): void {
 // The office IS the game. Everything else is an overlay the boss clicks into.
 export function App(): JSX.Element {
   const [route, setRoute] = useState<Route>(() => parseRoute(window.location.hash));
-  const { loop, settings, experiments, currentExperiment, wallpaperMode } = useAppStore();
+  const { loop, settings, experiments, currentExperiment, wallpaperMode, updateSettings } = useAppStore();
+  const lang = settings.language;
 
   useEffect(() => {
     const handler = () => setRoute(parseRoute(window.location.hash));
@@ -54,11 +56,11 @@ export function App(): JSX.Element {
   const close = () => navigate("/office");
 
   const navItems = [
-    { label: "History", path: "/history", icon: History },
-    { label: "Leaderboard", path: "/leaderboard", icon: BarChart3 },
-    { label: "Agents", path: "/agents", icon: Bot },
-    { label: "Assets", path: "/asset-preview", icon: Images },
-    { label: "Settings", path: "/settings", icon: Settings }
+    { label: t(lang, "navHistory"), path: "/history", icon: History },
+    { label: t(lang, "navLeaderboard"), path: "/leaderboard", icon: BarChart3 },
+    { label: t(lang, "navAgents"), path: "/agents", icon: Bot },
+    { label: t(lang, "navAssets"), path: "/asset-preview", icon: Images },
+    { label: t(lang, "navSettings"), path: "/settings", icon: Settings }
   ];
 
   return (
@@ -72,14 +74,14 @@ export function App(): JSX.Element {
               <FlaskConical size={18} />
             </span>
             <span>
-              <strong>Quant Research Lab</strong>
+              <strong>{lang === "zh" ? "量化研究室" : "Quant Research Lab"}</strong>
               <small>{settings.researchTaskName}</small>
             </span>
           </button>
           <div className="hud-right">
             <span className="task-strip">
               <span className={`phase-dot ${loop.running ? "live" : ""}`} />
-              <small>{experiments.length} experiments</small>
+              <small>{experiments.length} {t(lang, "experiments")}</small>
             </span>
             <LoopControls />
             <nav className="hud-nav" aria-label="Panels">
@@ -91,6 +93,13 @@ export function App(): JSX.Element {
                   </button>
                 );
               })}
+              <button
+                className="hud-nav-button"
+                onClick={() => updateSettings({ language: lang === "zh" ? "en" : "zh" })}
+                title={t(lang, "navLanguage")}
+              >
+                <Languages size={16} />
+              </button>
             </nav>
           </div>
         </header>
@@ -99,49 +108,49 @@ export function App(): JSX.Element {
       {wallpaperMode && (
         <div className="wallpaper-chip">
           <span className={`phase-dot ${loop.running ? "live" : ""}`} />
-          <span>{loop.phase.replaceAll("_", " ")}</span>
+          <span>{phaseLabel(lang, loop.phase)}</span>
           {currentExperiment && <small>{currentExperiment.strategyName}</small>}
         </div>
       )}
 
       {!wallpaperMode && route.name === "history" && (
-        <GameModal title="Experiment History" onClose={close} wide>
+        <GameModal title={t(lang, "historyTitle")} onClose={close} wide>
           <HistoryPage />
         </GameModal>
       )}
       {!wallpaperMode && route.name === "leaderboard" && (
-        <GameModal title="Strategy Leaderboard" onClose={close} wide>
+        <GameModal title={t(lang, "leaderboardTitle")} onClose={close} wide>
           <LeaderboardPage />
         </GameModal>
       )}
       {!wallpaperMode && route.name === "agents" && (
-        <GameModal title="Research Team" onClose={close} wide>
+        <GameModal title={t(lang, "agentsTitle")} onClose={close} wide>
           <AgentManagementPage />
         </GameModal>
       )}
       {!wallpaperMode && route.name === "asset-preview" && (
-        <GameModal title="Asset Preview" onClose={close} wide>
+        <GameModal title={t(lang, "assetsTitle")} onClose={close} wide>
           <AssetPreviewPage />
         </GameModal>
       )}
       {!wallpaperMode && route.name === "settings" && (
-        <GameModal title="Lab Settings" onClose={close} wide>
+        <GameModal title={t(lang, "settingsTitle")} onClose={close} wide>
           <SettingsPage />
         </GameModal>
       )}
       {!wallpaperMode && route.name === "experiment" && (
-        <GameModal title="Experiment Detail" onClose={close} wide>
+        <GameModal title={t(lang, "experimentTitle")} onClose={close} wide>
           <ExperimentDetailPage id={route.id} />
         </GameModal>
       )}
       {!wallpaperMode && route.name === "current" && (
-        <GameModal title="Current Experiment" onClose={close} wide>
+        <GameModal title={t(lang, "currentTitle")} onClose={close} wide>
           {currentExperiment ? (
             <ExperimentDetailPage id={currentExperiment.id} />
           ) : (
             <div className="page-card">
-              <h2>No experiment yet</h2>
-              <p>Press Start in the top bar and the desk will produce its first hypothesis.</p>
+              <h2>{t(lang, "noExperimentYet")}</h2>
+              <p>{t(lang, "noExperimentHint")}</p>
             </div>
           )}
         </GameModal>

@@ -15,8 +15,8 @@
   position: absolute;
   inset: 0;
   display: grid;
-  --hud-reserve: 52px;
-  --bottom-reserve: 136px;
+  --hud-reserve: 72px;
+  --bottom-reserve: 148px;
   place-items: center;
   padding: var(--hud-reserve) 12px var(--bottom-reserve);
 }
@@ -172,7 +172,7 @@
 }
 
 .game-bottom-stack .speech-ticker {
-  max-height: 62px;
+  max-height: 72px;
   margin: 0;
   padding: 6px 8px;
   overflow: hidden;
@@ -180,12 +180,21 @@
 }
 
 .game-bottom-stack .ticker-track {
-  min-height: 48px;
+  align-items: stretch;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .game-bottom-stack .ticker-bubble {
-  min-height: 42px;
+  flex: 1 1 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: auto;
+  max-width: none;
+  height: 54px;
+  min-width: 0;
+  min-height: 0;
   padding: 5px 8px;
+  overflow: hidden;
 }
 
 .game-bottom-stack .ticker-bubble strong {
@@ -196,8 +205,15 @@
 }
 
 .game-bottom-stack .ticker-bubble span {
+  min-width: 0;
   font-size: 12px;
   line-height: 1.2;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.game-bottom-stack .ticker-bubble:nth-of-type(n + 5) {
+  display: none;
 }
 
 .boss-bar {
@@ -623,14 +639,25 @@
 }
 
 /* Speech bubble sizing: long lines get a bigger balloon, more visible lines */
+.speech-bubble-2d {
+  container-type: inline-size;
+  width: clamp(170px, 16vw, 250px);
+  min-height: clamp(78px, 8.8vw, 122px);
+}
+
+.speech-bubble-2d.bubble-shout,
+.speech-bubble-2d.bubble-explosion {
+  width: clamp(190px, 18vw, 280px);
+}
+
 .agent-2d-sprite.bubble-lg .speech-bubble-2d {
-  width: clamp(195px, 19.5vw, 305px);
-  min-height: clamp(88px, 10vw, 138px);
+  width: clamp(230px, 21vw, 340px);
+  min-height: clamp(98px, 10.8vw, 150px);
 }
 
 .agent-2d-sprite.bubble-xl .speech-bubble-2d {
-  width: clamp(225px, 23vw, 350px);
-  min-height: clamp(102px, 11.5vw, 158px);
+  width: clamp(270px, 26vw, 390px);
+  min-height: clamp(116px, 12.8vw, 176px);
 }
 
 /* Bubbles near the stage edge shift inward instead of clipping offscreen */
@@ -660,7 +687,7 @@
    ------------------------------------------------------------------ */
 .speech-bubble-2d .bubble-safe {
   position: absolute;
-  inset: 13% 14% 28% 14%;
+  inset: 13% 13% 27% 13%;
   z-index: 2;
   display: flex;
   align-items: center;
@@ -677,12 +704,13 @@
   overflow: hidden;
   color: #2f2721;
   font-style: normal;
-  font-size: clamp(10px, 0.78vw, 13px);
+  font-size: clamp(9px, 0.78vw, 13px);
+  font-size: clamp(8px, 4.8cqw, 12px);
   font-weight: 800;
   line-height: 1.16;
   text-align: center;
   overflow-wrap: anywhere;
-  word-break: normal;
+  word-break: break-word;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
 }
@@ -691,19 +719,25 @@
 .speech-bubble-2d.bubble-thought .bubble-safe { inset: 15% 17% 32% 17%; }
 .speech-bubble-2d.bubble-shout .bubble-safe,
 .speech-bubble-2d.bubble-explosion .bubble-safe { inset: 17% 18% 26% 18%; }
-.speech-bubble-2d.bubble-whisper .bubble-safe em { font-size: clamp(9px, 0.72vw, 12px); }
+.speech-bubble-2d.bubble-whisper .bubble-safe em {
+  font-size: clamp(8px, 0.72vw, 12px);
+  font-size: clamp(7.5px, 4.4cqw, 11px);
+}
 .speech-bubble-2d.bubble-sweat .bubble-safe { inset: 14% 16% 30% 16%; }
 
 /* size variants now target the inner text */
 .agent-2d-sprite.bubble-lg .speech-bubble-2d .bubble-safe em {
-  font-size: clamp(9.5px, 0.74vw, 12.5px);
+  font-size: clamp(8.5px, 0.74vw, 12.5px);
+  font-size: clamp(7.5px, 4.2cqw, 11.5px);
+  line-height: 1.14;
   -webkit-line-clamp: 4;
 }
 
 .agent-2d-sprite.bubble-xl .speech-bubble-2d .bubble-safe em {
-  font-size: clamp(9px, 0.7vw, 12px);
-  line-height: 1.18;
-  -webkit-line-clamp: 5;
+  font-size: clamp(8px, 0.7vw, 12px);
+  font-size: clamp(7px, 3.75cqw, 10.5px);
+  line-height: 1.12;
+  -webkit-line-clamp: 6;
 }
 
 /* Bubble side-push: the balloon slides toward the emptier side and rises a
@@ -897,7 +931,7 @@
 
 /* Ticker cards: two full lines, no mid-line clipping */
 .game-bottom-stack .speech-ticker {
-  max-height: 62px;
+  max-height: 72px;
 }
 
 .game-bottom-stack .ticker-bubble {
@@ -911,10 +945,28 @@
   -webkit-box-orient: vertical;
 }
 
+.office-current-card {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.office-current-card > div {
+  min-width: 0;
+}
+
+.office-current-card .status-badge,
+.office-current-card button {
+  flex: 0 0 auto;
+}
+
+.agent-2d-name {
+  max-width: min(112px, 140%);
+}
+
 @media (max-width: 720px), (max-height: 460px) {
   .game-screen {
     --hud-reserve: 64px;
-    --bottom-reserve: 136px;
+    --bottom-reserve: 148px;
     padding-inline: 8px;
   }
 
@@ -954,6 +1006,10 @@
   }
 
   .love-whip-panel {
+    display: none;
+  }
+
+  .game-bottom-stack .ticker-bubble:nth-of-type(n + 3) {
     display: none;
   }
 }

@@ -31,7 +31,7 @@ export function Agent2DSprite({ agent, state, reducedMotion, onClick }: Agent2DS
   // or drops below the sprite so it is not clipped offscreen.
   const cjkCount = (state.message?.match(/[\u3400-\u9fff]/g) ?? []).length;
   const messageLength = (state.message?.length ?? 0) + cjkCount * 0.9;
-  const bubbleSize = messageLength > 88 ? "bubble-xl" : messageLength > 44 ? "bubble-lg" : "";
+  const bubbleSize = messageLength > 72 ? "bubble-xl" : messageLength > 34 ? "bubble-lg" : "";
   const vertical = state.y < office2DMapSize.height * 0.36 ? "bubble-below" : "";
   const edge =
     state.x < office2DMapSize.width * 0.16

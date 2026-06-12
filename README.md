@@ -4,7 +4,7 @@
 
 <br/>
 
-**An autonomous anime quant research office. Six chibi researchers hunt for alpha — propose, backtest, gate, debate, iterate — while you rule the desk as the BOSS.**
+**An autonomous anime quant research office. Six chibi researchers hunt for alpha — propose, backtest, gate, debate, iterate — while you rule the desk as the BOSS**
 
 [![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=white)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)

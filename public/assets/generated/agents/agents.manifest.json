@@ -1,0 +1,137 @@
+{
+  "version": 2,
+  "agents": [
+    {
+      "id": "strategy-researcher",
+      "displayName": "Strategy Researcher",
+      "roleCn": "策略研究员",
+      "scale": 1.03,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.92
+      },
+      "avatar": "/assets/generated/agents/strategy-researcher/avatar.png",
+      "sprites": {
+        "idle": "/assets/generated/agents/strategy-researcher/idle.png",
+        "walk": "/assets/generated/agents/strategy-researcher/walk.png",
+        "thinking": "/assets/generated/agents/strategy-researcher/thinking.png",
+        "writing-whiteboard": "/assets/generated/agents/strategy-researcher/writing-whiteboard.png",
+        "debating": "/assets/generated/agents/strategy-researcher/debating.png",
+        "excited": "/assets/generated/agents/strategy-researcher/excited.png",
+        "confused": "/assets/generated/agents/strategy-researcher/confused.png"
+      },
+      "provenance": "imagegen-source; chroma-key removed locally; state variants post-processed from generated source sprite",
+      "sourcePrompt": "imagegen chroma-key retry on magenta background; Strategy Researcher identity from reference sheet"
+    },
+    {
+      "id": "code-engineer",
+      "displayName": "Code Engineer",
+      "roleCn": "代码工程师",
+      "scale": 1.02,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.92
+      },
+      "avatar": "/assets/generated/agents/code-engineer/avatar.png",
+      "sprites": {
+        "idle": "/assets/generated/agents/code-engineer/idle.png",
+        "walk": "/assets/generated/agents/code-engineer/walk.png",
+        "coding": "/assets/generated/agents/code-engineer/coding.png",
+        "frustrated": "/assets/generated/agents/code-engineer/frustrated.png",
+        "tired": "/assets/generated/agents/code-engineer/tired.png",
+        "fixed-bug": "/assets/generated/agents/code-engineer/fixed-bug.png",
+        "drinking-coffee": "/assets/generated/agents/code-engineer/drinking-coffee.png"
+      },
+      "provenance": "imagegen-source; chroma-key removed locally; state variants post-processed from generated source sprite",
+      "sourcePrompt": "imagegen chroma-key source; Code Engineer identity from reference sheet"
+    },
+    {
+      "id": "risk-reviewer",
+      "displayName": "Risk Reviewer",
+      "roleCn": "风控审查员",
+      "scale": 1.04,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.92
+      },
+      "avatar": "/assets/generated/agents/risk-reviewer/avatar.png",
+      "sprites": {
+        "idle": "/assets/generated/agents/risk-reviewer/idle.png",
+        "walk": "/assets/generated/agents/risk-reviewer/walk.png",
+        "reviewing": "/assets/generated/agents/risk-reviewer/reviewing.png",
+        "angry": "/assets/generated/agents/risk-reviewer/angry.png",
+        "rejecting": "/assets/generated/agents/risk-reviewer/rejecting.png",
+        "table-slam": "/assets/generated/agents/risk-reviewer/table-slam.png",
+        "serious": "/assets/generated/agents/risk-reviewer/serious.png"
+      },
+      "provenance": "imagegen-source; chroma-key removed locally; state variants post-processed from generated source sprite",
+      "sourcePrompt": "imagegen chroma-key source; Risk Reviewer identity from reference sheet"
+    },
+    {
+      "id": "skeptic-researcher",
+      "displayName": "Skeptic Researcher",
+      "roleCn": "怀疑论研究员",
+      "scale": 1.02,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.92
+      },
+      "avatar": "/assets/generated/agents/skeptic-researcher/avatar.png",
+      "sprites": {
+        "idle": "/assets/generated/agents/skeptic-researcher/idle.png",
+        "walk": "/assets/generated/agents/skeptic-researcher/walk.png",
+        "skeptical": "/assets/generated/agents/skeptic-researcher/skeptical.png",
+        "whispering": "/assets/generated/agents/skeptic-researcher/whispering.png",
+        "smirking": "/assets/generated/agents/skeptic-researcher/smirking.png",
+        "deep-thinking": "/assets/generated/agents/skeptic-researcher/deep-thinking.png",
+        "debating": "/assets/generated/agents/skeptic-researcher/debating.png"
+      },
+      "provenance": "imagegen-source; chroma-key removed locally; state variants post-processed from generated source sprite",
+      "sourcePrompt": "imagegen chroma-key source; Skeptic Researcher identity from reference sheet"
+    },
+    {
+      "id": "experiment-manager",
+      "displayName": "Experiment Manager",
+      "roleCn": "实验经理",
+      "scale": 1.05,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.92
+      },
+      "avatar": "/assets/generated/agents/experiment-manager/avatar.png",
+      "sprites": {
+        "idle": "/assets/generated/agents/experiment-manager/idle.png",
+        "walk": "/assets/generated/agents/experiment-manager/walk.png",
+        "presenting": "/assets/generated/agents/experiment-manager/presenting.png",
+        "calling-meeting": "/assets/generated/agents/experiment-manager/calling-meeting.png",
+        "deciding": "/assets/generated/agents/experiment-manager/deciding.png",
+        "updating-screen": "/assets/generated/agents/experiment-manager/updating-screen.png",
+        "confident": "/assets/generated/agents/experiment-manager/confident.png"
+      },
+      "provenance": "imagegen-source; chroma-key removed locally; state variants post-processed from generated source sprite",
+      "sourcePrompt": "imagegen chroma-key source; Experiment Manager identity from reference sheet"
+    },
+    {
+      "id": "data-manager",
+      "displayName": "Data Manager",
+      "roleCn": "数据管理员",
+      "scale": 1.02,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.92
+      },
+      "avatar": "/assets/generated/agents/data-manager/avatar.png",
+      "sprites": {
+        "idle": "/assets/generated/agents/data-manager/idle.png",
+        "walk": "/assets/generated/agents/data-manager/walk.png",
+        "checking-data": "/assets/generated/agents/data-manager/checking-data.png",
+        "carrying-files": "/assets/generated/agents/data-manager/carrying-files.png",
+        "confused": "/assets/generated/agents/data-manager/confused.png",
+        "problem-solved": "/assets/generated/agents/data-manager/problem-solved.png",
+        "inspecting-timestamp": "/assets/generated/agents/data-manager/inspecting-timestamp.png"
+      },
+      "provenance": "imagegen-source; chroma-key removed locally; state variants post-processed from generated source sprite",
+      "sourcePrompt": "imagegen chroma-key source; Data Manager identity from reference sheet"
+    }
+  ]
+}

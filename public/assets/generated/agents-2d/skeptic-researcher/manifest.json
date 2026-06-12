@@ -1,0 +1,38 @@
+{
+  "id": "skeptic-researcher",
+  "role": "skeptic_researcher",
+  "displayName": "Skeptic Researcher",
+  "roleCn": "怀疑论研究员",
+  "scale": 1,
+  "anchor": {
+    "x": 0.5,
+    "y": 0.9
+  },
+  "avatar": "/assets/generated/agents-2d/skeptic-researcher/avatar.png",
+  "sprites": {
+    "idle-front": "/assets/generated/agents-2d/skeptic-researcher/idle-front.png",
+    "idle-back": "/assets/generated/agents-2d/skeptic-researcher/idle-back.png",
+    "idle-left": "/assets/generated/agents-2d/skeptic-researcher/idle-left.png",
+    "idle-right": "/assets/generated/agents-2d/skeptic-researcher/idle-right.png",
+    "walk-front": "/assets/generated/agents-2d/skeptic-researcher/walk-front.png",
+    "walk-back": "/assets/generated/agents-2d/skeptic-researcher/walk-back.png",
+    "walk-left": "/assets/generated/agents-2d/skeptic-researcher/walk-left.png",
+    "walk-right": "/assets/generated/agents-2d/skeptic-researcher/walk-right.png",
+    "skeptical": "/assets/generated/agents-2d/skeptic-researcher/skeptical.png",
+    "whispering": "/assets/generated/agents-2d/skeptic-researcher/whispering.png",
+    "gotcha": "/assets/generated/agents-2d/skeptic-researcher/gotcha.png",
+    "silent-judgment": "/assets/generated/agents-2d/skeptic-researcher/silent-judgment.png"
+  },
+  "expressions": {
+    "delighted": "/assets/generated/agents-2d/skeptic-researcher/expressions/delighted.png",
+    "shocked": "/assets/generated/agents-2d/skeptic-researcher/expressions/shocked.png",
+    "angry": "/assets/generated/agents-2d/skeptic-researcher/expressions/angry.png",
+    "smug": "/assets/generated/agents-2d/skeptic-researcher/expressions/smug.png",
+    "worried": "/assets/generated/agents-2d/skeptic-researcher/expressions/worried.png",
+    "crying": "/assets/generated/agents-2d/skeptic-researcher/expressions/crying.png",
+    "embarrassed": "/assets/generated/agents-2d/skeptic-researcher/expressions/embarrassed.png",
+    "determined": "/assets/generated/agents-2d/skeptic-researcher/expressions/determined.png"
+  },
+  "provenance": "imagegen 2D sprite sheet split into transparent final sprites",
+  "sourceSheet": "work/imagegen-2d-raw/skeptic-researcher-raw.png"
+}

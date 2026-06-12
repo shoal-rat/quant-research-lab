@@ -1,0 +1,22 @@
+{
+  "id": "skeptic-researcher",
+  "displayName": "Skeptic Researcher",
+  "roleCn": "怀疑论研究员",
+  "scale": 1.02,
+  "anchor": {
+    "x": 0.5,
+    "y": 0.92
+  },
+  "avatar": "/assets/generated/agents/skeptic-researcher/avatar.png",
+  "sprites": {
+    "idle": "/assets/generated/agents/skeptic-researcher/idle.png",
+    "walk": "/assets/generated/agents/skeptic-researcher/walk.png",
+    "skeptical": "/assets/generated/agents/skeptic-researcher/skeptical.png",
+    "whispering": "/assets/generated/agents/skeptic-researcher/whispering.png",
+    "smirking": "/assets/generated/agents/skeptic-researcher/smirking.png",
+    "deep-thinking": "/assets/generated/agents/skeptic-researcher/deep-thinking.png",
+    "debating": "/assets/generated/agents/skeptic-researcher/debating.png"
+  },
+  "provenance": "imagegen-source; chroma-key removed locally; state variants post-processed from generated source sprite",
+  "sourcePrompt": "imagegen chroma-key source; Skeptic Researcher identity from reference sheet"
+}

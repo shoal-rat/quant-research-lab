@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "mapSize": {
+    "width": 1600,
+    "height": 900
+  },
+  "blocked": [
+    {
+      "id": "leaderboard-wall",
+      "x": 180,
+      "y": 68,
+      "width": 390,
+      "height": 165
+    },
+    {
+      "id": "whiteboard-wall",
+      "x": 920,
+      "y": 72,
+      "width": 438,
+      "height": 178
+    },
+    {
+      "id": "data-cabinet",
+      "x": 1375,
+      "y": 75,
+      "width": 180,
+      "height": 240
+    },
+    {
+      "id": "tea-counter",
+      "x": 92,
+      "y": 325,
+      "width": 245,
+      "height": 235
+    },
+    {
+      "id": "meeting-table",
+      "x": 570,
+      "y": 360,
+      "width": 440,
+      "height": 178
+    },
+    {
+      "id": "backtest-rig",
+      "x": 520,
+      "y": 675,
+      "width": 510,
+      "height": 162
+    },
+    {
+      "id": "workstation",
+      "x": 1120,
+      "y": 560,
+      "width": 390,
+      "height": 235
+    },
+    {
+      "id": "manager-desk",
+      "x": 1060,
+      "y": 312,
+      "width": 235,
+      "height": 150
+    }
+  ],
+  "walkableBounds": {
+    "x": 45,
+    "y": 250,
+    "width": 1510,
+    "height": 590
+  }
+}

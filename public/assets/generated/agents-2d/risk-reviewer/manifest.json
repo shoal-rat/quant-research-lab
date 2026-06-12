@@ -1,0 +1,38 @@
+{
+  "id": "risk-reviewer",
+  "role": "risk_reviewer",
+  "displayName": "Risk Reviewer",
+  "roleCn": "风控审查员",
+  "scale": 1,
+  "anchor": {
+    "x": 0.5,
+    "y": 0.9
+  },
+  "avatar": "/assets/generated/agents-2d/risk-reviewer/avatar.png",
+  "sprites": {
+    "idle-front": "/assets/generated/agents-2d/risk-reviewer/idle-front.png",
+    "idle-back": "/assets/generated/agents-2d/risk-reviewer/idle-back.png",
+    "idle-left": "/assets/generated/agents-2d/risk-reviewer/idle-left.png",
+    "idle-right": "/assets/generated/agents-2d/risk-reviewer/idle-right.png",
+    "walk-front": "/assets/generated/agents-2d/risk-reviewer/walk-front.png",
+    "walk-back": "/assets/generated/agents-2d/risk-reviewer/walk-back.png",
+    "walk-left": "/assets/generated/agents-2d/risk-reviewer/walk-left.png",
+    "walk-right": "/assets/generated/agents-2d/risk-reviewer/walk-right.png",
+    "reviewing": "/assets/generated/agents-2d/risk-reviewer/reviewing.png",
+    "audit-alarm": "/assets/generated/agents-2d/risk-reviewer/audit-alarm.png",
+    "rejection-stamp": "/assets/generated/agents-2d/risk-reviewer/rejection-stamp.png",
+    "controlled-approval": "/assets/generated/agents-2d/risk-reviewer/controlled-approval.png"
+  },
+  "expressions": {
+    "delighted": "/assets/generated/agents-2d/risk-reviewer/expressions/delighted.png",
+    "shocked": "/assets/generated/agents-2d/risk-reviewer/expressions/shocked.png",
+    "angry": "/assets/generated/agents-2d/risk-reviewer/expressions/angry.png",
+    "smug": "/assets/generated/agents-2d/risk-reviewer/expressions/smug.png",
+    "worried": "/assets/generated/agents-2d/risk-reviewer/expressions/worried.png",
+    "crying": "/assets/generated/agents-2d/risk-reviewer/expressions/crying.png",
+    "embarrassed": "/assets/generated/agents-2d/risk-reviewer/expressions/embarrassed.png",
+    "determined": "/assets/generated/agents-2d/risk-reviewer/expressions/determined.png"
+  },
+  "provenance": "imagegen 2D sprite sheet split into transparent final sprites",
+  "sourceSheet": "work/imagegen-2d-raw/risk-reviewer-raw.png"
+}

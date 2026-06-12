@@ -1,0 +1,22 @@
+{
+  "id": "strategy-researcher",
+  "displayName": "Strategy Researcher",
+  "roleCn": "策略研究员",
+  "scale": 1.03,
+  "anchor": {
+    "x": 0.5,
+    "y": 0.92
+  },
+  "avatar": "/assets/generated/agents/strategy-researcher/avatar.png",
+  "sprites": {
+    "idle": "/assets/generated/agents/strategy-researcher/idle.png",
+    "walk": "/assets/generated/agents/strategy-researcher/walk.png",
+    "thinking": "/assets/generated/agents/strategy-researcher/thinking.png",
+    "writing-whiteboard": "/assets/generated/agents/strategy-researcher/writing-whiteboard.png",
+    "debating": "/assets/generated/agents/strategy-researcher/debating.png",
+    "excited": "/assets/generated/agents/strategy-researcher/excited.png",
+    "confused": "/assets/generated/agents/strategy-researcher/confused.png"
+  },
+  "provenance": "imagegen-source; chroma-key removed locally; state variants post-processed from generated source sprite",
+  "sourcePrompt": "imagegen chroma-key retry on magenta background; Strategy Researcher identity from reference sheet"
+}

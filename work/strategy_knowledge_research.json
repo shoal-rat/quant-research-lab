@@ -1,0 +1,413 @@
+[
+  {
+    "key": "xs_momentum",
+    "name": "Cross-Sectional Momentum (12-1)",
+    "familyKind": "cross_sectional",
+    "rationale": "Investor underreaction to information and delayed overreaction cause past 3-12 month relative winners to keep outperforming losers (Jegadeesh-Titman 1993).",
+    "rationaleKind": "behavioral",
+    "construction": "Rank stocks on cumulative return months t-12 to t-2 (skip the most recent month to avoid reversal contamination). Long top decile, short bottom decile, monthly rebalance with overlapping 1-6 month holds.",
+    "holdingPeriods": ["1m", "3m", "6m"],
+    "grossSharpeRange": [0.5, 0.8],
+    "netSharpeRange": [0.3, 0.6],
+    "failureModes": [
+      "Momentum crashes: option-like payoff of past losers produces severe losses after market declines, in high volatility, and during sharp rebounds (2009)",
+      "Post-publication decay and crowding among quant funds",
+      "Negative skew and high kurtosis understate tail risk in Sharpe terms",
+      "Skip-month omission contaminates the signal with short-term reversal"
+    ],
+    "costSensitivity": "medium",
+    "crowdingRisk": "high",
+    "parameters": [
+      { "name": "formationMonths", "min": 6, "max": 12, "default": 12, "step": 1 },
+      { "name": "skipMonths", "min": 0, "max": 2, "default": 1, "step": 1 },
+      { "name": "holdingMonths", "min": 1, "max": 6, "default": 3, "step": 1 },
+      { "name": "tailPct", "min": 10, "max": 30, "default": 10, "step": 5 }
+    ],
+    "keyPapers": ["Jegadeesh & Titman 1993 (JF)", "Daniel & Moskowitz 2016 Momentum Crashes (JFE)", "Frazzini, Israel & Moskowitz Trading Costs (SSRN 2294498)"],
+    "newsDriven": false
+  },
+  {
+    "key": "st_reversal",
+    "name": "Short-Term Reversal",
+    "familyKind": "cross_sectional",
+    "rationale": "Compensation for providing liquidity against uninformed order-flow pressure, plus weekly/monthly overreaction; expected returns spike with VIX because it is conditional liquidity provision, not a constant premium (Jegadeesh 1990, Nagel 2012).",
+    "rationaleKind": "structural",
+    "construction": "Rank on prior 1-week to 1-month return; long losers, short winners; hold 1 week to 1 month; weekly or monthly rebalance; ideally industry- or factor-residualized returns in a liquid large-cap universe.",
+    "holdingPeriods": ["1w", "2w", "1m"],
+    "grossSharpeRange": [0.8, 1.5],
+    "netSharpeRange": [0.0, 0.3],
+    "failureModes": [
+      "Transaction costs and bid-ask bounce: much of the paper profit IS the spread",
+      "Inventory risk in stressed markets (August 2007 quant unwind)",
+      "Signal decays within days; any execution latency destroys it",
+      "Shorting recent winners is crowded and squeeze-prone"
+    ],
+    "costSensitivity": "high",
+    "crowdingRisk": "high",
+    "parameters": [
+      { "name": "lookbackDays", "min": 5, "max": 21, "default": 21, "step": 1 },
+      { "name": "holdingDays", "min": 5, "max": 21, "default": 5, "step": 1 },
+      { "name": "minAdvPercentile", "min": 50, "max": 90, "default": 70, "step": 5 },
+      { "name": "vixScaling", "min": 0, "max": 1, "default": 0, "step": 1 }
+    ],
+    "keyPapers": ["Jegadeesh 1990 (JF)", "Nagel 2012 Evaporating Liquidity (RFS)", "Novy-Marx & Velikov 2016 (RFS)"],
+    "newsDriven": false
+  },
+  {
+    "key": "pead",
+    "name": "Post-Earnings Announcement Drift",
+    "familyKind": "event_driven",
+    "rationale": "Investors underreact to earnings surprises because they fail to recognize the autocorrelation of seasonally-differenced earnings, producing drift for roughly 60 trading days (Bernard & Thomas 1989).",
+    "rationaleKind": "behavioral",
+    "construction": "SUE = (EPS_q - EPS_{q-4}) / sigma of that difference over prior 8 quarters, or 3-day announcement abnormal return. Decile sort at announcement; long top, short bottom; hold ~60 trading days or until next announcement.",
+    "holdingPeriods": ["1m", "2m", "3m"],
+    "grossSharpeRange": [0.4, 0.7],
+    "netSharpeRange": [0.2, 0.5],
+    "failureModes": [
+      "Substantial decay in large caps post-2000s as earnings-quant desks industrialized the trade",
+      "Effect concentrated in illiquid small caps where costs bite hardest",
+      "Earnings-season clustering creates lumpy, concentrated exposure",
+      "SUE definition sensitivity (time-series vs analyst-expectation) invites data mining"
+    ],
+    "costSensitivity": "medium",
+    "crowdingRisk": "medium",
+    "parameters": [
+      { "name": "holdingDays", "min": 20, "max": 63, "default": 60, "step": 1 },
+      { "name": "entryLagDays", "min": 1, "max": 3, "default": 1, "step": 1 },
+      { "name": "sueWindowQuarters", "min": 4, "max": 12, "default": 8, "step": 1 },
+      { "name": "minMarketCapPct", "min": 0, "max": 50, "default": 20, "step": 5 }
+    ],
+    "keyPapers": ["Bernard & Thomas 1989 (JAR)", "Chan, Jegadeesh & Lakonishok 1996 (JF)"],
+    "newsDriven": true
+  },
+  {
+    "key": "news_sentiment",
+    "name": "News Sentiment Momentum",
+    "familyKind": "event_driven",
+    "rationale": "Quantified news language, especially negative-word fraction, contains fundamental information that prices absorb with a lag (Tetlock 2007; Tetlock et al. 2008).",
+    "rationaleKind": "behavioral",
+    "construction": "Score firm-specific fresh news with NLP sentiment; aggregate daily or weekly per stock; long high-sentiment, short low-sentiment names with recent news; hold 1-5 days (fast) or 1-4 weeks (slow); daily rebalance; novelty filter against syndicated duplicates.",
+    "holdingPeriods": ["1d", "1w", "2w", "1m"],
+    "grossSharpeRange": [0.6, 1.2],
+    "netSharpeRange": [0.2, 0.7],
+    "failureModes": [
+      "Daily-horizon profits largely consumed by transaction costs (Tetlock's own caveat)",
+      "Alpha decay since NLP sentiment became a commoditized vendor product post-2010",
+      "Look-ahead and timestamp bugs are the classic simulator sin for news signals",
+      "Confounded with PEAD and price momentum unless explicitly controlled",
+      "Stale or duplicate syndicated stories poison the score"
+    ],
+    "costSensitivity": "high",
+    "crowdingRisk": "medium",
+    "parameters": [
+      { "name": "sentimentHalfLifeDays", "min": 1, "max": 10, "default": 3, "step": 1 },
+      { "name": "freshnessWindowDays", "min": 1, "max": 5, "default": 2, "step": 1 },
+      { "name": "holdingDays", "min": 1, "max": 20, "default": 5, "step": 1 },
+      { "name": "noveltyFilter", "min": 0, "max": 1, "default": 1, "step": 1 }
+    ],
+    "keyPapers": ["Tetlock 2007 (JF)", "Tetlock, Saar-Tsechansky & Macskassy 2008 More Than Words (JF)"],
+    "newsDriven": true
+  },
+  {
+    "key": "attention_fade",
+    "name": "Crowded-News / Attention Fade",
+    "familyKind": "event_driven",
+    "rationale": "Retail investors are net buyers of attention-grabbing stocks (news spikes, extreme volume, extreme returns) because of search constraints, creating temporary price pressure that subsequently reverses (Barber & Odean 2008; Da, Engelberg & Gao 2011).",
+    "rationaleKind": "behavioral",
+    "construction": "Detect abnormal attention via search-volume spike, abnormal trading volume, or abnormal news count; let the initial 1-2 weeks of pressure run, then short high-attention names against matched low-attention peers; hold 2 weeks to 3 months; weekly rebalance; cap borrow fees.",
+    "holdingPeriods": ["2w", "1m", "3m"],
+    "grossSharpeRange": [0.3, 0.6],
+    "netSharpeRange": [0.1, 0.4],
+    "failureModes": [
+      "Short squeezes in exactly the names shorted - meme-stock risk, GME 2021 is the canonical disaster",
+      "Hard-to-borrow fees and recalls on the short leg",
+      "Timing the inflection between attention momentum and fade is fragile",
+      "Attention proxies (search volume) are noisy and subject to revision"
+    ],
+    "costSensitivity": "high",
+    "crowdingRisk": "medium",
+    "parameters": [
+      { "name": "entryDelayDays", "min": 5, "max": 15, "default": 10, "step": 1 },
+      { "name": "holdingDays", "min": 10, "max": 60, "default": 30, "step": 5 },
+      { "name": "attentionZThreshold", "min": 1, "max": 4, "default": 2, "step": 0.5 },
+      { "name": "maxBorrowFeeBps", "min": 25, "max": 300, "default": 100, "step": 25 }
+    ],
+    "keyPapers": ["Barber & Odean 2008 All That Glitters (RFS)", "Da, Engelberg & Gao 2011 In Search of Attention (JF)"],
+    "newsDriven": true
+  },
+  {
+    "key": "low_vol_bab",
+    "name": "Low-Volatility / Betting-Against-Beta",
+    "familyKind": "defensive",
+    "rationale": "Leverage-constrained investors and benchmark-relative managers bid up high-beta stocks, flattening the security market line, so low-beta stocks earn positive alpha (Frazzini & Pedersen 2014; Baker, Bradley & Wurgler 2011).",
+    "rationaleKind": "structural",
+    "construction": "Estimate betas (1y daily correlations, 5y volatilities, shrunk toward 1); long low-beta levered to beta 1, short high-beta delevered to beta 1, rank-weighted, monthly rebalance. Long-only variant: low-vol quintile on trailing 1-3y volatility.",
+    "holdingPeriods": ["1m", "3m"],
+    "grossSharpeRange": [0.5, 0.8],
+    "netSharpeRange": [0.3, 0.6],
+    "failureModes": [
+      "Severe benchmark-relative underperformance in strong risk-on/junk rallies",
+      "Valuation crowding and de-rating episodes (2016, 2019-2020)",
+      "Strategy premise requires cheap leverage - funding shocks hurt the levered long leg",
+      "Rank-weighting and leverage scheme flatter paper implementability (Novy-Marx & Velikov critique)",
+      "Interest-rate sensitivity of the long-only low-vol variant"
+    ],
+    "costSensitivity": "low",
+    "crowdingRisk": "medium",
+    "parameters": [
+      { "name": "betaWindowMonths", "min": 12, "max": 60, "default": 12, "step": 6 },
+      { "name": "betaShrinkage", "min": 0.4, "max": 0.8, "default": 0.6, "step": 0.05 },
+      { "name": "longLegLeverageCap", "min": 1.0, "max": 2.0, "default": 1.4, "step": 0.1 },
+      { "name": "rebalanceMonths", "min": 1, "max": 3, "default": 1, "step": 1 }
+    ],
+    "keyPapers": ["Frazzini & Pedersen 2014 BAB (JFE)", "Baker, Bradley & Wurgler 2011 (FAJ)", "Novy-Marx & Velikov Betting Against BAB (JFE)"],
+    "newsDriven": false
+  },
+  {
+    "key": "quality",
+    "name": "Quality (Profitability / Investment)",
+    "familyKind": "cross_sectional",
+    "rationale": "Partly a priced risk premium in production-based models and partly mispricing: investors underprice profitable, conservatively-investing firms (Novy-Marx 2013; Asness, Frazzini & Pedersen QMJ 2019; Fama-French 2015).",
+    "rationaleKind": "risk_premium",
+    "construction": "Gross profits / total assets decile sort with annual rebalance (Novy-Marx), or QMJ z-score composite of profitability, growth, safety with monthly rebalance; investment leg longs conservative asset-growth, shorts aggressive. Hold 6-12 months.",
+    "holdingPeriods": ["6m", "12m"],
+    "grossSharpeRange": [0.4, 0.7],
+    "netSharpeRange": [0.3, 0.6],
+    "failureModes": [
+      "Long droughts when junk rallies (2003, 2009, 2020-21)",
+      "Chronic sector skews (short banks/utilities, long tech/pharma) unless industry-neutralized",
+      "Definition proliferation across dozens of quality metrics is a data-mining trap",
+      "Accounting restatements silently corrupt the signal"
+    ],
+    "costSensitivity": "low",
+    "crowdingRisk": "medium",
+    "parameters": [
+      { "name": "profitabilityMetric", "min": 0, "max": 2, "default": 0, "step": 1 },
+      { "name": "safetyWeight", "min": 0, "max": 1, "default": 0.33, "step": 0.05 },
+      { "name": "industryNeutral", "min": 0, "max": 1, "default": 1, "step": 1 },
+      { "name": "rebalanceMonths", "min": 1, "max": 12, "default": 6, "step": 1 }
+    ],
+    "keyPapers": ["Novy-Marx 2013 The Other Side of Value (JFE)", "Asness, Frazzini & Pedersen 2019 QMJ (RAS)", "Fama & French 2015 (JFE)"],
+    "newsDriven": false
+  },
+  {
+    "key": "seasonality",
+    "name": "Calendar & Cross-Sectional Seasonality",
+    "familyKind": "seasonal",
+    "rationale": "Institutional flow timing (pension contributions, month-end rebalancing, window dressing) and recurring firm events create repeating calendar patterns (Lakonishok & Smidt 1988; Heston & Sadka 2008; Keloharju et al. 2016).",
+    "rationaleKind": "structural",
+    "construction": "Cross-sectional: each month long stocks with high historical same-calendar-month returns over the past 5-20 years, short low ones; monthly rebalance. Timing variant: turn-of-month exposure window from day -1 to +3.",
+    "holdingPeriods": ["1m"],
+    "grossSharpeRange": [0.5, 0.8],
+    "netSharpeRange": [0.1, 0.4],
+    "failureModes": [
+      "Highest multiple-testing risk of any family - calendars offer infinite sorts",
+      "Roughly 100% monthly turnover makes it cost-fragile (Novy-Marx-Velikov flag)",
+      "January and turn-of-month effects concentrated in small caps",
+      "Effects shrink after publication; institutional flow-timing regimes change"
+    ],
+    "costSensitivity": "high",
+    "crowdingRisk": "low",
+    "parameters": [
+      { "name": "lookbackYears", "min": 5, "max": 20, "default": 10, "step": 1 },
+      { "name": "tomWindowStart", "min": -3, "max": -1, "default": -1, "step": 1 },
+      { "name": "tomWindowEnd", "min": 3, "max": 5, "default": 3, "step": 1 },
+      { "name": "smallCapExclusionPct", "min": 0, "max": 50, "default": 20, "step": 5 }
+    ],
+    "keyPapers": ["Lakonishok & Smidt 1988 (RFS)", "Heston & Sadka 2008 (JFE)", "Keloharju, Linnainmaa & Nyberg 2016 (JF)"],
+    "newsDriven": false
+  },
+  {
+    "key": "pairs_statarb",
+    "name": "Pairs Trading / Statistical Arbitrage",
+    "familyKind": "stat_arb",
+    "rationale": "Near-substitute securities drift apart on idiosyncratic order flow and converge as arbitrageurs enforce relative-value parity - a liquidity/convergence premium (Gatev, Goetzmann & Rouwenhorst 2006; Avellaneda & Lee 2010).",
+    "rationaleKind": "structural",
+    "construction": "GGR distance method: 12-month formation matching pairs by minimum sum of squared normalized-price deviations; trade 6 months, open at 2-sigma spread, close on convergence. Modern: cointegration tests or PCA/sector-ETF residual modeled as mean-reverting OU process traded on s-score thresholds.",
+    "holdingPeriods": ["1w", "1m", "3m"],
+    "grossSharpeRange": [0.8, 1.5],
+    "netSharpeRange": [0.3, 0.8],
+    "failureModes": [
+      "Divergence risk: pairs that should converge but never do (M&A, fraud, fundamental breaks)",
+      "Crowded-book simultaneous deleveraging - the August 2007 quant unwind",
+      "Documented secular profitability decay as the trade industrialized (Do & Faff: 0.86%/mo 1962-88 to 0.24%/mo 2003-09)",
+      "Two-legged trade doubles transaction costs per round trip",
+      "Correlation-regime shifts invalidate formation-period relationships"
+    ],
+    "costSensitivity": "medium",
+    "crowdingRisk": "high",
+    "parameters": [
+      { "name": "formationMonths", "min": 6, "max": 24, "default": 12, "step": 1 },
+      { "name": "entrySigma", "min": 1.5, "max": 3.0, "default": 2.0, "step": 0.25 },
+      { "name": "stopSigma", "min": 3.0, "max": 4.0, "default": 3.5, "step": 0.25 },
+      { "name": "maxHoldingDays", "min": 30, "max": 120, "default": 60, "step": 10 },
+      { "name": "numPairs", "min": 5, "max": 50, "default": 20, "step": 5 }
+    ],
+    "keyPapers": ["Gatev, Goetzmann & Rouwenhorst 2006 (RFS)", "Do & Faff 2010 (FAJ)", "Avellaneda & Lee 2010 (Quantitative Finance)"],
+    "newsDriven": false
+  },
+  {
+    "key": "lead_lag",
+    "name": "Lead-Lag Spillover (Customer-Supplier)",
+    "familyKind": "cross_sectional",
+    "rationale": "Attention-constrained investors fail to promptly price news about economically linked firms, so returns of customers and large industry peers predict a stock's return (Cohen & Frazzini 2008; Hou 2007).",
+    "rationaleKind": "behavioral",
+    "construction": "Map suppliers to principal customers via disclosure data; signal = prior-month return of the customer portfolio; long suppliers with high customer returns, short low; monthly rebalance, 1-month hold. Intra-industry variant: big-firm returns lead small same-industry firms, mostly on negative news.",
+    "holdingPeriods": ["2w", "1m", "2m"],
+    "grossSharpeRange": [0.6, 1.0],
+    "netSharpeRange": [0.2, 0.5],
+    "failureModes": [
+      "Substantial post-publication decay documented in follow-up studies",
+      "Tradeable leg is small illiquid suppliers where costs are high",
+      "Link data stale or incomplete: only principal customers above 10% of revenue are disclosed",
+      "Contract losses and link breaks are not in the data until the next filing"
+    ],
+    "costSensitivity": "medium",
+    "crowdingRisk": "medium",
+    "parameters": [
+      { "name": "signalLookbackDays", "min": 5, "max": 21, "default": 21, "step": 1 },
+      { "name": "holdingDays", "min": 10, "max": 42, "default": 21, "step": 1 },
+      { "name": "minRevenueDependencePct", "min": 5, "max": 20, "default": 10, "step": 1 },
+      { "name": "negativeNewsOnly", "min": 0, "max": 1, "default": 0, "step": 1 }
+    ],
+    "keyPapers": ["Cohen & Frazzini 2008 Economic Links (JF)", "Hou 2007 Industry Information Diffusion (RFS)"],
+    "newsDriven": true
+  },
+  {
+    "key": "vol_managed",
+    "name": "Volatility-Managed Overlay",
+    "familyKind": "overlay",
+    "rationale": "Factor expected returns do not rise one-for-one with volatility, so scaling exposure by inverse recent variance raises Sharpe; volatility is predictable while the risk-return tradeoff is not (Moreira & Muir 2017; Barroso & Santa-Clara 2015 for momentum specifically).",
+    "rationaleKind": "structural",
+    "construction": "Overlay, not a selection signal: weight_t = c * targetVar / realizedVar_t using prior 21-126 days of daily factor returns; cap leverage; weekly-monthly rescaling. Barroso-Santa-Clara: scaling momentum by inverse 6-month realized vol lifted SR 0.53 to 0.97 and tamed crashes.",
+    "holdingPeriods": ["1w", "1m"],
+    "grossSharpeRange": [0.5, 1.0],
+    "netSharpeRange": [0.3, 0.7],
+    "failureModes": [
+      "Whipsaw: deleveraging after a vol spike misses the rebound",
+      "Requires substantial leverage (2-5x) in calm periods that may not be available",
+      "Real-time out-of-sample gains weak for many factors once leverage limits and costs bind (Cederburg et al.)",
+      "Extra turnover from the scaler itself erodes the improvement",
+      "Only materially helps crash-prone factors like momentum; marginal elsewhere"
+    ],
+    "costSensitivity": "medium",
+    "crowdingRisk": "low",
+    "parameters": [
+      { "name": "volWindowDays", "min": 21, "max": 126, "default": 63, "step": 21 },
+      { "name": "targetVolAnnualPct", "min": 10, "max": 15, "default": 12, "step": 1 },
+      { "name": "leverageCap", "min": 1.5, "max": 3.0, "default": 2.0, "step": 0.25 },
+      { "name": "rescaleFreqDays", "min": 5, "max": 21, "default": 21, "step": 1 }
+    ],
+    "keyPapers": ["Moreira & Muir 2017 (JF)", "Barroso & Santa-Clara 2015 Momentum Has Its Moments (JFE)", "Cederburg, O'Doherty, Wang & Yan (JFE) critique"],
+    "newsDriven": false
+  },
+  {
+    "key": "tsmom_overlay",
+    "name": "Trend-Following Overlay (Time-Series Momentum)",
+    "familyKind": "overlay",
+    "rationale": "Anchoring, herding, and slow capital flows make an asset's own past 12-month excess return positively predict its next 1-12 month return (Moskowitz, Ooi & Pedersen 2012; Hurst, Ooi & Pedersen century-of-evidence).",
+    "rationaleKind": "behavioral",
+    "construction": "Per asset: sign of trailing 12-month excess return (or 1/3/12-month blend or MA crossover); position = sign * targetVol / assetVol; monthly rebalance. In a single-name simulator use as a per-stock or index-level filter gating other signals - the diversified-portfolio SR of 1+ does not apply to single names.",
+    "holdingPeriods": ["1m", "3m"],
+    "grossSharpeRange": [0.2, 0.4],
+    "netSharpeRange": [0.1, 0.3],
+    "failureModes": [
+      "Whipsaw in range-bound choppy regimes (2011-2013 style)",
+      "Late entry and exit at turning points",
+      "On single stocks, idiosyncratic earnings gaps dominate the trend signal",
+      "Crowding in the managed-futures complex compresses the premium"
+    ],
+    "costSensitivity": "low",
+    "crowdingRisk": "medium",
+    "parameters": [
+      { "name": "lookbackMonths", "min": 1, "max": 12, "default": 12, "step": 1 },
+      { "name": "fastMaDays", "min": 20, "max": 50, "default": 50, "step": 5 },
+      { "name": "slowMaDays", "min": 100, "max": 200, "default": 200, "step": 10 },
+      { "name": "positionVolTargetPct", "min": 10, "max": 40, "default": 20, "step": 5 }
+    ],
+    "keyPapers": ["Moskowitz, Ooi & Pedersen 2012 Time Series Momentum (JFE)", "Hurst, Ooi & Pedersen A Century of Evidence on Trend-Following (JPM)"],
+    "newsDriven": false
+  },
+  {
+    "key": "earnings_revisions",
+    "name": "Earnings Revisions Momentum",
+    "familyKind": "cross_sectional",
+    "rationale": "Analysts revise forecasts sluggishly (anchoring) and the market underreacts to revisions, so recent consensus-estimate changes predict returns (Chan, Jegadeesh & Lakonishok 1996).",
+    "rationaleKind": "behavioral",
+    "construction": "Change in consensus FY1/FY2 EPS over the past 1-3 months scaled by price, or revision breadth (#up - #down)/#analysts; decile sort, long top short bottom; monthly rebalance, 1-6 month hold; require minimum analyst coverage.",
+    "holdingPeriods": ["1m", "3m", "6m"],
+    "grossSharpeRange": [0.5, 0.8],
+    "netSharpeRange": [0.2, 0.4],
+    "failureModes": [
+      "Heavily crowded - a core input to every multi-factor quant model since the 1990s",
+      "Analyst herding makes the signal lag price momentum; must orthogonalize to know what is actually traded",
+      "Vendor data lags and restatements",
+      "Sector earnings cycles create concentrated bets",
+      "Coverage requirement caps the universe and the alpha"
+    ],
+    "costSensitivity": "medium",
+    "crowdingRisk": "high",
+    "parameters": [
+      { "name": "revisionWindowMonths", "min": 1, "max": 3, "default": 3, "step": 1 },
+      { "name": "holdingMonths", "min": 1, "max": 6, "default": 3, "step": 1 },
+      { "name": "minAnalystCoverage", "min": 3, "max": 8, "default": 5, "step": 1 },
+      { "name": "measureType", "min": 0, "max": 2, "default": 0, "step": 1 }
+    ],
+    "keyPapers": ["Chan, Jegadeesh & Lakonishok 1996 Momentum Strategies (JF)"],
+    "newsDriven": true
+  },
+  {
+    "key": "high_52wk",
+    "name": "52-Week-High Momentum",
+    "familyKind": "cross_sectional",
+    "rationale": "The 52-week high acts as an anchor: traders are reluctant to push prices above it even on good news, so nearness to the high predicts continued gains (George & Hwang 2004).",
+    "rationaleKind": "behavioral",
+    "construction": "Signal = current price / 52-week-high price. Long top 30%, short bottom 30%; monthly rebalance with 6-month overlapping holds. Lower turnover than 12-1 momentum because the anchor moves slowly.",
+    "holdingPeriods": ["1m", "3m", "6m"],
+    "grossSharpeRange": [0.4, 0.7],
+    "netSharpeRange": [0.3, 0.5],
+    "failureModes": [
+      "Shares momentum's crash profile: the short leg of beaten-down names rips in rebounds",
+      "January seasonality reverses the signal as losers bounce",
+      "Correlated ~0.7+ with 12-1 momentum, so adds limited diversification to a pool that already holds momentum",
+      "Breakout chasing is crowded retail and CTA behavior"
+    ],
+    "costSensitivity": "low",
+    "crowdingRisk": "medium",
+    "parameters": [
+      { "name": "highLookbackWeeks", "min": 26, "max": 52, "default": 52, "step": 2 },
+      { "name": "tailPct", "min": 10, "max": 30, "default": 30, "step": 5 },
+      { "name": "holdingMonths", "min": 1, "max": 6, "default": 6, "step": 1 },
+      { "name": "januaryDeweight", "min": 0, "max": 1, "default": 1, "step": 1 }
+    ],
+    "keyPapers": ["George & Hwang 2004 (JF)"],
+    "newsDriven": false
+  },
+  {
+    "key": "ivol",
+    "name": "Idiosyncratic Volatility (Lottery Short)",
+    "familyKind": "defensive",
+    "rationale": "High-idiosyncratic-volatility stocks earn abysmally low returns: lottery preferences and retail overpricing combined with short-sale constraints that prevent correction (Ang, Hodrick, Xing & Zhang 2006).",
+    "rationaleKind": "behavioral",
+    "construction": "IVOL = std of daily Fama-French-3 residuals over the prior 1 month (canonical) or 3-12 months (more stable); quintile sort; long low-IVOL, short high-IVOL; monthly rebalance, 1-month hold; borrow-fee filter on the short leg.",
+    "holdingPeriods": ["1m"],
+    "grossSharpeRange": [0.4, 0.7],
+    "netSharpeRange": [0.0, 0.3],
+    "failureModes": [
+      "Anomaly lives almost entirely in the short leg of small, illiquid, hard-to-borrow lottery stocks - borrow fees and squeezes can take net to zero",
+      "1-month IVOL estimates are noisy and flip month to month",
+      "Heavy overlap with MAX/lottery, low-vol, and size effects - double-counting without orthogonalization",
+      "Attenuated post-publication; sensitive to weighting scheme (equal-weight flatters it)"
+    ],
+    "costSensitivity": "high",
+    "crowdingRisk": "medium",
+    "parameters": [
+      { "name": "estimationWindowDays", "min": 21, "max": 252, "default": 21, "step": 21 },
+      { "name": "residualModel", "min": 0, "max": 2, "default": 1, "step": 1 },
+      { "name": "maxBorrowFeeBps", "min": 25, "max": 300, "default": 100, "step": 25 },
+      { "name": "longOnlyMode", "min": 0, "max": 1, "default": 0, "step": 1 }
+    ],
+    "keyPapers": ["Ang, Hodrick, Xing & Zhang 2006 (JF)", "Detzel et al. Then and Now (SSRN 3455609)"],
+    "newsDriven": false
+  }
+]

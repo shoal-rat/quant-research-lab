@@ -1,0 +1,22 @@
+{
+  "id": "code-engineer",
+  "displayName": "Code Engineer",
+  "roleCn": "代码工程师",
+  "scale": 1.02,
+  "anchor": {
+    "x": 0.5,
+    "y": 0.92
+  },
+  "avatar": "/assets/generated/agents/code-engineer/avatar.png",
+  "sprites": {
+    "idle": "/assets/generated/agents/code-engineer/idle.png",
+    "walk": "/assets/generated/agents/code-engineer/walk.png",
+    "coding": "/assets/generated/agents/code-engineer/coding.png",
+    "frustrated": "/assets/generated/agents/code-engineer/frustrated.png",
+    "tired": "/assets/generated/agents/code-engineer/tired.png",
+    "fixed-bug": "/assets/generated/agents/code-engineer/fixed-bug.png",
+    "drinking-coffee": "/assets/generated/agents/code-engineer/drinking-coffee.png"
+  },
+  "provenance": "imagegen-source; chroma-key removed locally; state variants post-processed from generated source sprite",
+  "sourcePrompt": "imagegen chroma-key source; Code Engineer identity from reference sheet"
+}

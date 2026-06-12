@@ -1,0 +1,22 @@
+{
+  "id": "risk-reviewer",
+  "displayName": "Risk Reviewer",
+  "roleCn": "风控审查员",
+  "scale": 1.04,
+  "anchor": {
+    "x": 0.5,
+    "y": 0.92
+  },
+  "avatar": "/assets/generated/agents/risk-reviewer/avatar.png",
+  "sprites": {
+    "idle": "/assets/generated/agents/risk-reviewer/idle.png",
+    "walk": "/assets/generated/agents/risk-reviewer/walk.png",
+    "reviewing": "/assets/generated/agents/risk-reviewer/reviewing.png",
+    "angry": "/assets/generated/agents/risk-reviewer/angry.png",
+    "rejecting": "/assets/generated/agents/risk-reviewer/rejecting.png",
+    "table-slam": "/assets/generated/agents/risk-reviewer/table-slam.png",
+    "serious": "/assets/generated/agents/risk-reviewer/serious.png"
+  },
+  "provenance": "imagegen-source; chroma-key removed locally; state variants post-processed from generated source sprite",
+  "sourcePrompt": "imagegen chroma-key source; Risk Reviewer identity from reference sheet"
+}

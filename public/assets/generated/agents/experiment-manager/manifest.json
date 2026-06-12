@@ -1,0 +1,22 @@
+{
+  "id": "experiment-manager",
+  "displayName": "Experiment Manager",
+  "roleCn": "实验经理",
+  "scale": 1.05,
+  "anchor": {
+    "x": 0.5,
+    "y": 0.92
+  },
+  "avatar": "/assets/generated/agents/experiment-manager/avatar.png",
+  "sprites": {
+    "idle": "/assets/generated/agents/experiment-manager/idle.png",
+    "walk": "/assets/generated/agents/experiment-manager/walk.png",
+    "presenting": "/assets/generated/agents/experiment-manager/presenting.png",
+    "calling-meeting": "/assets/generated/agents/experiment-manager/calling-meeting.png",
+    "deciding": "/assets/generated/agents/experiment-manager/deciding.png",
+    "updating-screen": "/assets/generated/agents/experiment-manager/updating-screen.png",
+    "confident": "/assets/generated/agents/experiment-manager/confident.png"
+  },
+  "provenance": "imagegen-source; chroma-key removed locally; state variants post-processed from generated source sprite",
+  "sourcePrompt": "imagegen chroma-key source; Experiment Manager identity from reference sheet"
+}

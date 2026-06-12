@@ -1,0 +1,97 @@
+<svg width="1100" height="430" viewBox="0 0 1100 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Architecture diagram">
+  <defs>
+    <linearGradient id="abg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#23282c"/>
+      <stop offset="1" stop-color="#1a1e21"/>
+    </linearGradient>
+    <marker id="aarr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8fb8c9"/>
+    </marker>
+    <style>
+      .lane { fill: rgba(255,255,255,0.045); stroke: rgba(255,255,255,0.14); stroke-width: 1.5; }
+      .laneTitle { font: 800 15px 'Segoe UI', system-ui, sans-serif; fill: #9fd2c4; letter-spacing: 1.4px; }
+      .box { fill: #2c3338; stroke: #56e4bc; stroke-width: 1.6; }
+      .boxAlt { fill: #2c3338; stroke: #e9b455; stroke-width: 1.6; }
+      .boxName { font: 700 14.5px 'Consolas', 'Segoe UI Mono', monospace; fill: #ecf4f1; }
+      .boxSub { font: 500 11.5px 'Segoe UI', system-ui, sans-serif; fill: #93a8a2; }
+      .wire { fill: none; stroke: #8fb8c9; stroke-width: 1.8; marker-end: url(#aarr); opacity: 0.85; }
+      .ahdr { font: 800 22px 'Segoe UI', system-ui, sans-serif; fill: #f0ece2; }
+    </style>
+  </defs>
+
+  <rect width="1100" height="430" rx="16" fill="url(#abg)" stroke="#39424a" stroke-width="2"/>
+  <text x="36" y="44" class="ahdr">Architecture</text>
+
+  <!-- Presentation lane -->
+  <rect x="36" y="66" width="1028" height="100" rx="12" class="lane"/>
+  <text x="52" y="90" class="laneTitle">GAME SHELL (React)</text>
+  <g>
+    <rect x="52" y="102" width="170" height="48" rx="9" class="box"/>
+    <text x="66" y="123" class="boxName">OfficeMap2D</text>
+    <text x="66" y="140" class="boxSub">stage, hotspots, effects</text>
+    <rect x="238" y="102" width="150" height="48" rx="9" class="box"/>
+    <text x="252" y="123" class="boxName">GameModal</text>
+    <text x="252" y="140" class="boxSub">overlay panels</text>
+    <rect x="404" y="102" width="150" height="48" rx="9" class="boxAlt"/>
+    <text x="418" y="123" class="boxName">BossBar</text>
+    <text x="418" y="140" class="boxSub">directives EN/中文</text>
+    <rect x="570" y="102" width="170" height="48" rx="9" class="boxAlt"/>
+    <text x="584" y="123" class="boxName">LoveWhipPanel</text>
+    <text x="584" y="140" class="boxSub">praise / criticize</text>
+    <rect x="756" y="102" width="140" height="48" rx="9" class="boxAlt"/>
+    <text x="770" y="123" class="boxName">BossOrb</text>
+    <text x="770" y="140" class="boxSub">wallpaper boss key</text>
+    <rect x="912" y="102" width="136" height="48" rx="9" class="box"/>
+    <text x="926" y="123" class="boxName">HUD</text>
+    <text x="926" y="140" class="boxSub">loop controls</text>
+  </g>
+
+  <!-- Direction lane -->
+  <rect x="36" y="186" width="1028" height="100" rx="12" class="lane"/>
+  <text x="52" y="210" class="laneTitle">CHARACTER DIRECTION</text>
+  <g>
+    <rect x="52" y="222" width="220" height="48" rx="9" class="box"/>
+    <text x="66" y="243" class="boxName">OfficeDirector</text>
+    <text x="66" y="260" class="boxSub">walking · conversations · reactions</text>
+    <rect x="288" y="222" width="200" height="48" rx="9" class="box"/>
+    <text x="302" y="243" class="boxName">dialogueLocal</text>
+    <text x="302" y="260" class="boxSub">data-grounded scripts</text>
+    <rect x="504" y="222" width="250" height="48" rx="9" class="boxAlt"/>
+    <text x="518" y="243" class="boxName">llmCondenser</text>
+    <text x="518" y="260" class="boxSub">Haiku 4.5 / GPT-5.4-nano, local fallback</text>
+    <rect x="770" y="222" width="278" height="48" rx="9" class="box"/>
+    <text x="784" y="243" class="boxName">AppStore</text>
+    <text x="784" y="260" class="boxSub">loop control · mood · boss events · persistence</text>
+  </g>
+
+  <!-- Engine lane -->
+  <rect x="36" y="306" width="1028" height="100" rx="12" class="lane"/>
+  <text x="52" y="330" class="laneTitle">RESEARCH ENGINES (deterministic)</text>
+  <g>
+    <rect x="52" y="342" width="210" height="48" rx="9" class="box"/>
+    <text x="66" y="363" class="boxName">strategyKnowledge</text>
+    <text x="66" y="380" class="boxSub">15 families, priors, params</text>
+    <rect x="278" y="342" width="200" height="48" rx="9" class="box"/>
+    <text x="292" y="363" class="boxName">hypothesisEngine</text>
+    <text x="292" y="380" class="boxSub">explore / refine / steer</text>
+    <rect x="494" y="342" width="200" height="48" rx="9" class="box"/>
+    <text x="508" y="363" class="boxName">backtestEngine</text>
+    <text x="508" y="380" class="boxSub">deflated Sharpe · decay</text>
+    <rect x="710" y="342" width="180" height="48" rx="9" class="box"/>
+    <text x="724" y="363" class="boxName">riskReview</text>
+    <text x="724" y="380" class="boxSub">10 mechanical gates</text>
+    <rect x="906" y="342" width="142" height="48" rx="9" class="box"/>
+    <text x="920" y="363" class="boxName">memory</text>
+    <text x="920" y="380" class="boxSub">family lessons</text>
+  </g>
+
+  <!-- wires -->
+  <path class="wire" d="M 137 166 L 137 218"/>
+  <path class="wire" d="M 479 150 C 479 190 300 196 250 218"/>
+  <path class="wire" d="M 655 150 C 655 190 880 196 890 218"/>
+  <path class="wire" d="M 826 150 C 826 186 870 190 880 218"/>
+  <path class="wire" d="M 388 246 L 284 246" />
+  <path class="wire" d="M 500 246 L 492 246"/>
+  <path class="wire" d="M 909 286 L 909 338"/>
+  <path class="wire" d="M 162 286 L 162 218"/>
+</svg>

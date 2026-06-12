@@ -1,0 +1,38 @@
+{
+  "id": "experiment-manager",
+  "role": "experiment_manager",
+  "displayName": "Experiment Manager",
+  "roleCn": "实验经理",
+  "scale": 1,
+  "anchor": {
+    "x": 0.5,
+    "y": 0.9
+  },
+  "avatar": "/assets/generated/agents-2d/experiment-manager/avatar.png",
+  "sprites": {
+    "idle-front": "/assets/generated/agents-2d/experiment-manager/idle-front.png",
+    "idle-back": "/assets/generated/agents-2d/experiment-manager/idle-back.png",
+    "idle-left": "/assets/generated/agents-2d/experiment-manager/idle-left.png",
+    "idle-right": "/assets/generated/agents-2d/experiment-manager/idle-right.png",
+    "walk-front": "/assets/generated/agents-2d/experiment-manager/walk-front.png",
+    "walk-back": "/assets/generated/agents-2d/experiment-manager/walk-back.png",
+    "walk-left": "/assets/generated/agents-2d/experiment-manager/walk-left.png",
+    "walk-right": "/assets/generated/agents-2d/experiment-manager/walk-right.png",
+    "presenting": "/assets/generated/agents-2d/experiment-manager/presenting.png",
+    "calling-meeting": "/assets/generated/agents-2d/experiment-manager/calling-meeting.png",
+    "final-verdict": "/assets/generated/agents-2d/experiment-manager/final-verdict.png",
+    "team-encourage": "/assets/generated/agents-2d/experiment-manager/team-encourage.png"
+  },
+  "expressions": {
+    "delighted": "/assets/generated/agents-2d/experiment-manager/expressions/delighted.png",
+    "shocked": "/assets/generated/agents-2d/experiment-manager/expressions/shocked.png",
+    "angry": "/assets/generated/agents-2d/experiment-manager/expressions/angry.png",
+    "smug": "/assets/generated/agents-2d/experiment-manager/expressions/smug.png",
+    "worried": "/assets/generated/agents-2d/experiment-manager/expressions/worried.png",
+    "crying": "/assets/generated/agents-2d/experiment-manager/expressions/crying.png",
+    "embarrassed": "/assets/generated/agents-2d/experiment-manager/expressions/embarrassed.png",
+    "determined": "/assets/generated/agents-2d/experiment-manager/expressions/determined.png"
+  },
+  "provenance": "imagegen 2D sprite sheet split into transparent final sprites",
+  "sourceSheet": "work/imagegen-2d-raw/experiment-manager-raw.png"
+}

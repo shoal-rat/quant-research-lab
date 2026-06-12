@@ -1,0 +1,234 @@
+{
+  "version": 1,
+  "agents": [
+    {
+      "id": "strategy-researcher",
+      "role": "strategy_researcher",
+      "displayName": "Strategy Researcher",
+      "roleCn": "策略研究员",
+      "scale": 1,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.9
+      },
+      "avatar": "/assets/generated/agents-2d/strategy-researcher/avatar.png",
+      "sprites": {
+        "idle-front": "/assets/generated/agents-2d/strategy-researcher/idle-front.png",
+        "idle-back": "/assets/generated/agents-2d/strategy-researcher/idle-back.png",
+        "idle-left": "/assets/generated/agents-2d/strategy-researcher/idle-left.png",
+        "idle-right": "/assets/generated/agents-2d/strategy-researcher/idle-right.png",
+        "walk-front": "/assets/generated/agents-2d/strategy-researcher/walk-front.png",
+        "walk-back": "/assets/generated/agents-2d/strategy-researcher/walk-back.png",
+        "walk-left": "/assets/generated/agents-2d/strategy-researcher/walk-left.png",
+        "walk-right": "/assets/generated/agents-2d/strategy-researcher/walk-right.png",
+        "thinking": "/assets/generated/agents-2d/strategy-researcher/thinking.png",
+        "writing-whiteboard": "/assets/generated/agents-2d/strategy-researcher/writing-whiteboard.png",
+        "debating": "/assets/generated/agents-2d/strategy-researcher/debating.png",
+        "eureka": "/assets/generated/agents-2d/strategy-researcher/eureka.png"
+      },
+      "expressions": {
+        "delighted": "/assets/generated/agents-2d/strategy-researcher/expressions/delighted.png",
+        "shocked": "/assets/generated/agents-2d/strategy-researcher/expressions/shocked.png",
+        "angry": "/assets/generated/agents-2d/strategy-researcher/expressions/angry.png",
+        "smug": "/assets/generated/agents-2d/strategy-researcher/expressions/smug.png",
+        "worried": "/assets/generated/agents-2d/strategy-researcher/expressions/worried.png",
+        "crying": "/assets/generated/agents-2d/strategy-researcher/expressions/crying.png",
+        "embarrassed": "/assets/generated/agents-2d/strategy-researcher/expressions/embarrassed.png",
+        "determined": "/assets/generated/agents-2d/strategy-researcher/expressions/determined.png"
+      },
+      "provenance": "imagegen 2D sprite sheet split into transparent final sprites",
+      "sourceSheet": "work/imagegen-2d-raw/strategy-researcher-raw.png"
+    },
+    {
+      "id": "code-engineer",
+      "role": "code_engineer",
+      "displayName": "Code Engineer",
+      "roleCn": "代码工程师",
+      "scale": 1,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.9
+      },
+      "avatar": "/assets/generated/agents-2d/code-engineer/avatar.png",
+      "sprites": {
+        "idle-front": "/assets/generated/agents-2d/code-engineer/idle-front.png",
+        "idle-back": "/assets/generated/agents-2d/code-engineer/idle-back.png",
+        "idle-left": "/assets/generated/agents-2d/code-engineer/idle-left.png",
+        "idle-right": "/assets/generated/agents-2d/code-engineer/idle-right.png",
+        "walk-front": "/assets/generated/agents-2d/code-engineer/walk-front.png",
+        "walk-back": "/assets/generated/agents-2d/code-engineer/walk-back.png",
+        "walk-left": "/assets/generated/agents-2d/code-engineer/walk-left.png",
+        "walk-right": "/assets/generated/agents-2d/code-engineer/walk-right.png",
+        "coding": "/assets/generated/agents-2d/code-engineer/coding.png",
+        "bug-meltdown": "/assets/generated/agents-2d/code-engineer/bug-meltdown.png",
+        "tired": "/assets/generated/agents-2d/code-engineer/tired.png",
+        "deploy-victory": "/assets/generated/agents-2d/code-engineer/deploy-victory.png"
+      },
+      "expressions": {
+        "delighted": "/assets/generated/agents-2d/code-engineer/expressions/delighted.png",
+        "shocked": "/assets/generated/agents-2d/code-engineer/expressions/shocked.png",
+        "angry": "/assets/generated/agents-2d/code-engineer/expressions/angry.png",
+        "smug": "/assets/generated/agents-2d/code-engineer/expressions/smug.png",
+        "worried": "/assets/generated/agents-2d/code-engineer/expressions/worried.png",
+        "crying": "/assets/generated/agents-2d/code-engineer/expressions/crying.png",
+        "embarrassed": "/assets/generated/agents-2d/code-engineer/expressions/embarrassed.png",
+        "determined": "/assets/generated/agents-2d/code-engineer/expressions/determined.png"
+      },
+      "provenance": "imagegen 2D sprite sheet split into transparent final sprites",
+      "sourceSheet": "work/imagegen-2d-raw/code-engineer-raw.png"
+    },
+    {
+      "id": "risk-reviewer",
+      "role": "risk_reviewer",
+      "displayName": "Risk Reviewer",
+      "roleCn": "风控审查员",
+      "scale": 1,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.9
+      },
+      "avatar": "/assets/generated/agents-2d/risk-reviewer/avatar.png",
+      "sprites": {
+        "idle-front": "/assets/generated/agents-2d/risk-reviewer/idle-front.png",
+        "idle-back": "/assets/generated/agents-2d/risk-reviewer/idle-back.png",
+        "idle-left": "/assets/generated/agents-2d/risk-reviewer/idle-left.png",
+        "idle-right": "/assets/generated/agents-2d/risk-reviewer/idle-right.png",
+        "walk-front": "/assets/generated/agents-2d/risk-reviewer/walk-front.png",
+        "walk-back": "/assets/generated/agents-2d/risk-reviewer/walk-back.png",
+        "walk-left": "/assets/generated/agents-2d/risk-reviewer/walk-left.png",
+        "walk-right": "/assets/generated/agents-2d/risk-reviewer/walk-right.png",
+        "reviewing": "/assets/generated/agents-2d/risk-reviewer/reviewing.png",
+        "audit-alarm": "/assets/generated/agents-2d/risk-reviewer/audit-alarm.png",
+        "rejection-stamp": "/assets/generated/agents-2d/risk-reviewer/rejection-stamp.png",
+        "controlled-approval": "/assets/generated/agents-2d/risk-reviewer/controlled-approval.png"
+      },
+      "expressions": {
+        "delighted": "/assets/generated/agents-2d/risk-reviewer/expressions/delighted.png",
+        "shocked": "/assets/generated/agents-2d/risk-reviewer/expressions/shocked.png",
+        "angry": "/assets/generated/agents-2d/risk-reviewer/expressions/angry.png",
+        "smug": "/assets/generated/agents-2d/risk-reviewer/expressions/smug.png",
+        "worried": "/assets/generated/agents-2d/risk-reviewer/expressions/worried.png",
+        "crying": "/assets/generated/agents-2d/risk-reviewer/expressions/crying.png",
+        "embarrassed": "/assets/generated/agents-2d/risk-reviewer/expressions/embarrassed.png",
+        "determined": "/assets/generated/agents-2d/risk-reviewer/expressions/determined.png"
+      },
+      "provenance": "imagegen 2D sprite sheet split into transparent final sprites",
+      "sourceSheet": "work/imagegen-2d-raw/risk-reviewer-raw.png"
+    },
+    {
+      "id": "skeptic-researcher",
+      "role": "skeptic_researcher",
+      "displayName": "Skeptic Researcher",
+      "roleCn": "怀疑论研究员",
+      "scale": 1,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.9
+      },
+      "avatar": "/assets/generated/agents-2d/skeptic-researcher/avatar.png",
+      "sprites": {
+        "idle-front": "/assets/generated/agents-2d/skeptic-researcher/idle-front.png",
+        "idle-back": "/assets/generated/agents-2d/skeptic-researcher/idle-back.png",
+        "idle-left": "/assets/generated/agents-2d/skeptic-researcher/idle-left.png",
+        "idle-right": "/assets/generated/agents-2d/skeptic-researcher/idle-right.png",
+        "walk-front": "/assets/generated/agents-2d/skeptic-researcher/walk-front.png",
+        "walk-back": "/assets/generated/agents-2d/skeptic-researcher/walk-back.png",
+        "walk-left": "/assets/generated/agents-2d/skeptic-researcher/walk-left.png",
+        "walk-right": "/assets/generated/agents-2d/skeptic-researcher/walk-right.png",
+        "skeptical": "/assets/generated/agents-2d/skeptic-researcher/skeptical.png",
+        "whispering": "/assets/generated/agents-2d/skeptic-researcher/whispering.png",
+        "gotcha": "/assets/generated/agents-2d/skeptic-researcher/gotcha.png",
+        "silent-judgment": "/assets/generated/agents-2d/skeptic-researcher/silent-judgment.png"
+      },
+      "expressions": {
+        "delighted": "/assets/generated/agents-2d/skeptic-researcher/expressions/delighted.png",
+        "shocked": "/assets/generated/agents-2d/skeptic-researcher/expressions/shocked.png",
+        "angry": "/assets/generated/agents-2d/skeptic-researcher/expressions/angry.png",
+        "smug": "/assets/generated/agents-2d/skeptic-researcher/expressions/smug.png",
+        "worried": "/assets/generated/agents-2d/skeptic-researcher/expressions/worried.png",
+        "crying": "/assets/generated/agents-2d/skeptic-researcher/expressions/crying.png",
+        "embarrassed": "/assets/generated/agents-2d/skeptic-researcher/expressions/embarrassed.png",
+        "determined": "/assets/generated/agents-2d/skeptic-researcher/expressions/determined.png"
+      },
+      "provenance": "imagegen 2D sprite sheet split into transparent final sprites",
+      "sourceSheet": "work/imagegen-2d-raw/skeptic-researcher-raw.png"
+    },
+    {
+      "id": "experiment-manager",
+      "role": "experiment_manager",
+      "displayName": "Experiment Manager",
+      "roleCn": "实验经理",
+      "scale": 1,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.9
+      },
+      "avatar": "/assets/generated/agents-2d/experiment-manager/avatar.png",
+      "sprites": {
+        "idle-front": "/assets/generated/agents-2d/experiment-manager/idle-front.png",
+        "idle-back": "/assets/generated/agents-2d/experiment-manager/idle-back.png",
+        "idle-left": "/assets/generated/agents-2d/experiment-manager/idle-left.png",
+        "idle-right": "/assets/generated/agents-2d/experiment-manager/idle-right.png",
+        "walk-front": "/assets/generated/agents-2d/experiment-manager/walk-front.png",
+        "walk-back": "/assets/generated/agents-2d/experiment-manager/walk-back.png",
+        "walk-left": "/assets/generated/agents-2d/experiment-manager/walk-left.png",
+        "walk-right": "/assets/generated/agents-2d/experiment-manager/walk-right.png",
+        "presenting": "/assets/generated/agents-2d/experiment-manager/presenting.png",
+        "calling-meeting": "/assets/generated/agents-2d/experiment-manager/calling-meeting.png",
+        "final-verdict": "/assets/generated/agents-2d/experiment-manager/final-verdict.png",
+        "team-encourage": "/assets/generated/agents-2d/experiment-manager/team-encourage.png"
+      },
+      "expressions": {
+        "delighted": "/assets/generated/agents-2d/experiment-manager/expressions/delighted.png",
+        "shocked": "/assets/generated/agents-2d/experiment-manager/expressions/shocked.png",
+        "angry": "/assets/generated/agents-2d/experiment-manager/expressions/angry.png",
+        "smug": "/assets/generated/agents-2d/experiment-manager/expressions/smug.png",
+        "worried": "/assets/generated/agents-2d/experiment-manager/expressions/worried.png",
+        "crying": "/assets/generated/agents-2d/experiment-manager/expressions/crying.png",
+        "embarrassed": "/assets/generated/agents-2d/experiment-manager/expressions/embarrassed.png",
+        "determined": "/assets/generated/agents-2d/experiment-manager/expressions/determined.png"
+      },
+      "provenance": "imagegen 2D sprite sheet split into transparent final sprites",
+      "sourceSheet": "work/imagegen-2d-raw/experiment-manager-raw.png"
+    },
+    {
+      "id": "data-manager",
+      "role": "data_manager",
+      "displayName": "Data Manager",
+      "roleCn": "数据管理员",
+      "scale": 1,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.9
+      },
+      "avatar": "/assets/generated/agents-2d/data-manager/avatar.png",
+      "sprites": {
+        "idle-front": "/assets/generated/agents-2d/data-manager/idle-front.png",
+        "idle-back": "/assets/generated/agents-2d/data-manager/idle-back.png",
+        "idle-left": "/assets/generated/agents-2d/data-manager/idle-left.png",
+        "idle-right": "/assets/generated/agents-2d/data-manager/idle-right.png",
+        "walk-front": "/assets/generated/agents-2d/data-manager/walk-front.png",
+        "walk-back": "/assets/generated/agents-2d/data-manager/walk-back.png",
+        "walk-left": "/assets/generated/agents-2d/data-manager/walk-left.png",
+        "walk-right": "/assets/generated/agents-2d/data-manager/walk-right.png",
+        "checking-data": "/assets/generated/agents-2d/data-manager/checking-data.png",
+        "carrying-files": "/assets/generated/agents-2d/data-manager/carrying-files.png",
+        "dirty-timestamp": "/assets/generated/agents-2d/data-manager/dirty-timestamp.png",
+        "missing-data-panic": "/assets/generated/agents-2d/data-manager/missing-data-panic.png",
+        "clean-data-pride": "/assets/generated/agents-2d/data-manager/clean-data-pride.png"
+      },
+      "expressions": {
+        "delighted": "/assets/generated/agents-2d/data-manager/expressions/delighted.png",
+        "shocked": "/assets/generated/agents-2d/data-manager/expressions/shocked.png",
+        "angry": "/assets/generated/agents-2d/data-manager/expressions/angry.png",
+        "smug": "/assets/generated/agents-2d/data-manager/expressions/smug.png",
+        "worried": "/assets/generated/agents-2d/data-manager/expressions/worried.png",
+        "crying": "/assets/generated/agents-2d/data-manager/expressions/crying.png",
+        "embarrassed": "/assets/generated/agents-2d/data-manager/expressions/embarrassed.png",
+        "determined": "/assets/generated/agents-2d/data-manager/expressions/determined.png"
+      },
+      "provenance": "imagegen 2D sprite sheet split into transparent final sprites",
+      "sourceSheet": "work/imagegen-2d-raw/data-manager-raw.png"
+    }
+  ]
+}

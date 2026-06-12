@@ -1,0 +1,39 @@
+{
+  "id": "data-manager",
+  "role": "data_manager",
+  "displayName": "Data Manager",
+  "roleCn": "数据管理员",
+  "scale": 1,
+  "anchor": {
+    "x": 0.5,
+    "y": 0.9
+  },
+  "avatar": "/assets/generated/agents-2d/data-manager/avatar.png",
+  "sprites": {
+    "idle-front": "/assets/generated/agents-2d/data-manager/idle-front.png",
+    "idle-back": "/assets/generated/agents-2d/data-manager/idle-back.png",
+    "idle-left": "/assets/generated/agents-2d/data-manager/idle-left.png",
+    "idle-right": "/assets/generated/agents-2d/data-manager/idle-right.png",
+    "walk-front": "/assets/generated/agents-2d/data-manager/walk-front.png",
+    "walk-back": "/assets/generated/agents-2d/data-manager/walk-back.png",
+    "walk-left": "/assets/generated/agents-2d/data-manager/walk-left.png",
+    "walk-right": "/assets/generated/agents-2d/data-manager/walk-right.png",
+    "checking-data": "/assets/generated/agents-2d/data-manager/checking-data.png",
+    "carrying-files": "/assets/generated/agents-2d/data-manager/carrying-files.png",
+    "dirty-timestamp": "/assets/generated/agents-2d/data-manager/dirty-timestamp.png",
+    "missing-data-panic": "/assets/generated/agents-2d/data-manager/missing-data-panic.png",
+    "clean-data-pride": "/assets/generated/agents-2d/data-manager/clean-data-pride.png"
+  },
+  "expressions": {
+    "delighted": "/assets/generated/agents-2d/data-manager/expressions/delighted.png",
+    "shocked": "/assets/generated/agents-2d/data-manager/expressions/shocked.png",
+    "angry": "/assets/generated/agents-2d/data-manager/expressions/angry.png",
+    "smug": "/assets/generated/agents-2d/data-manager/expressions/smug.png",
+    "worried": "/assets/generated/agents-2d/data-manager/expressions/worried.png",
+    "crying": "/assets/generated/agents-2d/data-manager/expressions/crying.png",
+    "embarrassed": "/assets/generated/agents-2d/data-manager/expressions/embarrassed.png",
+    "determined": "/assets/generated/agents-2d/data-manager/expressions/determined.png"
+  },
+  "provenance": "imagegen 2D sprite sheet split into transparent final sprites",
+  "sourceSheet": "work/imagegen-2d-raw/data-manager-raw.png"
+}

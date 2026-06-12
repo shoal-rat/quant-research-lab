@@ -1,0 +1,22 @@
+{
+  "id": "data-manager",
+  "displayName": "Data Manager",
+  "roleCn": "数据管理员",
+  "scale": 1.02,
+  "anchor": {
+    "x": 0.5,
+    "y": 0.92
+  },
+  "avatar": "/assets/generated/agents/data-manager/avatar.png",
+  "sprites": {
+    "idle": "/assets/generated/agents/data-manager/idle.png",
+    "walk": "/assets/generated/agents/data-manager/walk.png",
+    "checking-data": "/assets/generated/agents/data-manager/checking-data.png",
+    "carrying-files": "/assets/generated/agents/data-manager/carrying-files.png",
+    "confused": "/assets/generated/agents/data-manager/confused.png",
+    "problem-solved": "/assets/generated/agents/data-manager/problem-solved.png",
+    "inspecting-timestamp": "/assets/generated/agents/data-manager/inspecting-timestamp.png"
+  },
+  "provenance": "imagegen-source; chroma-key removed locally; state variants post-processed from generated source sprite",
+  "sourcePrompt": "imagegen chroma-key source; Data Manager identity from reference sheet"
+}

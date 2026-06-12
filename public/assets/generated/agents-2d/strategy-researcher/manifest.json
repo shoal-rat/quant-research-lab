@@ -1,0 +1,38 @@
+{
+  "id": "strategy-researcher",
+  "role": "strategy_researcher",
+  "displayName": "Strategy Researcher",
+  "roleCn": "策略研究员",
+  "scale": 1,
+  "anchor": {
+    "x": 0.5,
+    "y": 0.9
+  },
+  "avatar": "/assets/generated/agents-2d/strategy-researcher/avatar.png",
+  "sprites": {
+    "idle-front": "/assets/generated/agents-2d/strategy-researcher/idle-front.png",
+    "idle-back": "/assets/generated/agents-2d/strategy-researcher/idle-back.png",
+    "idle-left": "/assets/generated/agents-2d/strategy-researcher/idle-left.png",
+    "idle-right": "/assets/generated/agents-2d/strategy-researcher/idle-right.png",
+    "walk-front": "/assets/generated/agents-2d/strategy-researcher/walk-front.png",
+    "walk-back": "/assets/generated/agents-2d/strategy-researcher/walk-back.png",
+    "walk-left": "/assets/generated/agents-2d/strategy-researcher/walk-left.png",
+    "walk-right": "/assets/generated/agents-2d/strategy-researcher/walk-right.png",
+    "thinking": "/assets/generated/agents-2d/strategy-researcher/thinking.png",
+    "writing-whiteboard": "/assets/generated/agents-2d/strategy-researcher/writing-whiteboard.png",
+    "debating": "/assets/generated/agents-2d/strategy-researcher/debating.png",
+    "eureka": "/assets/generated/agents-2d/strategy-researcher/eureka.png"
+  },
+  "expressions": {
+    "delighted": "/assets/generated/agents-2d/strategy-researcher/expressions/delighted.png",
+    "shocked": "/assets/generated/agents-2d/strategy-researcher/expressions/shocked.png",
+    "angry": "/assets/generated/agents-2d/strategy-researcher/expressions/angry.png",
+    "smug": "/assets/generated/agents-2d/strategy-researcher/expressions/smug.png",
+    "worried": "/assets/generated/agents-2d/strategy-researcher/expressions/worried.png",
+    "crying": "/assets/generated/agents-2d/strategy-researcher/expressions/crying.png",
+    "embarrassed": "/assets/generated/agents-2d/strategy-researcher/expressions/embarrassed.png",
+    "determined": "/assets/generated/agents-2d/strategy-researcher/expressions/determined.png"
+  },
+  "provenance": "imagegen 2D sprite sheet split into transparent final sprites",
+  "sourceSheet": "work/imagegen-2d-raw/strategy-researcher-raw.png"
+}

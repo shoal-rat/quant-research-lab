@@ -1,0 +1,9 @@
+node_modules/
+dist/
+wallpaper-package/
+*.zip
+*.tsbuildinfo
+work/*
+!work/RESEARCH_DESIGN_DOC.md
+!work/strategy_knowledge_research.json
+.claude/

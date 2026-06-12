@@ -1,0 +1,38 @@
+{
+  "id": "code-engineer",
+  "role": "code_engineer",
+  "displayName": "Code Engineer",
+  "roleCn": "代码工程师",
+  "scale": 1,
+  "anchor": {
+    "x": 0.5,
+    "y": 0.9
+  },
+  "avatar": "/assets/generated/agents-2d/code-engineer/avatar.png",
+  "sprites": {
+    "idle-front": "/assets/generated/agents-2d/code-engineer/idle-front.png",
+    "idle-back": "/assets/generated/agents-2d/code-engineer/idle-back.png",
+    "idle-left": "/assets/generated/agents-2d/code-engineer/idle-left.png",
+    "idle-right": "/assets/generated/agents-2d/code-engineer/idle-right.png",
+    "walk-front": "/assets/generated/agents-2d/code-engineer/walk-front.png",
+    "walk-back": "/assets/generated/agents-2d/code-engineer/walk-back.png",
+    "walk-left": "/assets/generated/agents-2d/code-engineer/walk-left.png",
+    "walk-right": "/assets/generated/agents-2d/code-engineer/walk-right.png",
+    "coding": "/assets/generated/agents-2d/code-engineer/coding.png",
+    "bug-meltdown": "/assets/generated/agents-2d/code-engineer/bug-meltdown.png",
+    "tired": "/assets/generated/agents-2d/code-engineer/tired.png",
+    "deploy-victory": "/assets/generated/agents-2d/code-engineer/deploy-victory.png"
+  },
+  "expressions": {
+    "delighted": "/assets/generated/agents-2d/code-engineer/expressions/delighted.png",
+    "shocked": "/assets/generated/agents-2d/code-engineer/expressions/shocked.png",
+    "angry": "/assets/generated/agents-2d/code-engineer/expressions/angry.png",
+    "smug": "/assets/generated/agents-2d/code-engineer/expressions/smug.png",
+    "worried": "/assets/generated/agents-2d/code-engineer/expressions/worried.png",
+    "crying": "/assets/generated/agents-2d/code-engineer/expressions/crying.png",
+    "embarrassed": "/assets/generated/agents-2d/code-engineer/expressions/embarrassed.png",
+    "determined": "/assets/generated/agents-2d/code-engineer/expressions/determined.png"
+  },
+  "provenance": "imagegen 2D sprite sheet split into transparent final sprites",
+  "sourceSheet": "work/imagegen-2d-raw/code-engineer-raw.png"
+}

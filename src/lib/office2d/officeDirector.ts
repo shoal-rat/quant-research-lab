@@ -23,8 +23,10 @@ const TICK_MS = 110;
 export interface BossEffect {
   id: string;
   agentId: string;
-  kind: "love" | "whip";
+  kind: "love" | "whip" | "confetti";
   until: number;
+  x?: number;
+  y?: number;
 }
 
 interface WalkPlan {
@@ -121,7 +123,8 @@ function zoneIdlePoint(zone: Office2DZoneId, slot: number): Office2DPoint {
   const positions = office2DZones[zone].idlePositions;
   const base = positions[slot % positions.length] ?? office2DZones[zone].entry;
   const ring = Math.floor(slot / positions.length);
-  return { x: base.x + ring * 34 - 8 + (slot % 3) * 9, y: base.y + ring * 16 };
+  // generous spacing so chibi sprites (and their balloons) never stack
+  return { x: base.x + ring * 64 - 10 + (slot % 3) * 20, y: base.y + ring * 26 };
 }
 
 export class OfficeDirector {
@@ -332,6 +335,30 @@ export class OfficeDirector {
     target.facing = "front";
   }
 
+  celebrate(): void {
+    const now = Date.now();
+    this.effectCounter += 1;
+    this.effects.push({
+      id: `effect-${this.effectCounter}`,
+      agentId: "",
+      kind: "confetti",
+      until: now + 4200,
+      x: 390,
+      y: 250
+    });
+    this.agents.forEach((agent) => {
+      if (agent.conversationId) return;
+      agent.occupation = {
+        kind: "reaction",
+        spriteName: "eureka",
+        activity: "reacting",
+        expression: "delighted",
+        facing: "front",
+        until: now + 3200
+      };
+    });
+  }
+
   // ---- movement -----------------------------------------------------------
 
   private walkTo(agent: DirectorAgent, zone: Office2DZoneId, onArrive?: () => void): void {
@@ -515,8 +542,8 @@ export class OfficeDirector {
   }
 
   private publish(): void {
-    const agents: Agent2DRenderState[] = [...this.agents.values()]
-      .filter((agent) => agent.profile.visible)
+    const visibleAgents = [...this.agents.values()].filter((agent) => agent.profile.visible);
+    const agents: Agent2DRenderState[] = visibleAgents
       .map((agent) => {
         const walking = Boolean(agent.walk);
         const occupation = agent.occupation;
@@ -525,6 +552,25 @@ export class OfficeDirector {
           ? `walk-${agent.facing}`
           : occupation?.spriteName ?? `idle-${facing}`;
         const activity: Agent2DActivity = walking ? "walking" : occupation?.activity ?? "idle";
+        // push the balloon toward the emptier side so it never covers a
+        // colleague (the balloon sits above-left/right of the speaker's head)
+        let bubbleShift: "left" | "right" | undefined;
+        if (agent.bubble) {
+          let leftCrowd = 0;
+          let rightCrowd = 0;
+          for (const other of visibleAgents) {
+            if (other === agent) continue;
+            const dx = other.x - agent.x;
+            const dy = other.y - agent.y;
+            if (Math.abs(dx) < 230 && dy > -190 && dy < 110) {
+              if (dx < 0) leftCrowd += 1;
+              else rightCrowd += 1;
+            }
+          }
+          if (leftCrowd + rightCrowd > 0) {
+            bubbleShift = leftCrowd <= rightCrowd ? "left" : "right";
+          }
+        }
         return {
           agentId: agent.profile.id,
           zone: agent.zone,
@@ -537,6 +583,7 @@ export class OfficeDirector {
           expression: walking ? undefined : occupation?.expression,
           message: agent.bubble?.text,
           bubbleType: agent.bubble?.type ?? "normal",
+          bubbleShift,
           zIndex: Math.round(agent.y)
         };
       });

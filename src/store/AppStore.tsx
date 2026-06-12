@@ -21,6 +21,8 @@ import {
   tickDailyBehavior
 } from "../engines/agentStateMachine";
 import { MockQuantLLMAdapter } from "../engines/llmAdapters";
+import { BridgeResearchAdapter } from "../engines/bridgeResearchAdapter";
+import { ACHIEVEMENTS, computeLevel, computeXp, fundNav, BossLevel } from "../engines/progression";
 import { deriveResearchMemory } from "../engines/researchMemory";
 import { completeIteration, IterationDraft, prepareIteration } from "../engines/researchLoop";
 import {
@@ -28,6 +30,7 @@ import {
   gossipConversation,
   ideaRevealConversation,
   lovedConversation,
+  officeEventConversation,
   phaseConversation,
   whippedConversation
 } from "../engines/dialogue/dialogueLocal";
@@ -42,8 +45,17 @@ const STORAGE = {
   settings: "qrl.settings",
   experiments: "qrl.experiments",
   loop: "qrl.loop",
-  mood: "qrl.mood"
+  mood: "qrl.mood",
+  achievements: "qrl.achievements",
+  level: "qrl.level"
 };
+
+export interface GameToast {
+  id: string;
+  icon: string;
+  title: string;
+  detail: string;
+}
 
 const defaultLoop: ResearchLoopState = {
   phase: "idle",
@@ -114,6 +126,11 @@ interface AppStoreValue {
   currentExperiment?: ExperimentRecord;
   director: OfficeDirector;
   wallpaperMode: boolean;
+  bossLevel: BossLevel;
+  fundValue: number;
+  unlockedAchievements: Record<string, number>;
+  toasts: GameToast[];
+  dismissToast: (id: string) => void;
   updateSettings: (patch: Partial<Settings>) => void;
   updateAgent: (id: string, patch: Partial<AgentProfile>) => void;
   restoreAgent: (id: string) => void;
@@ -150,7 +167,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
   const [bubbles, setBubbles] = useState<SpeechBubble[]>([]);
   const [mood, setMood] = useState<Record<string, AgentMood>>(() => readStored(STORAGE.mood, {}));
   const [bossEvents, setBossEvents] = useState<BossEvent[]>([]);
-  const adapterRef = useRef(new MockQuantLLMAdapter());
+  const [unlockedAchievements, setUnlockedAchievements] = useState<Record<string, number>>(() =>
+    readStored(STORAGE.achievements, {})
+  );
+  const [toasts, setToasts] = useState<GameToast[]>([]);
+  const adapterRef = useRef<MockQuantLLMAdapter | BridgeResearchAdapter>(new MockQuantLLMAdapter());
   const advancingRef = useRef(false);
   const loopRef = useRef(loop);
   const agentsRef = useRef(agents);
@@ -394,6 +415,24 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
       if (activeLoop.phase === "decision") {
         const experiment = experimentsRef.current.find((item) => item.id === loopRef.current.currentExperimentId) ?? current;
         await setPhase("saved", experiment);
+        if (experiment?.status === "candidate") {
+          window.setTimeout(() => director.celebrate(), 1200);
+        }
+        // a rare scripted office event keeps the place alive (~every 3 loops)
+        const completed = activeLoop.loopCountCompleted + 1;
+        if (completed % 3 === 0 && Math.random() < 0.5) {
+          window.setTimeout(() => {
+            director.scheduleConversation(
+              officeEventConversation({
+                phase: "saved",
+                language: settingsRef.current.language,
+                agents: agentsRef.current,
+                memory: deriveResearchMemory(experimentsRef.current),
+                timestamp: Date.now()
+              })
+            );
+          }, 14000);
+        }
         setLoop((prev) => ({
           ...prev,
           loopCountCompleted: prev.loopCountCompleted + 1,
@@ -454,6 +493,68 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
     window.addEventListener("qrl-wallpaper-paused", handler);
     return () => window.removeEventListener("qrl-wallpaper-paused", handler);
   }, [director]);
+
+  // research brain selection (local engine vs CLI via the bridge)
+  useEffect(() => {
+    adapterRef.current =
+      settings.researchBrain === "local"
+        ? new MockQuantLLMAdapter()
+        : new BridgeResearchAdapter(() => settingsRef.current);
+  }, [settings.researchBrain]);
+
+  // progression: achievements + level-up toasts (derived deterministically)
+  const bossLevel = useMemo(
+    () => computeLevel(computeXp({ experiments, bossEvents, mood })),
+    [experiments, bossEvents, mood]
+  );
+  const fundValue = useMemo(() => fundNav(experiments), [experiments]);
+
+  useEffect(() => {
+    const input = { experiments, bossEvents, mood, settings };
+    const fresh: GameToast[] = [];
+    const next = { ...unlockedAchievements };
+    let changed = false;
+    for (const achievement of ACHIEVEMENTS) {
+      if (!next[achievement.id] && achievement.earned(input)) {
+        next[achievement.id] = Date.now();
+        changed = true;
+        fresh.push({
+          id: `ach-${achievement.id}`,
+          icon: achievement.icon,
+          title: settings.language === "zh" ? achievement.name.zh : achievement.name.en,
+          detail: settings.language === "zh" ? achievement.detail.zh : achievement.detail.en
+        });
+      }
+    }
+    const storedLevel = readStored(STORAGE.level, 1);
+    if (bossLevel.level > storedLevel) {
+      writeStored(STORAGE.level, bossLevel.level);
+      fresh.push({
+        id: `lvl-${bossLevel.level}`,
+        icon: "\u{1F451}",
+        title:
+          settings.language === "zh"
+            ? `\u5347\u7EA7\uFF01Lv.${bossLevel.level} ${bossLevel.title.zh}`
+            : `Level up! Lv.${bossLevel.level} ${bossLevel.title.en}`,
+        detail: settings.language === "zh" ? "\u6574\u4E2A\u529E\u516C\u5BA4\u90FD\u5728\u9F13\u638C\u3002" : "The whole office is applauding."
+      });
+    }
+    if (changed) {
+      setUnlockedAchievements(next);
+      writeStored(STORAGE.achievements, next);
+    }
+    if (fresh.length > 0) {
+      setToasts((prev) => [...prev, ...fresh].slice(-4));
+      window.setTimeout(() => {
+        setToasts((prev) => prev.filter((toast) => !fresh.some((item) => item.id === toast.id)));
+      }, 6500);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [experiments, bossEvents, mood, settings.language]);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  }, []);
 
   // Wallpaper mode: auto-run the loop forever.
   useEffect(() => {
@@ -617,6 +718,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
       currentExperiment,
       director,
       wallpaperMode,
+      bossLevel,
+      fundValue,
+      unlockedAchievements,
+      toasts,
+      dismissToast,
       updateSettings,
       updateAgent,
       restoreAgent,
@@ -644,6 +750,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
       currentExperiment,
       director,
       wallpaperMode,
+      bossLevel,
+      fundValue,
+      unlockedAchievements,
+      toasts,
+      dismissToast,
       updateSettings,
       updateAgent,
       restoreAgent,

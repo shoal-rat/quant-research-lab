@@ -33,6 +33,8 @@ export interface StrategyFamily {
   parameters: FamilyParameter[];
   keyPapers: string[];
   newsDriven: boolean;
+  // can the signal be computed from daily prices alone (real-data mode)?
+  priceComputable: boolean;
   // deterministic simulator inputs
   baseEdgeDaily: number;
   decayHalfLifeRuns: number;
@@ -63,6 +65,7 @@ export const STRATEGY_FAMILIES: StrategyFamily[] = [
     ],
     keyPapers: ["Jegadeesh & Titman (1993)", "Daniel & Moskowitz (2016) momentum crashes"],
     newsDriven: false,
+    priceComputable: true,
     baseEdgeDaily: 0.00052,
     decayHalfLifeRuns: 9
   },
@@ -90,6 +93,7 @@ export const STRATEGY_FAMILIES: StrategyFamily[] = [
     ],
     keyPapers: ["Lehmann (1990)", "Nagel (2012) evaporating liquidity"],
     newsDriven: false,
+    priceComputable: true,
     baseEdgeDaily: 0.00038,
     decayHalfLifeRuns: 7
   },
@@ -117,6 +121,7 @@ export const STRATEGY_FAMILIES: StrategyFamily[] = [
     ],
     keyPapers: ["Ball & Brown (1968)", "Bernard & Thomas (1989)"],
     newsDriven: true,
+    priceComputable: false,
     baseEdgeDaily: 0.00058,
     decayHalfLifeRuns: 10
   },
@@ -144,6 +149,7 @@ export const STRATEGY_FAMILIES: StrategyFamily[] = [
     ],
     keyPapers: ["Tetlock (2007)", "Tetlock, Saar-Tsechansky & Macskassy (2008)"],
     newsDriven: true,
+    priceComputable: false,
     baseEdgeDaily: 0.00046,
     decayHalfLifeRuns: 6
   },
@@ -171,6 +177,7 @@ export const STRATEGY_FAMILIES: StrategyFamily[] = [
     ],
     keyPapers: ["Barber & Odean (2008) attention", "Da, Engelberg & Gao (2011)"],
     newsDriven: true,
+    priceComputable: false,
     baseEdgeDaily: 0.00040,
     decayHalfLifeRuns: 7
   },
@@ -198,6 +205,7 @@ export const STRATEGY_FAMILIES: StrategyFamily[] = [
     ],
     keyPapers: ["Frazzini & Pedersen (2014) BAB", "Baker, Bradley & Wurgler (2011)"],
     newsDriven: false,
+    priceComputable: true,
     baseEdgeDaily: 0.00028,
     decayHalfLifeRuns: 14
   },
@@ -225,6 +233,7 @@ export const STRATEGY_FAMILIES: StrategyFamily[] = [
     ],
     keyPapers: ["Novy-Marx (2013)", "Asness, Frazzini & Pedersen (2019) QMJ"],
     newsDriven: false,
+    priceComputable: true,
     baseEdgeDaily: 0.00030,
     decayHalfLifeRuns: 16
   },
@@ -252,6 +261,7 @@ export const STRATEGY_FAMILIES: StrategyFamily[] = [
     ],
     keyPapers: ["Heston & Sadka (2008)", "Lakonishok & Smidt (1988)"],
     newsDriven: false,
+    priceComputable: true,
     baseEdgeDaily: 0.00024,
     decayHalfLifeRuns: 8
   },
@@ -279,6 +289,7 @@ export const STRATEGY_FAMILIES: StrategyFamily[] = [
     ],
     keyPapers: ["Gatev, Goetzmann & Rouwenhorst (2006)", "Do & Faff (2010) decay"],
     newsDriven: false,
+    priceComputable: true,
     baseEdgeDaily: 0.00034,
     decayHalfLifeRuns: 8
   },
@@ -306,6 +317,7 @@ export const STRATEGY_FAMILIES: StrategyFamily[] = [
     ],
     keyPapers: ["Cohen & Frazzini (2008) economic links", "Menzly & Ozbas (2010)"],
     newsDriven: true,
+    priceComputable: true,
     baseEdgeDaily: 0.00044,
     decayHalfLifeRuns: 8
   },
@@ -333,6 +345,7 @@ export const STRATEGY_FAMILIES: StrategyFamily[] = [
     ],
     keyPapers: ["Moreira & Muir (2017)", "Barroso & Santa-Clara (2015) momentum risk"],
     newsDriven: false,
+    priceComputable: true,
     baseEdgeDaily: 0.00032,
     decayHalfLifeRuns: 14
   },
@@ -360,6 +373,7 @@ export const STRATEGY_FAMILIES: StrategyFamily[] = [
     ],
     keyPapers: ["Chan, Jegadeesh & Lakonishok (1996)", "Gleason & Lee (2003)"],
     newsDriven: true,
+    priceComputable: false,
     baseEdgeDaily: 0.00042,
     decayHalfLifeRuns: 10
   },
@@ -387,6 +401,7 @@ export const STRATEGY_FAMILIES: StrategyFamily[] = [
     ],
     keyPapers: ["Moskowitz, Ooi & Pedersen (2012)", "Faber (2007)"],
     newsDriven: false,
+    priceComputable: true,
     baseEdgeDaily: 0.00026,
     decayHalfLifeRuns: 16
   },
@@ -414,6 +429,7 @@ export const STRATEGY_FAMILIES: StrategyFamily[] = [
     ],
     keyPapers: ["George & Hwang (2004)"],
     newsDriven: false,
+    priceComputable: true,
     baseEdgeDaily: 0.00036,
     decayHalfLifeRuns: 10
   }

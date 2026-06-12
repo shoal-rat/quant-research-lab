@@ -2,9 +2,9 @@ import { Settings } from "../types";
 
 export const defaultSettings: Settings = {
   researchTaskName: "Find robust US equity signals that survive transaction costs",
-  stockUniverse: "AAPL, MSFT, NVDA, AMD, AVGO, JPM, XOM, UNH, COST, META, GOOGL, TSLA",
-  startDate: "2021-01-04",
-  endDate: "2025-12-31",
+  stockUniverse: "AAPL, MSFT, NVDA, AMD, INTC, JPM, GS, XOM, UNH, COST, KO, CAT, AMZN, NFLX, HD, BA",
+  startDate: "2015-01-02",
+  endDate: "2026-06-12",
   holdingPeriod: 5,
   transactionCostBps: 12,
   maximumLoopCount: 12,
@@ -21,5 +21,7 @@ export const defaultSettings: Settings = {
   anthropicApiKey: "",
   openaiApiKey: "",
   bridgeUrl: "http://127.0.0.1:8787",
-  language: "en"
+  language: "en",
+  dataSource: "real",
+  researchBrain: "local"
 };

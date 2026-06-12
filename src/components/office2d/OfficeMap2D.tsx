@@ -1,5 +1,5 @@
 import { ArrowUpRight } from "lucide-react";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { CSSProperties, useMemo, useState, useSyncExternalStore } from "react";
 import { navigate } from "../../App";
 import { getGeneratedAgent2DManifest } from "../../lib/assets/agent2dAssetManifest";
 import { office2DAssets, office2DDisplays, office2DMapSize, office2DZones, rectToPercentStyle } from "../../lib/office2d/mapLayout";
@@ -44,7 +44,7 @@ const areaRoutes: Partial<Record<OfficeAreaId, string>> = {
   data_cabinet: "/history",
   workstations: "/agents",
   whiteboard: "/current",
-  meeting: "/current",
+  meeting: "/board",
   backtest_computer: "/current"
 };
 
@@ -157,13 +157,29 @@ export function OfficeMap2D({ bossTool, onBossToolUsed }: OfficeMap2DProps): JSX
           })}
 
         {snapshot.effects.map((effect) => {
+          if (effect.kind === "confetti") {
+            return (
+              <div
+                key={effect.id}
+                className="confetti-burst"
+                style={{
+                  left: `${((effect.x ?? 390) / office2DMapSize.width) * 100}%`,
+                  top: `${((effect.y ?? 250) / office2DMapSize.height) * 100}%`
+                }}
+              >
+                {Array.from({ length: 22 }, (_, index) => (
+                  <i key={index} style={{ "--ci": index } as CSSProperties} />
+                ))}
+              </div>
+            );
+          }
           const position = director.agentPosition(effect.agentId);
           if (!position) return null;
           return (
             <img
               key={effect.id}
               className={`boss-effect boss-effect-${effect.kind}`}
-              src={effectArt[effect.kind]}
+              src={effectArt[effect.kind as "love" | "whip"]}
               style={{
                 left: `${(position.x / office2DMapSize.width) * 100}%`,
                 top: `${(position.y / office2DMapSize.height) * 100}%`

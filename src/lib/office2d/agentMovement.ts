@@ -17,6 +17,7 @@ export interface Agent2DRenderState {
   expression?: Agent2DExpression;
   message?: string;
   bubbleType: Bubble2DType;
+  bubbleShift?: "left" | "right";
   zIndex: number;
 }
 

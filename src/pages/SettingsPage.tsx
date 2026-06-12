@@ -18,6 +18,21 @@ export function SettingsPage(): JSX.Element {
       <section className="page-card settings-card">
         <div className="form-grid">
           <label className="field">
+            <span>Data source / 数据源</span>
+            <select value={settings.dataSource} onChange={(event) => set("dataSource", event.target.value as Settings["dataSource"])}>
+              <option value="real">Real market data (20y dailies, bundled)</option>
+              <option value="mock">Deterministic mock simulator</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Research brain</span>
+            <select value={settings.researchBrain} onChange={(event) => set("researchBrain", event.target.value as Settings["researchBrain"])}>
+              <option value="local">Local engine (bandit + knowledge base)</option>
+              <option value="claude-code">Claude Code CLI (via bridge)</option>
+              <option value="codex">Codex CLI (via bridge)</option>
+            </select>
+          </label>
+          <label className="field">
             <span>Language / 语言</span>
             <select value={settings.language} onChange={(event) => set("language", event.target.value as Settings["language"])}>
               <option value="en">English</option>

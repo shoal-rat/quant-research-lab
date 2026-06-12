@@ -55,7 +55,9 @@ const STRINGS = {
     en: "Backtest complete. Risk desk is opening the folder.",
     zh: "回测完成，风控正在翻文件夹。"
   },
-  language: { en: "Language", zh: "语言" }
+  language: { en: "Language", zh: "语言" },
+  boardTitle: { en: "Fund & Research Board", zh: "基金与研究看板" },
+  navBoard: { en: "Board", zh: "看板" }
 } satisfies Record<string, Record<Language, string>>;
 
 export type StringKey = keyof typeof STRINGS;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BarChart3, Bot, FlaskConical, History, Images, Languages, Settings } from "lucide-react";
+import { BarChart3, Bot, FlaskConical, History, Images, Languages, LayoutGrid, Settings } from "lucide-react";
 import { OfficePage } from "./pages/OfficePage";
 import { ExperimentDetailPage } from "./pages/ExperimentDetailPage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
@@ -7,6 +7,8 @@ import { AgentManagementPage } from "./pages/AgentManagementPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { AssetPreviewPage } from "./pages/AssetPreviewPage";
+import { BoardPage } from "./pages/BoardPage";
+import { ToastStack } from "./components/ToastStack";
 import { GameModal } from "./components/GameModal";
 import { LoopControls } from "./components/LoopControls";
 import { phaseLabel, t } from "./i18n";
@@ -19,6 +21,7 @@ type Route =
   | { name: "asset-preview" }
   | { name: "settings" }
   | { name: "history" }
+  | { name: "board" }
   | { name: "current" }
   | { name: "experiment"; id: string };
 
@@ -32,6 +35,7 @@ function parseRoute(hash: string): Route {
   if (clean === "asset-preview") return { name: "asset-preview" };
   if (clean === "settings") return { name: "settings" };
   if (clean === "history") return { name: "history" };
+  if (clean === "board") return { name: "board" };
   if (clean === "current") return { name: "current" };
   return { name: "office" };
 }
@@ -43,7 +47,7 @@ export function navigate(path: string): void {
 // The office IS the game. Everything else is an overlay the boss clicks into.
 export function App(): JSX.Element {
   const [route, setRoute] = useState<Route>(() => parseRoute(window.location.hash));
-  const { loop, settings, experiments, currentExperiment, wallpaperMode, updateSettings } = useAppStore();
+  const { loop, settings, experiments, currentExperiment, wallpaperMode, updateSettings, bossLevel, fundValue } = useAppStore();
   const lang = settings.language;
 
   useEffect(() => {
@@ -56,6 +60,7 @@ export function App(): JSX.Element {
   const close = () => navigate("/office");
 
   const navItems = [
+    { label: t(lang, "navBoard"), path: "/board", icon: LayoutGrid },
     { label: t(lang, "navHistory"), path: "/history", icon: History },
     { label: t(lang, "navLeaderboard"), path: "/leaderboard", icon: BarChart3 },
     { label: t(lang, "navAgents"), path: "/agents", icon: Bot },
@@ -79,6 +84,13 @@ export function App(): JSX.Element {
             </span>
           </button>
           <div className="hud-right">
+            <span className="task-strip boss-chip" title={lang === "zh" ? bossLevel.title.zh : bossLevel.title.en}>
+              <small>Lv.{bossLevel.level}</small>
+              <small className="chip-title">{lang === "zh" ? bossLevel.title.zh : bossLevel.title.en}</small>
+            </span>
+            <span className="task-strip" title={lang === "zh" ? "虚拟基金净值" : "Virtual fund NAV"}>
+              <small>${(fundValue / 1_000_000).toFixed(2)}M</small>
+            </span>
             <span className="task-strip">
               <span className={`phase-dot ${loop.running ? "live" : ""}`} />
               <small>{experiments.length} {t(lang, "experiments")}</small>
@@ -113,6 +125,11 @@ export function App(): JSX.Element {
         </div>
       )}
 
+      {!wallpaperMode && route.name === "board" && (
+        <GameModal title={t(lang, "boardTitle")} onClose={close} wide>
+          <BoardPage />
+        </GameModal>
+      )}
       {!wallpaperMode && route.name === "history" && (
         <GameModal title={t(lang, "historyTitle")} onClose={close} wide>
           <HistoryPage />
@@ -155,6 +172,7 @@ export function App(): JSX.Element {
           )}
         </GameModal>
       )}
+      <ToastStack />
     </div>
   );
 }

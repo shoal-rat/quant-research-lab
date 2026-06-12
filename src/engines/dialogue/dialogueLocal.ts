@@ -698,6 +698,97 @@ function tx2(zh: boolean, en: string, zhText: string): string {
   return zh ? zhText : en;
 }
 
+// Rare scripted office events: pure flavor that makes the office feel alive.
+export function officeEventConversation(context: DialogueContext): ConversationScript {
+  const zh = context.language === "zh";
+  const rng = seededRandom(`event-${Math.floor(context.timestamp / 5000)}`);
+  const events: ConversationLine[][] = zh
+    ? [
+        [
+          line(A.code, "咖啡机坏了。重复一遍：咖啡机坏了。", "tired"),
+          line(A.manager, "启动应急预案：茶水角限流，按资历排队。", "idle"),
+          line(A.skeptic, "我的生产率刚刚经历了一次负三西格玛事件。", "whispering")
+        ],
+        [
+          line(A.data, "监管检查组下周过来。所有数据血缘文档现在开始补。", "checking_chart"),
+          line(A.code, "“现在开始补”这五个字让我后背发凉。", "tired"),
+          line(A.risk, "我反而很期待。终于有人和我标准一样了。", "checking_chart")
+        ],
+        [
+          line(A.manager, "披萨到了！庆祝本周没有任何东西着火。", "excited"),
+          line(A.code, "周还没结束呢。", "coding"),
+          line(A.manager, "Ren，让我们享受这一刻。", "idle")
+        ],
+        [
+          line(A.data, "数据供应商刚发了故障公告，今天的行情延迟两小时。", "confused"),
+          line(A.skeptic, "完美。延迟的数据配延迟的满足。", "whispering"),
+          line(A.manager, "今天的回测排到明天，大家去补文档。", "idle")
+        ],
+        [
+          line(A.risk, "消防演习。所有人，包括正在回测的。", "angry"),
+          line(A.strategy, "曲线正跑到2020年3月！我不能现在走！", "excited"),
+          line(A.risk, "2020年3月正好教你什么叫风控。走。", "angry")
+        ],
+        [
+          line(A.strategy, "期刊退稿信到了。“有趣但样本外证据不足”。", "tired"),
+          line(A.skeptic, "他们引用了我的原话，我很感动。", "whispering"),
+          line(A.manager, "把审稿意见贴在白板上，下个版本逐条回应。", "idle")
+        ],
+        [
+          line(A.code, "新显示器到了！四千流明的K线，闪瞎我吧。", "excited"),
+          line(A.data, "亮度调低点，别让回撤看起来更吓人。", "checking_chart")
+        ],
+        [
+          line(A.manager, "年度审计季开始。接下来两周，每一笔模拟交易都要有出处。", "idle"),
+          line(A.code, "连模拟交易都要审计？", "confused"),
+          line(A.risk, "尤其是模拟交易。", "checking_chart")
+        ]
+      ]
+    : [
+        [
+          line(A.code, "The coffee machine is down. I repeat: the coffee machine is down.", "tired"),
+          line(A.manager, "Emergency protocol: tea corner rationing, queue by seniority.", "idle"),
+          line(A.skeptic, "My productivity just had a negative three-sigma event.", "whispering")
+        ],
+        [
+          line(A.data, "Regulators visit next week. All data-lineage docs get finished starting now.", "checking_chart"),
+          line(A.code, "The words 'starting now' just lowered my body temperature.", "tired"),
+          line(A.risk, "I am thrilled. Finally someone with my standards.", "checking_chart")
+        ],
+        [
+          line(A.manager, "Pizza is here! Celebrating a week where nothing caught fire.", "excited"),
+          line(A.code, "The week is not over.", "coding"),
+          line(A.manager, "Let us have this, Ren.", "idle")
+        ],
+        [
+          line(A.data, "Vendor outage notice: today's feed is delayed two hours.", "confused"),
+          line(A.skeptic, "Perfect. Delayed data for delayed gratification.", "whispering"),
+          line(A.manager, "Backtests move to tomorrow. Everyone, documentation day.", "idle")
+        ],
+        [
+          line(A.risk, "Fire drill. Everyone out, including the backtest watchers.", "angry"),
+          line(A.strategy, "The curve is in March 2020! I cannot leave now!", "excited"),
+          line(A.risk, "March 2020 is exactly the risk lesson. Out.", "angry")
+        ],
+        [
+          line(A.strategy, "Journal rejection arrived. 'Interesting but out-of-sample evidence is thin.'", "tired"),
+          line(A.skeptic, "They quoted me verbatim. I am touched.", "whispering"),
+          line(A.manager, "Pin the referee notes to the whiteboard. Next version answers every one.", "idle")
+        ],
+        [
+          line(A.code, "New monitor day! Four thousand nits of candlesticks, blind me.", "excited"),
+          line(A.data, "Turn the brightness down before the drawdowns look worse.", "checking_chart")
+        ],
+        [
+          line(A.manager, "Audit season opens. For two weeks, every simulated trade needs a paper trail.", "idle"),
+          line(A.code, "We audit the SIMULATED trades?", "confused"),
+          line(A.risk, "Especially the simulated trades.", "checking_chart")
+        ]
+      ];
+  const lines = pick(events, rng);
+  return script("office_event", pick(["meeting", "tea", "workstations"], rng), lines, 45);
+}
+
 export function lovedConversation(context: DialogueContext): ConversationScript {
   const { targetAgentId = A.strategy, agents, timestamp } = context;
   const zh = context.language === "zh";

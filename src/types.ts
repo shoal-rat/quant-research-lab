@@ -98,6 +98,9 @@ export interface AgentRuntime {
 }
 
 export type DialogueBackend = "local" | "anthropic" | "openai" | "claude-code" | "codex";
+export type DataSource = "mock" | "real";
+export type ResearchBrain = "local" | "claude-code" | "codex";
+export type IdeaMode = "explore" | "refine" | "boss_directive" | "repair" | "recombine";
 export type Language = "en" | "zh";
 
 export interface Settings {
@@ -122,6 +125,8 @@ export interface Settings {
   openaiApiKey: string;
   bridgeUrl: string;
   language: Language;
+  dataSource: DataSource;
+  researchBrain: ResearchBrain;
 }
 
 export interface MarketRow {
@@ -165,7 +170,7 @@ export interface StrategySpec {
   parameters: Record<string, number | string | boolean>;
   parentExperimentId?: string;
   generation: number;
-  ideaMode: "explore" | "refine" | "boss_directive";
+  ideaMode: IdeaMode;
   ideaReasoning: string[];
   bossDirective?: string;
 }
@@ -246,10 +251,14 @@ export interface ExperimentRecord {
   familyKey: string;
   parentExperimentId?: string;
   generation: number;
-  ideaMode: "explore" | "refine" | "boss_directive";
+  ideaMode: IdeaMode;
   ideaReasoning: string[];
   bossDirective?: string;
   strategyParameters: Record<string, number | string | boolean>;
+  dataSource?: DataSource;
+  dailyReturns?: number[];
+  returnsStartIndex?: number;
+  poolSharpeDelta?: number;
   dataRange: string;
   dataUsed: string;
   factorLogic: string;

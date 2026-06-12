@@ -38,7 +38,9 @@ export function Agent2DSprite({ agent, state, reducedMotion, onClick }: Agent2DS
       ? "bubble-edge-left"
       : state.x > office2DMapSize.width * 0.84
         ? "bubble-edge-right"
-        : "";
+        : state.bubbleShift
+          ? `bubble-push-${state.bubbleShift}`
+          : "";
 
   return (
     <button

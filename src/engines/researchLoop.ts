@@ -9,6 +9,10 @@ import {
 } from "../types";
 import { makeMockMarketData } from "./mockMarketData";
 import { runBacktest } from "./backtestEngine";
+import { loadRealMarket } from "./realMarket";
+import { RealBacktestExtras, runRealBacktest } from "./realBacktestEngine";
+import { poolSharpeDelta } from "./poolAnalytics";
+import { getFamily } from "./strategyKnowledge";
 import { decideExperimentStatus, reviewBacktestRisk } from "./riskReviewEngine";
 
 export interface IterationInput {
@@ -91,7 +95,6 @@ export async function completeIteration(
 ): Promise<ExperimentRecord> {
   const { settings, memory, iteration, experiments, strictnessBias } = input;
   const { strategy, generatedCode } = draft;
-  const marketRows = makeMockMarketData(settings.startDate, 430);
   const params: BacktestParameters = {
     universe: strategy.universe,
     dateRange: { start: settings.startDate, end: settings.endDate },
@@ -102,11 +105,33 @@ export async function completeIteration(
   };
   const familyAttempts = experiments.filter((experiment) => experiment.familyKey === strategy.familyKey).length;
   const priorCandidates = experiments.filter((experiment) => experiment.status === "candidate");
-  const backtest = runBacktest(strategy, params, marketRows, generatedCode, {
-    familyAttempts,
-    totalTrials: experiments.length + 1,
-    priorCandidates
-  });
+
+  // real 20y market data when enabled and the family is price-computable;
+  // deterministic mock simulator otherwise
+  const realData = settings.dataSource === "real" ? await loadRealMarket() : null;
+  let backtest;
+  let extras: RealBacktestExtras | undefined;
+  if (realData && getFamily(strategy.familyKey).priceComputable) {
+    const output = runRealBacktest(strategy, params, realData, {
+      totalTrials: experiments.length + 1,
+      priorCandidates
+    });
+    backtest = output.result;
+    backtest.generatedCode = generatedCode;
+    extras = output.extras;
+    // keep stored series bounded for localStorage (last ~6 years)
+    if (extras.dailyReturns.length > 1500) {
+      extras.returnsStartIndex += extras.dailyReturns.length - 1500;
+      extras.dailyReturns = extras.dailyReturns.slice(-1500);
+    }
+  } else {
+    const marketRows = makeMockMarketData(settings.startDate, 430);
+    backtest = runBacktest(strategy, params, marketRows, generatedCode, {
+      familyAttempts,
+      totalTrials: experiments.length + 1,
+      priorCandidates
+    });
+  }
   const riskReview = reviewBacktestRisk(strategy, backtest);
   const status = decideExperimentStatus(backtest, riskReview, generatedCode, strictnessBias);
   const createdAt = new Date().toISOString();
@@ -124,6 +149,10 @@ export async function completeIteration(
     ideaReasoning: strategy.ideaReasoning,
     bossDirective: strategy.bossDirective,
     strategyParameters: strategy.parameters,
+    dataSource: extras ? ("real" as const) : ("mock" as const),
+    dailyReturns: extras?.dailyReturns,
+    returnsStartIndex: extras?.returnsStartIndex,
+    poolSharpeDelta: extras ? poolSharpeDelta(extras, priorCandidates) : undefined,
     dataRange: `${settings.startDate} to ${settings.endDate}`,
     dataUsed: backtest.dataUsed,
     factorLogic: strategy.factorLogic,

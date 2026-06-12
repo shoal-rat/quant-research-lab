@@ -26,7 +26,7 @@
 
 ## What is this?
 
-Quant Research Lab is an **LLM-native autonomous research loop wearing a cozy office sim as its face**. The simulation is honest where it matters:
+Quant Research Lab is an **LLM-native autonomous research loop wearing a cozy office sim as its face**. Since v2.0 the desk researches **20 years of real US market data** (32 tickers of daily adjusted closes, bundled — refresh anytime with `node scripts/fetch-market-data.mjs`): real cross-sectional backtests with costs, real out-of-sample splits, real equity curves through 2008-style regimes. The simulation is honest where it matters:
 
 - Strategies come from a **knowledge base of 15 documented equity families** (momentum, PEAD, news sentiment, low-vol/BAB, pairs, lead-lag, seasonality…) with literature-grounded net-of-cost Sharpe priors, failure modes, and parameter ranges — not a random name generator.
 - Every backtest passes through **mechanical risk gates**: a Bailey–López de Prado **deflated Sharpe ratio** computed against the desk's global trial count, a WorldQuant-style **alpha-pool correlation penalty**, cost/turnover/drawdown/baseline checks. The risk officer reads the gates out loud; she never overrides them.
@@ -114,15 +114,26 @@ npm test           # 8 engine tests: determinism, cost monotonicity, deflated-Sh
 npm run build      # tsc + vite
 ```
 
-## Roadmap
+## The game layer
 
-From the research doc, in priority order:
+You are not watching a screensaver — you are running a fund:
 
-- [ ] **Thompson-sampling direction bandit** (RD-Agent(Q)) — replace the explore/refine coin-flip with a posterior over `explore_new_family / refine_pool_best / repair_failure / recombine_winners`
-- [ ] **Pool-level ΔSharpe reward** (AlphaGen) — score experiments by how much the *pool* improves, not standalone Sharpe
-- [ ] **MAP-Elites niche archive** (QuantEvolve) — family × horizon × risk grid as the anti-collapse mechanism and an in-office "portfolio board"
-- [ ] **PBO via CSCV** — probability of backtest overfitting as a research-review set piece
-- [ ] Real LLM research loop through the Claude Code / Codex bridge adapters
+- **Boss XP & titles** — every experiment, candidate, directive, and praise/whip earns XP; climb from *Intern Boss* to *量化教父*, with level-up toasts.
+- **16 achievements** — from *Graveyard Keeper* (10 rejections) to *Fund Sharpe > 1*, bilingual, with unlock toasts and a trophy wall.
+- **Virtual fund NAV** in the HUD, marked off the candidate pool's combined real-data performance.
+- **Fund & Research Board** (click the meeting table): pool equity sparkline, the MAP-Elites niche grid, the direction bandit's live posteriors, and the desk's CSCV overfitting probability.
+- **Confetti celebrations** when a candidate is promoted; **rare office events** (regulator visits, coffee crises, journal rejections) keep the place alive between runs.
+
+## Roadmap — ✅ all shipped in v2.0
+
+- [x] **Thompson-sampling direction bandit** (RD-Agent(Q)) — `explore / refine / repair / recombine` arms with history-derived posteriors; the pick is narrated in the idea's reasoning trace
+- [x] **Pool-level ΔSharpe reward** (AlphaGen) — every real-data experiment stores its daily return series and is scored by how much the candidate pool's Sharpe moves
+- [x] **MAP-Elites niche archive** (QuantEvolve) — family × horizon × risk grid drives exploration toward open niches and renders as the in-office board
+- [x] **PBO via CSCV** — desk-level probability of backtest overfitting over the trial registry, on the board
+- [x] **Real LLM research loop** — set *Research brain* to Claude Code / Codex CLI and the hypothesis (family, parameters, pitch) comes from a real model through the local bridge, validated against the knowledge base
+- [x] **Real market data** — 20 years of daily adjusted closes for 32 US large caps, real cross-sectional backtester, real pool correlations
+
+Next ideas: per-name fundamentals for the quality family, live data refresh from inside the game, multi-desk competition.
 
 ## Contributors
 

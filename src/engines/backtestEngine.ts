@@ -201,7 +201,9 @@ function makeReturnSeries(
   generatedCode: string,
   familyAttempts: number
 ): { returns: number[]; benchmarkReturns: number[]; turnoverSeries: number[]; concentration: number; yearDependency: number } {
-  const rng = seededRandom(`${strategy.id}-${params.transactionCostBps}-${generatedCode.length}`);
+  // the seed must NOT depend on the cost level, so that cost comparisons see
+  // identical noise and the drag stays strictly monotonic
+  const rng = seededRandom(`${strategy.id}-${generatedCode.length}`);
   const days = Math.min(330, Math.max(180, Math.floor(rows.length / Math.max(strategy.universe.length, 1))));
   const baseEdge = strategyEdge(strategy, familyAttempts);
   const complexity = Object.keys(strategy.parameters).length + (generatedCode.length % 7);

@@ -11,12 +11,10 @@ const bubbleFrames: Record<Bubble2DType, string> = {
   system: "/assets/generated/ui/bubbles-2d/bubble-system.png"
 };
 
-// The text lives inside a per-balloon-type "safe box" so it never spills over
-// the irregular balloon art (clouds, spikes, tails).
 export function SpeechBubble2D({ message, type }: { message: string; type: Bubble2DType }): JSX.Element {
   return (
-    <div className={`speech-bubble-2d bubble-${type}`}>
-      <img src={bubbleFrames[type]} alt="" aria-hidden="true" draggable={false} />
+    <div className={`speech-bubble-2d bubble-${type}`} data-bubble-tone={type}>
+      <img className="bubble-frame" src={bubbleFrames[type]} alt="" aria-hidden="true" draggable={false} />
       <span className="bubble-safe">
         <em>{message}</em>
       </span>

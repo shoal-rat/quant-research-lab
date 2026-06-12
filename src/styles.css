@@ -2547,7 +2547,8 @@ button {
   pointer-events: none;
 }
 
-.speech-bubble-2d img {
+.speech-bubble-2d img,
+.speech-bubble-2d .bubble-frame {
   position: absolute;
   inset: 0;
   width: 100%;

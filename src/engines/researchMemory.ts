@@ -13,6 +13,7 @@ export function deriveResearchMemory(experiments: ExperimentRecord[]): ResearchM
     memories.push({
       id: "costs",
       text: `Transaction costs broke ${costFailures} of the last ${recent.length} runs; short-horizon signals need a turnover gate.`,
+      textZh: `最近 ${recent.length} 次实验里有 ${costFailures} 次死在交易成本上；短周期信号必须配换手率闸门。`,
       weight: costFailures
     });
   }
@@ -22,6 +23,7 @@ export function deriveResearchMemory(experiments: ExperimentRecord[]): ResearchM
     memories.push({
       id: "deflated",
       text: `${overfit} recent runs failed the deflated-Sharpe gate: the desk is data-mining; favor refinement over fresh trials.`,
+      textZh: `最近有 ${overfit} 次实验没过 deflated-Sharpe 闸门：全桌在数据挖掘，应该多精修少开新坑。`,
       weight: overfit
     });
   }
@@ -38,6 +40,7 @@ export function deriveResearchMemory(experiments: ExperimentRecord[]): ResearchM
     memories.push({
       id: "best-family",
       text: `${getFamily(bestFamily.key).name} is the strongest family so far: mean OOS Sharpe ${bestFamily.mean.toFixed(2)} over ${bestFamily.attempts} runs.`,
+      textZh: `目前最强的家族是 ${getFamily(bestFamily.key).name}：${bestFamily.attempts} 次实验，平均样本外 Sharpe ${bestFamily.mean.toFixed(2)}。`,
       weight: bestFamily.attempts
     });
   }
@@ -45,6 +48,7 @@ export function deriveResearchMemory(experiments: ExperimentRecord[]): ResearchM
     memories.push({
       id: "worst-family",
       text: `${getFamily(worstFamily.key).name} keeps disappointing (mean OOS Sharpe ${worstFamily.mean.toFixed(2)}); deprioritize unless the construction changes.`,
+      textZh: `${getFamily(worstFamily.key).name} 一直令人失望（平均样本外 Sharpe ${worstFamily.mean.toFixed(2)}）；除非改构造，否则降优先级。`,
       weight: worstFamily.attempts
     });
   }
@@ -55,6 +59,7 @@ export function deriveResearchMemory(experiments: ExperimentRecord[]): ResearchM
     memories.push({
       id: "best-candidate",
       text: `${best.strategyName} leads the pool: OOS Sharpe ${best.outOfSampleResult.sharpeRatio.toFixed(2)}, deflated-Sharpe probability ${(best.outOfSampleResult.deflatedSharpe * 100).toFixed(0)}%.`,
+      textZh: `${best.strategyName} 领跑候选池：样本外 Sharpe ${best.outOfSampleResult.sharpeRatio.toFixed(2)}，贬损后存活率 ${(best.outOfSampleResult.deflatedSharpe * 100).toFixed(0)}%。`,
       weight: best.outOfSampleResult.robustnessScore
     });
     const refined = candidates.filter((exp) => exp.ideaMode === "refine").length;
@@ -62,6 +67,7 @@ export function deriveResearchMemory(experiments: ExperimentRecord[]): ResearchM
       memories.push({
         id: "refinement-pays",
         text: "Refining promising lineages has produced more candidates than fresh exploration; keep mutation steps small.",
+        textZh: "精修有苗头的血统比从零探索产出更多候选；变异步子要小。",
         weight: refined
       });
     }
@@ -72,6 +78,7 @@ export function deriveResearchMemory(experiments: ExperimentRecord[]): ResearchM
     memories.push({
       id: "pool-correlation",
       text: "New signals keep duplicating the existing alpha pool; the next idea must come from an uncorrelated family.",
+      textZh: "新信号总在复制现有 Alpha 池；下一个想法必须来自不相关的家族。",
       weight: correlated
     });
   }
@@ -81,11 +88,13 @@ export function deriveResearchMemory(experiments: ExperimentRecord[]): ResearchM
       {
         id: "baseline-costs",
         text: "The desk has not yet trusted any signal until costs and out-of-sample splits are checked.",
+        textZh: "在过成本和样本外切分之前，这张桌子还没信过任何信号。",
         weight: 1
       },
       {
         id: "baseline-timestamps",
         text: "Timestamp alignment is treated as a hard gate before backtest conclusions.",
+        textZh: "时间戳对齐是回测结论前的硬性闸门。",
         weight: 1
       }
     );

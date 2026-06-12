@@ -79,12 +79,22 @@ Press **▶ Start** in the top bar and watch the desk work. Give it a directive.
 
 ## The dialogue brain
 
-Conversations are always generated locally from real loop data (free, offline). Optionally, Settings → *Character dialogue brain* routes them through a small, cheap model **called directly from your browser with your own key** (stored locally, sent only to the provider, silent fallback to local scripts):
+Conversations are always generated locally from an **authored bank of 150+ bilingual script templates** (≈460 lines of dialogue) that condition on the live research context — experiment status, deflated-Sharpe odds, lineage generation, boss directives, even desk morale — and interpolate the real numbers. Free and offline.
 
-| Backend | Model | ~Cost per conversation |
+Optionally, Settings → *Character dialogue brain* routes conversations through a small model for personalized rewrites (silent fallback to the local bank on any failure):
+
+| Backend | How it authenticates | Model |
 |---|---|---|
-| Anthropic | `claude-haiku-4-5` (official SDK, structured outputs) | ~$0.002 |
-| OpenAI | `gpt-5.4-nano` (Responses API, strict JSON schema) | ~$0.0004 |
+| Anthropic API | your API key, browser-direct | `claude-haiku-4-5` (~$0.002/chat) |
+| OpenAI API | your API key, browser-direct | `gpt-5.4-nano` (~$0.0004/chat) |
+| **Claude Code CLI** | your existing subscription — no key | `claude-haiku-4-5` |
+| **Codex CLI** | your existing subscription — no key | account default at low reasoning effort |
+
+The CLI backends go through a tiny local bridge that shells out to your already-authenticated CLI:
+
+```bash
+npm run dialogue-bridge     # keep running while you play; binds to 127.0.0.1 only
+```
 
 ## Architecture
 

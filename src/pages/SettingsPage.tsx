@@ -168,10 +168,22 @@ export function SettingsPage(): JSX.Element {
               onChange={(event) => set("dialogueBackend", event.target.value as Settings["dialogueBackend"])}
             >
               <option value="local">Local templates (free, offline)</option>
-              <option value="anthropic">Claude Haiku 4.5 (~$0.002 per chat)</option>
-              <option value="openai">GPT-5.4 nano (~$0.0004 per chat)</option>
+              <option value="anthropic">Claude Haiku 4.5 — API key (~$0.002 per chat)</option>
+              <option value="openai">GPT-5.4 nano — API key (~$0.0004 per chat)</option>
+              <option value="claude-code">Claude Code CLI — your subscription, no key</option>
+              <option value="codex">Codex CLI — your subscription, no key</option>
             </select>
           </label>
+          {(settings.dialogueBackend === "claude-code" || settings.dialogueBackend === "codex") && (
+            <label className="field full">
+              <span>Dialogue bridge URL — run “npm run dialogue-bridge” in the project folder first</span>
+              <input
+                value={settings.bridgeUrl}
+                placeholder="http://127.0.0.1:8787"
+                onChange={(event) => set("bridgeUrl", event.target.value)}
+              />
+            </label>
+          )}
           {settings.dialogueBackend === "anthropic" && (
             <label className="field full">
               <span>Anthropic API key</span>

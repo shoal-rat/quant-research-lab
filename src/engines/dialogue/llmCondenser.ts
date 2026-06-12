@@ -168,6 +168,45 @@ async function condenseWithOpenAI(
   }
 }
 
+// Claude Code / Codex CLI backends: the prompt goes through the local bridge
+// (scripts/dialogue-bridge.mjs), which shells out to the user's
+// already-authenticated CLI with the cheapest model. No API keys needed.
+async function condenseWithBridge(
+  script: ConversationScript,
+  facts: CondenseFacts,
+  agents: AgentProfile[],
+  bridgeUrl: string,
+  backend: "claude-code" | "codex"
+): Promise<ConversationLine[] | null> {
+  const prompt = `${SYSTEM_PROMPT}
+
+INPUT (JSON):
+${factsFor(script, facts, agents)}
+
+Reply with ONLY a JSON object of the shape {"lines":[{"agentId":"...","text":"...","tone":"..."}]} - no prose, no markdown fences. agentId must be one of: ${script.participantIds.join(", ")}. tone must be one of: ${TONES.join(", ")}.`;
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 60000);
+  try {
+    const response = await fetch(`${bridgeUrl.replace(/\/$/, "")}/condense`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({ backend, prompt })
+    });
+    if (!response.ok) return null;
+    const payload = (await response.json()) as { text?: string };
+    if (!payload.text) return null;
+    // tolerate fences or chatter around the JSON object
+    const start = payload.text.indexOf("{");
+    const end = payload.text.lastIndexOf("}");
+    if (start < 0 || end <= start) return null;
+    const parsed = JSON.parse(payload.text.slice(start, end + 1)) as { lines?: unknown };
+    return validate(parsed.lines, script.participantIds);
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 export async function condenseConversation(
   script: ConversationScript,
   facts: CondenseFacts,
@@ -185,6 +224,8 @@ export async function condenseConversation(
       lines = await condenseWithAnthropic(script, facts, agents, settings.anthropicApiKey);
     } else if (backend === "openai" && settings.openaiApiKey) {
       lines = await condenseWithOpenAI(script, facts, agents, settings.openaiApiKey);
+    } else if (backend === "claude-code" || backend === "codex") {
+      lines = await condenseWithBridge(script, facts, agents, settings.bridgeUrl, backend);
     }
     if (lines && lines.length >= 2) {
       if (CACHE.size > CACHE_LIMIT) CACHE.clear();

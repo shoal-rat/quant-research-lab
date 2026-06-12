@@ -97,7 +97,7 @@ export interface AgentRuntime {
   priorityUntil: number;
 }
 
-export type DialogueBackend = "local" | "anthropic" | "openai";
+export type DialogueBackend = "local" | "anthropic" | "openai" | "claude-code" | "codex";
 export type Language = "en" | "zh";
 
 export interface Settings {
@@ -120,6 +120,7 @@ export interface Settings {
   dialogueBackend: DialogueBackend;
   anthropicApiKey: string;
   openaiApiKey: string;
+  bridgeUrl: string;
   language: Language;
 }
 
@@ -280,6 +281,7 @@ export interface SpeechBubble {
 export interface ResearchMemory {
   id: string;
   text: string;
+  textZh: string;
   weight: number;
 }
 

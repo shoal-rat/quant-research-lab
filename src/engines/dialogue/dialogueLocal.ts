@@ -11,6 +11,7 @@ import {
 } from "../../types";
 import { pick, seededRandom } from "../random";
 import { getFamily } from "../strategyKnowledge";
+import { bankConversation, buildFacts } from "./dialogueBank";
 
 export interface DialogueContext {
   phase: LoopPhase;
@@ -76,11 +77,28 @@ function warnChecks(experiment: ExperimentRecord): string[] {
     .map((check) => check.label.toLowerCase());
 }
 
+const PHASE_PRIORITY: Record<string, number> = {
+  proposing: 60,
+  data_check: 55,
+  coding: 55,
+  backtesting: 55,
+  risk_review: 70,
+  debate: 80,
+  decision: 75,
+  saved: 75
+};
+
 export function phaseConversation(context: DialogueContext): ConversationScript | undefined {
   const { phase, experiment, draft, timestamp, memory } = context;
   const zh = context.language === "zh";
   const tx = (en: string, zhText: string) => (zh ? zhText : en);
   const rng = seededRandom(`phase-${phase}-${draft?.id ?? experiment?.id ?? "none"}-${Math.floor(timestamp / 10000)}`);
+
+  // the authored template bank goes first; hand-written scripts are fallback
+  if (phase in PHASE_PRIORITY) {
+    const banked = bankConversation(phase, context, buildFacts(context), PHASE_PRIORITY[phase]);
+    if (banked) return banked;
+  }
 
   if (phase === "proposing") {
     const idea = draft?.ideaReasoning?.[0];
@@ -495,6 +513,8 @@ export function ideaRevealConversation(context: DialogueContext): ConversationSc
   const { experiment, timestamp } = context;
   const zh = context.language === "zh";
   if (!experiment || !experiment.ideaReasoning || experiment.ideaReasoning.length === 0) return undefined;
+  const banked = bankConversation("idea_reveal", context, buildFacts(context), 50);
+  if (banked) return banked;
   const rng = seededRandom(`reveal-${experiment.id}`);
   const reasons = experiment.ideaReasoning;
   const lines = [
@@ -525,9 +545,18 @@ export function ideaRevealConversation(context: DialogueContext): ConversationSc
 export function gossipConversation(context: DialogueContext): ConversationScript {
   const { memory, timestamp, experiment } = context;
   const zh = context.language === "zh";
+  const banked = bankConversation("gossip", context, buildFacts(context), 20);
+  if (banked) return banked;
   const rng = seededRandom(`gossip-${Math.floor(timestamp / 15000)}`);
   const spot = pick(["tea", "window", "meeting"], rng);
-  const lesson = memory.length > 0 ? pick(memory, rng).text : zh ? "到现在我们还没信过任何一条曲线。" : "We have not trusted a single curve yet.";
+  const memoryItem = memory.length > 0 ? pick(memory, rng) : undefined;
+  const lesson = memoryItem
+    ? zh
+      ? memoryItem.textZh ?? memoryItem.text
+      : memoryItem.text
+    : zh
+      ? "到现在我们还没信过任何一条曲线。"
+      : "We have not trusted a single curve yet.";
 
   const variants: ConversationLine[][] = zh
     ? [
@@ -609,6 +638,8 @@ export function gossipConversation(context: DialogueContext): ConversationScript
 export function bossDirectiveConversation(context: DialogueContext): ConversationScript {
   const { bossText = "", timestamp } = context;
   const zh = context.language === "zh";
+  const banked = bankConversation("boss_ack", context, buildFacts(context), 85);
+  if (banked) return banked;
   const rng = seededRandom(`boss-${Math.floor(timestamp / 1000)}`);
   const urgent = /!|！|快|赶紧|now|asap|immediately/i.test(bossText);
   const ack = urgent
@@ -670,6 +701,8 @@ function tx2(zh: boolean, en: string, zhText: string): string {
 export function lovedConversation(context: DialogueContext): ConversationScript {
   const { targetAgentId = A.strategy, agents, timestamp } = context;
   const zh = context.language === "zh";
+  const banked = bankConversation("love", context, buildFacts(context), 76);
+  if (banked) return banked;
   const rng = seededRandom(`love-${targetAgentId}-${Math.floor(timestamp / 1000)}`);
   const target = agents.find((agent) => agent.id === targetAgentId);
   const name = target?.name ?? (zh ? "某人" : "Someone");
@@ -717,6 +750,8 @@ export function lovedConversation(context: DialogueContext): ConversationScript 
 export function whippedConversation(context: DialogueContext): ConversationScript {
   const { targetAgentId = A.code, agents, timestamp } = context;
   const zh = context.language === "zh";
+  const banked = bankConversation("whip", context, buildFacts(context), 76);
+  if (banked) return banked;
   const rng = seededRandom(`whip-${targetAgentId}-${Math.floor(timestamp / 1000)}`);
   const target = agents.find((agent) => agent.id === targetAgentId);
   const name = target?.name ?? (zh ? "某人" : "Someone");

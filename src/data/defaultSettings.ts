@@ -20,5 +20,6 @@ export const defaultSettings: Settings = {
   dialogueBackend: "local",
   anthropicApiKey: "",
   openaiApiKey: "",
+  bridgeUrl: "http://127.0.0.1:8787",
   language: "en"
 };

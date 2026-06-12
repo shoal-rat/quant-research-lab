@@ -582,22 +582,9 @@
   min-height: clamp(88px, 10vw, 138px);
 }
 
-.agent-2d-sprite.bubble-lg .speech-bubble-2d span {
-  max-width: 78%;
-  font-size: clamp(9.5px, 0.74vw, 12.5px);
-  -webkit-line-clamp: 4;
-}
-
 .agent-2d-sprite.bubble-xl .speech-bubble-2d {
   width: clamp(225px, 23vw, 350px);
   min-height: clamp(102px, 11.5vw, 158px);
-}
-
-.agent-2d-sprite.bubble-xl .speech-bubble-2d span {
-  max-width: 80%;
-  font-size: clamp(9px, 0.7vw, 12px);
-  line-height: 1.18;
-  -webkit-line-clamp: 5;
 }
 
 /* Bubbles near the stage edge shift inward instead of clipping offscreen */
@@ -619,4 +606,68 @@
 .leaderboard-2d-row {
   overflow: hidden;
   align-content: center;
+}
+
+/* ------------------------------------------------------------------
+   Bubble text safe boxes: the text is confined to the readable region
+   of each balloon art, clear of tails, clouds, and spikes.
+   ------------------------------------------------------------------ */
+.speech-bubble-2d .bubble-safe {
+  position: absolute;
+  inset: 13% 14% 28% 14%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: none;
+  overflow: hidden;
+}
+
+.speech-bubble-2d .bubble-safe em {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #2f2721;
+  font-style: normal;
+  font-size: clamp(10px, 0.78vw, 13px);
+  font-weight: 800;
+  line-height: 1.16;
+  text-align: center;
+  word-break: break-word;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+/* per-balloon-type safe regions */
+.speech-bubble-2d.bubble-thought .bubble-safe { inset: 15% 17% 32% 17%; }
+.speech-bubble-2d.bubble-shout .bubble-safe,
+.speech-bubble-2d.bubble-explosion .bubble-safe { inset: 17% 18% 26% 18%; }
+.speech-bubble-2d.bubble-whisper .bubble-safe em { font-size: clamp(9px, 0.72vw, 12px); }
+.speech-bubble-2d.bubble-sweat .bubble-safe { inset: 14% 16% 30% 16%; }
+
+/* size variants now target the inner text */
+.agent-2d-sprite.bubble-lg .speech-bubble-2d .bubble-safe em {
+  font-size: clamp(9.5px, 0.74vw, 12.5px);
+  -webkit-line-clamp: 4;
+}
+
+.agent-2d-sprite.bubble-xl .speech-bubble-2d .bubble-safe em {
+  font-size: clamp(9px, 0.7vw, 12px);
+  line-height: 1.18;
+  -webkit-line-clamp: 5;
+}
+
+/* Ticker cards: two full lines, no mid-line clipping */
+.game-bottom-stack .speech-ticker {
+  max-height: 84px;
+}
+
+.game-bottom-stack .ticker-bubble {
+  align-content: start;
+}
+
+.game-bottom-stack .ticker-bubble span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }

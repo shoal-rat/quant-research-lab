@@ -28,9 +28,11 @@ export function Agent2DSprite({ agent, state, reducedMotion, onClick }: Agent2DS
   } as CSSProperties;
 
   // long lines get a bigger bubble; near the stage edge the bubble shifts
-  // inward so it is never clipped offscreen
-  const messageLength = state.message?.length ?? 0;
-  const bubbleSize = messageLength > 90 ? "bubble-xl" : messageLength > 48 ? "bubble-lg" : "";
+  // inward so it is never clipped offscreen. CJK glyphs are wider, so they
+  // count extra toward the size thresholds.
+  const cjkCount = (state.message?.match(/[　-鿿＀-￯]/g) ?? []).length;
+  const messageLength = (state.message?.length ?? 0) + cjkCount * 0.9;
+  const bubbleSize = messageLength > 88 ? "bubble-xl" : messageLength > 44 ? "bubble-lg" : "";
   const edge =
     state.x < office2DMapSize.width * 0.16
       ? "bubble-edge-left"

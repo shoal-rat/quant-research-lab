@@ -6,6 +6,7 @@ import { runBacktest } from "./backtestEngine";
 import { reviewBacktestRisk } from "./riskReviewEngine";
 import { parseBossDirective, proposeStrategy } from "./hypothesisEngine";
 import { getFamily } from "./strategyKnowledge";
+import { DIALOGUE_TEMPLATES } from "./dialogue/banks/generated";
 import { ProposalContext } from "../types";
 
 function proposalContext(overrides: Partial<ProposalContext> = {}): ProposalContext {
@@ -39,6 +40,21 @@ describe("research engines", () => {
     // deterministic for the same context
     const again = proposeStrategy(proposalContext());
     expect(again.familyKey).toBe(strategy.familyKey);
+  });
+
+  it("the authored dialogue bank is large, bilingual, and well-formed", () => {
+    expect(DIALOGUE_TEMPLATES.length).toBeGreaterThanOrEqual(140);
+    const topics = new Set(DIALOGUE_TEMPLATES.map((template) => template.topic));
+    ["proposing", "risk_review", "debate", "saved", "gossip", "boss_ack", "love", "whip"].forEach((topic) =>
+      expect(topics.has(topic)).toBe(true)
+    );
+    DIALOGUE_TEMPLATES.forEach((template) => {
+      expect(template.lines.length).toBeGreaterThanOrEqual(2);
+      template.lines.forEach((line) => {
+        expect(line.en.length).toBeGreaterThan(1);
+        expect(line.zh).toMatch(/[一-鿿]/);
+      });
+    });
   });
 
   it("mutated parameters always stay inside their documented [min, max] ranges", () => {

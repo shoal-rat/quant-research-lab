@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "build:wallpaper": "node scripts/build-wallpaper.mjs",
+    "dialogue-bridge": "node scripts/dialogue-bridge.mjs",
     "verify:assets": "node scripts/verify-assets.mjs",
     "test": "vitest run"
   },

@@ -423,7 +423,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
             language: settingsRef.current.language,
             agents: agentsRef.current,
             memory: deriveResearchMemory(experimentsRef.current),
-            timestamp: now
+            timestamp: now,
+            morale: Math.round(
+              agentsRef.current.reduce((sum, agent) => sum + (moodRef.current[agent.id]?.morale ?? 70), 0) /
+                Math.max(1, agentsRef.current.length)
+            )
           })
         );
       }
@@ -589,7 +593,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
         agents: agentsRef.current,
         memory: deriveResearchMemory(experimentsRef.current),
         timestamp: now,
-        targetAgentId: agentId
+        targetAgentId: agentId,
+        morale: moodRef.current[agentId]?.morale ?? 70
       };
       window.setTimeout(() => {
         director.scheduleConversation(kind === "love" ? lovedConversation(context) : whippedConversation(context));

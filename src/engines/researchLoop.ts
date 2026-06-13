@@ -9,11 +9,10 @@ import {
 } from "../types";
 import { makeMockMarketData } from "./mockMarketData";
 import { runBacktest } from "./backtestEngine";
-import { loadRealMarket } from "./realMarket";
-import { RealBacktestExtras, runRealBacktest } from "./realBacktestEngine";
+import { RealBacktestExtras } from "./realBacktestEngine";
 import { poolSharpeDelta } from "./poolAnalytics";
-import { getFamily } from "./strategyKnowledge";
 import { decideExperimentStatus, reviewBacktestRisk } from "./riskReviewEngine";
+import { DatasetProvider } from "./dataset/types";
 
 export interface IterationInput {
   settings: Settings;
@@ -23,6 +22,7 @@ export interface IterationInput {
   bossDirective?: string;
   explorationBias: number;
   strictnessBias: number;
+  datasetProvider: DatasetProvider | null;
 }
 
 function managerDecision(status: ExperimentRecord["status"]): string {
@@ -66,6 +66,9 @@ export interface IterationDraft {
   iteration: number;
   strategy: StrategySpec;
   generatedCode: string;
+  // the provider the hypothesis was grounded in; the backtest reuses this exact
+  // instance so a mid-iteration dataset switch can't desync proposal vs backtest
+  provider: DatasetProvider | null;
 }
 
 // Phase 1: the hypothesis exists from the moment "proposing" starts, so the
@@ -74,17 +77,19 @@ export async function prepareIteration(
   adapter: LLMCapabilities,
   input: Omit<IterationInput, "strictnessBias">
 ): Promise<IterationDraft> {
-  const { settings, memory, iteration, experiments, bossDirective, explorationBias } = input;
+  const { settings, memory, iteration, experiments, bossDirective, explorationBias, datasetProvider } = input;
   const strategy = await adapter.proposeHypothesis({
     settings,
     memory,
     iteration,
     experiments,
     bossDirective,
-    explorationBias
+    explorationBias,
+    datasetProfile: datasetProvider?.profileText(),
+    computableFamilies: datasetProvider ? datasetProvider.computableFamilies() : null
   });
   const generatedCode = await adapter.generateStrategyLogic(strategy);
-  return { iteration, strategy, generatedCode };
+  return { iteration, strategy, generatedCode, provider: datasetProvider };
 }
 
 // Phase 2: backtest + review + debate for a previously prepared draft.
@@ -94,7 +99,7 @@ export async function completeIteration(
   draft: IterationDraft
 ): Promise<ExperimentRecord> {
   const { settings, memory, iteration, experiments, strictnessBias } = input;
-  const { strategy, generatedCode } = draft;
+  const { strategy, generatedCode, provider: datasetProvider } = draft;
   const params: BacktestParameters = {
     universe: strategy.universe,
     dateRange: { start: settings.startDate, end: settings.endDate },
@@ -106,19 +111,22 @@ export async function completeIteration(
   const familyAttempts = experiments.filter((experiment) => experiment.familyKey === strategy.familyKey).length;
   const priorCandidates = experiments.filter((experiment) => experiment.status === "candidate");
 
-  // real 20y market data when enabled and the family is price-computable;
-  // deterministic mock simulator otherwise
-  const realData = settings.dataSource === "real" ? await loadRealMarket() : null;
+  // The active dataset provider (bundled / your CSV / remote / a large source
+  // read by the CLI) backtests price-computable families; anything else — or a
+  // provider that fails — degrades to the deterministic mock simulator so the
+  // office never stalls.
   let backtest;
   let extras: RealBacktestExtras | undefined;
-  if (realData && getFamily(strategy.familyKey).priceComputable) {
-    const output = runRealBacktest(strategy, params, realData, {
-      totalTrials: experiments.length + 1,
-      priorCandidates
-    });
+  let datasetLabel: string | undefined;
+  const output =
+    datasetProvider && datasetProvider.canBacktest(strategy.familyKey)
+      ? await datasetProvider.runBacktest(strategy, params, { totalTrials: experiments.length + 1, priorCandidates })
+      : null;
+  if (output) {
     backtest = output.result;
     backtest.generatedCode = generatedCode;
     extras = output.extras;
+    datasetLabel = datasetProvider?.meta().label;
     // keep stored series bounded for localStorage (last ~6 years)
     if (extras.dailyReturns.length > 1500) {
       extras.returnsStartIndex += extras.dailyReturns.length - 1500;
@@ -131,6 +139,7 @@ export async function completeIteration(
       totalTrials: experiments.length + 1,
       priorCandidates
     });
+    datasetLabel = "Deterministic mock simulator";
   }
   const riskReview = reviewBacktestRisk(strategy, backtest);
   const status = decideExperimentStatus(backtest, riskReview, generatedCode, strictnessBias);
@@ -150,6 +159,7 @@ export async function completeIteration(
     bossDirective: strategy.bossDirective,
     strategyParameters: strategy.parameters,
     dataSource: extras ? ("real" as const) : ("mock" as const),
+    datasetLabel,
     dailyReturns: extras?.dailyReturns,
     returnsStartIndex: extras?.returnsStartIndex,
     poolSharpeDelta: extras ? poolSharpeDelta(extras, priorCandidates) : undefined,

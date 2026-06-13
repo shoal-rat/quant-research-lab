@@ -8,7 +8,10 @@ import { computeLevel, computeXp, ACHIEVEMENTS } from "./progression";
 import { runRealBacktest } from "./realBacktestEngine";
 import { RealMarketData } from "./realMarket";
 import { proposeStrategy } from "./hypothesisEngine";
+import { STRATEGY_FAMILIES } from "./strategyKnowledge";
 import { ExperimentRecord, ProposalContext } from "../types";
+
+const PRICE_FAMILIES = STRATEGY_FAMILIES.filter((family) => family.priceComputable).map((family) => family.key);
 
 function loadDataset(): RealMarketData {
   const file = path.join(__dirname, "..", "..", "public", "assets", "data", "market-real.json");
@@ -35,6 +38,7 @@ function proposalContext(overrides: Partial<ProposalContext> = {}): ProposalCont
     iteration: 3,
     experiments: [],
     explorationBias: 0,
+    computableFamilies: PRICE_FAMILIES,
     ...overrides
   };
 }

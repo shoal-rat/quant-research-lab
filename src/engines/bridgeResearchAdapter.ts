@@ -57,10 +57,13 @@ export class BridgeResearchAdapter implements LLMCapabilities {
 
   async proposeHypothesis(context: ProposalContext): Promise<StrategySpec> {
     // the local engine handles bandit/lineage bookkeeping; the CLI refines or
-    // overrides the family/parameter choice with its own reasoning
+    // overrides the family/parameter choice with its own reasoning, grounded in
+    // a profile of the dataset actually loaded
     const local = proposeStrategy(context);
-    const realData = context.settings.dataSource === "real";
-    const families = STRATEGY_FAMILIES.filter((family) => !realData || family.priceComputable);
+    const computable = context.computableFamilies;
+    const families = computable
+      ? STRATEGY_FAMILIES.filter((family) => computable.includes(family.key))
+      : STRATEGY_FAMILIES;
     const familyTable = families
       .map(
         (family) =>
@@ -77,7 +80,7 @@ export class BridgeResearchAdapter implements LLMCapabilities {
       )
       .join("\n");
     const prompt = `You are the strategy researcher of a quant desk. Pick the next experiment.
-
+${context.datasetProfile ? `\nDATASET IN FRONT OF YOU:\n${context.datasetProfile}\n` : ""}
 AVAILABLE FAMILIES:
 ${familyTable}
 

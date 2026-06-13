@@ -22,6 +22,6 @@ export const defaultSettings: Settings = {
   openaiApiKey: "",
   bridgeUrl: "http://127.0.0.1:8787",
   language: "en",
-  dataSource: "real",
-  researchBrain: "local"
+  dataset: { kind: "bundled", label: "Bundled US equities · 20y dailies" },
+  researchBrain: "claude-code"
 };

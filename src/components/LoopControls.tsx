@@ -4,11 +4,15 @@ import { useAppStore } from "../store/AppStore";
 
 // Compact floating loop controls for the game HUD.
 export function LoopControls(): JSX.Element {
-  const { loop, settings, startResearch, pauseResearch, nextIteration, toggleAutoRun } = useAppStore();
+  const { loop, settings, startResearch, pauseResearch, nextIteration, toggleAutoRun, cliStatus } = useAppStore();
   const lang = settings.language;
 
   return (
     <div className="loop-controls">
+      <span
+        className={`cli-dot ${cliStatus.connected ? "ok" : cliStatus.checking ? "checking" : "off"}`}
+        title={cliStatus.connected ? t(lang, "cliConnected") : cliStatus.detail || t(lang, "cliOffline")}
+      />
       <span className={`phase-pill ${loop.running ? "running" : ""}`}>
         {phaseLabel(lang, loop.phase)}
       </span>

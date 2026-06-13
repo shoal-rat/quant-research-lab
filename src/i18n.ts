@@ -57,7 +57,21 @@ const STRINGS = {
   },
   language: { en: "Language", zh: "语言" },
   boardTitle: { en: "Fund & Research Board", zh: "基金与研究看板" },
-  navBoard: { en: "Board", zh: "看板" }
+  navBoard: { en: "Board", zh: "看板" },
+  connectCli: {
+    en: "Connect Claude Code or Codex to run research — this is an LLM-native lab.",
+    zh: "请先连接 Claude Code 或 Codex 才能开始研究——这是一个 LLM 原生研究室。"
+  },
+  cliConnected: { en: "research brain online", zh: "研究大脑在线" },
+  cliOffline: { en: "no research brain", zh: "研究大脑未连接" },
+  brainGateTitle: { en: "Connect a research brain", zh: "连接研究大脑" },
+  brainGateBody: {
+    en: "The research loop is driven by an agentic CLI. Start the bridge and sign in to Claude Code or Codex, then press Start.",
+    zh: "研究循环由智能体 CLI 驱动。启动桥接器并登录 Claude Code 或 Codex，然后点击开始。"
+  },
+  datasetReady: { en: "dataset ready", zh: "数据集就绪" },
+  datasetBuilding: { en: "loading dataset…", zh: "正在加载数据集…" },
+  datasetFailed: { en: "dataset error", zh: "数据集错误" }
 } satisfies Record<string, Record<Language, string>>;
 
 export type StringKey = keyof typeof STRINGS;

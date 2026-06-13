@@ -4,28 +4,22 @@
 
 <br/>
 
-**Six chibi researchers mine 20 years of real market data for alpha — propose, backtest, gate, debate, promote — and answer to exactly one person: you, the BOSS.**
+**An LLM-native quant office. Six chibi researchers mine real market data for alpha — driven by Claude Code or Codex, on the dataset *you* point them at — while you rule the desk as the BOSS.**
 
 **English** · [简体中文](README.zh-CN.md)
 
 [![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=white)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-7-646cff?logo=vite&logoColor=white)](https://vite.dev)
-[![Real data](https://img.shields.io/badge/data-20y%20real%20markets-c792ea)](#a-research-loop-that-earns-its-numbers)
-[![Tests](https://img.shields.io/badge/tests-17%20passing-2f9c95)](#verify)
-[![Language](https://img.shields.io/badge/UI-EN%20%2F%20中文-3f88c5)](#fully-bilingual)
+[![LLM-native](https://img.shields.io/badge/brain-Claude%20Code%20%2F%20Codex-7b61ff)](#the-research-brain-is-an-agentic-cli)
+[![Your data](https://img.shields.io/badge/data-bring%20your%20own-c792ea)](#bring-your-own-data)
+[![Tests](https://img.shields.io/badge/tests-21%20passing-2f9c95)](#verify)
 [![Wallpaper](https://img.shields.io/badge/desktop-wallpaper%20ready-e9b455)](#-put-it-on-your-desktop)
 [![License](https://img.shields.io/badge/license-MIT-8f5a2a)](LICENSE)
 
-<a href="https://github.com/shoal-rat/quant-research-lab/blob/main/docs/media/promo.mp4"><img src="docs/media/promo-poster.png" alt="Watch the 2-minute trailer" width="92%"/></a>
-
-🎬 **[▶ Watch the 2-minute trailer — narration, subtitles & sound](https://github.com/shoal-rat/quant-research-lab/blob/main/docs/media/promo.mp4)** · real gameplay from start to finish *(plays in your browser on GitHub)*
-
-<br/>
-
 <img src="docs/media/demo-office.gif" alt="The office running a research loop on real market data" width="92%"/>
 
-*One real research iteration: a Thompson bandit picks the direction, the whiteboard gets a hypothesis, the backtest runs on 20 years of daily prices, risk gates fire, and the desk argues about it at the meeting table. Every number in every speech bubble is real.*
+*One real research iteration: an agentic CLI proposes the hypothesis after reading the dataset, a Thompson bandit picks the direction, the backtest runs on real prices, risk gates fire, and the desk argues about it. Every number in every speech bubble is real.*
 
 </div>
 
@@ -33,58 +27,57 @@
 
 ## What is this?
 
-A **cozy anime office sim that is secretly a serious autonomous research loop**. The six researchers below run the full cycle by themselves — hypothesis → data audit → real cross-sectional backtest → mechanical risk gates → debate → promote or bury — on **bundled real data: ~5,000 trading days of daily adjusted closes for 32 US large caps (2006 → 2026)**. You don't write code to play it; you manage *them*.
+A **cozy anime office sim that is secretly a serious, LLM-native research loop**. The hypotheses are written by an agentic CLI — **Claude Code or Codex, your subscription, no API key** — that reads the actual data in front of it. The six researchers below run the full cycle: propose → data audit → cross-sectional backtest → mechanical risk gates → debate → promote or bury.
+
+It ships with **20 years of real US prices**, but the whole thing is built to point at **your** data — a CSV you drop in, a remote URL, or a dataset far too large to fit in a browser, which the CLI reads *where it lives*.
 
 It is honest where research sims usually cheat:
 
-- 🧠 **Ideas come from a knowledge base, not a name generator** — 14 documented equity families (momentum, PEAD, low-vol/BAB, pairs, lead-lag, seasonality…) with literature-grounded net-of-cost Sharpe priors, failure modes, and parameter ranges.
-- 🎰 **A Thompson-sampling bandit picks the research direction** — `explore / refine / repair / recombine`, with posteriors learned from how much each direction actually moved the fund.
-- 🛡️ **Promotion is gated mechanically** — Bailey–López de Prado **deflated Sharpe** against the desk's global trial count, a WorldQuant-style **alpha-pool correlation penalty**, cost/turnover/drawdown/baseline checks. The risk officer reads the verdict; she never overrides it.
-- 📉 **Candidates are scored by pool ΔSharpe** — a strategy is only worth what it adds to the fund's combined daily-return series, not its solo stats.
-- 🪦 **The desk remembers** — per-family lessons, lineage (v2/v3 children of promising parents), a MAP-Elites niche archive, and edge decay when the team re-mines the same family. Just like the real factor zoo.
+- 🧠 **The brain is an agentic CLI** — it profiles the real dataset (names, span, columns, stats) and grounds each hypothesis in what it actually sees, then validates against a knowledge base of 15 documented equity families.
+- 🎰 **A Thompson-sampling bandit picks the research direction** — `explore / refine / repair / recombine`, with posteriors learned from how much each direction moved the fund.
+- 🛡️ **Promotion is gated mechanically** — Bailey–López de Prado **deflated Sharpe** against the desk's global trial count, a WorldQuant-style **alpha-pool correlation penalty**, cost / turnover / drawdown / baseline checks. The risk officer reads the verdict; she never overrides it.
+- 📉 **Candidates are scored by pool ΔSharpe** — a strategy is worth only what it adds to the fund's combined return series.
+- 🪦 **The desk remembers** — per-family lessons, lineage, a MAP-Elites niche archive, and edge decay when the team re-mines a family.
 
 Historical simulations only — no brokerage, no investment advice.
 
 ## Meet the desk
 
-<table>
-  <tr>
-    <td align="center" valign="top" width="33%">
-      <img src="docs/media/portraits/mira.png" width="128" alt="Mira Signal"/><br/>
-      <b>Mira Signal</b> · <sub>Strategy</sub><br/>
-      <sub><i>"This signal smells promising."</i></sub>
-    </td>
-    <td align="center" valign="top" width="33%">
-      <img src="docs/media/portraits/ren.png" width="128" alt="Ren Compile"/><br/>
-      <b>Ren Compile</b> · <sub>Engineering</sub><br/>
-      <sub><i>"If it runs, we are alive."</i></sub>
-    </td>
-    <td align="center" valign="top" width="33%">
-      <img src="docs/media/portraits/sana.png" width="128" alt="Sana Risk"/><br/>
-      <b>Sana Risk</b> · <sub>Risk</sub><br/>
-      <sub><i>"Pretty returns aren't usable returns."</i></sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="33%">
-      <img src="docs/media/portraits/ivo.png" width="128" alt="Ivo Doubt"/><br/>
-      <b>Ivo Doubt</b> · <sub>Skeptic</sub><br/>
-      <sub><i>"This may just be luck."</i></sub>
-    </td>
-    <td align="center" valign="top" width="33%">
-      <img src="docs/media/portraits/noa.png" width="128" alt="Noa Ledger"/><br/>
-      <b>Noa Ledger</b> · <sub>Experiment manager</sub><br/>
-      <sub><i>"Stop arguing. Next iteration."</i></sub>
-    </td>
-    <td align="center" valign="top" width="33%">
-      <img src="docs/media/portraits/kira.png" width="128" alt="Kira Timestamp"/><br/>
-      <b>Kira Timestamp</b> · <sub>Data</sub><br/>
-      <sub><i>"Do not use future data."</i></sub>
-    </td>
-  </tr>
-</table>
+| | Researcher | Desk | Signature line |
+|---|---|---|---|
+| 🔴 | **Mira Signal** | Strategy | "This signal smells promising." |
+| 🔵 | **Ren Compile** | Engineering | "If it runs, we are alive." |
+| 🟤 | **Sana Risk** | Risk | "Pretty returns do not mean usable returns." |
+| ⚪ | **Ivo Doubt** | Skeptic | "This may just be luck." |
+| 🟢 | **Noa Ledger** | Experiment manager | "Stop arguing. Next iteration." |
+| 🟣 | **Kira Timestamp** | Data | "Do not use future data." |
 
-They walk between desks, gossip about whoever you just whipped, argue four-ways at the meeting table, and quote their actual backtest numbers while doing it.
+## Bring your own data
+
+The dataset is pluggable. Pick a source in **Settings → Data source**:
+
+| Source | What it is | Where it runs |
+|---|---|---|
+| **Bundled** | 20y of daily adjusted closes, 32 US large caps (shipped) | in-browser |
+| **Upload CSV / JSON** | your own file — long (`date,ticker,close[,industry]`) or wide (`date` + one column per ticker) | in-browser |
+| **Remote URL** | a CSV / JSON link (must allow CORS) | in-browser |
+| **Large local file / database** | a big file, **Parquet, DuckDB, SQLite, Postgres**, or a URL — **read by the CLI where it lives** | the CLI, streamed |
+
+The first three load straight into the browser. The fourth is the interesting one:
+
+> **A dataset too big for the browser never enters it.** The connected CLI reads the file or queries the database *in place* — streaming with DuckDB / chunked pandas, never loading it whole — computes the strategy's daily cross-sectional returns with no lookahead, and streams **only that return series** back. The browser turns it into the same honest metrics and gates the bundled engine produces. Nothing is downloaded; the architecture is ready for multi-gigabyte panels and live databases.
+
+Refresh the bundled set any time, keylessly:
+
+```bash
+node scripts/fetch-market-data.mjs     # 20y of daily data from Yahoo's public chart API
+```
+
+Point the CLI at a large source by starting the bridge in big-data mode:
+
+```bash
+QRL_ALLOW_DATA_TOOLS=1 npm run dialogue-bridge   # lets the CLI read local files / databases in place
+```
 
 ## A research loop that earns its numbers
 
@@ -92,13 +85,24 @@ They walk between desks, gossip about whoever you just whipped, argue four-ways 
 <img src="docs/media/loop-diagram.svg" alt="The self-iterating research loop" width="92%"/>
 </div>
 
-The bundled dataset lives in `public/assets/data/market-real.json` (32 tickers · ~5,000 days · adjusted closes). Refresh it any time, keylessly:
+Backtests are genuinely cross-sectional: signals at day *t* earn day *t+1* returns (no lookahead), long/short rank buckets, turnover-based costs, and a chronological in-sample / out-of-sample split — whether the prices come from the bundle, your CSV, or a database the CLI is reading.
+
+## The research brain is an agentic CLI
+
+This is the LLM-native part, and it is **required**: research will not start until a Claude Code or Codex CLI is connected (a red dot turns green; a gate banner clears). The CLI does what a fixed engine can't — it reads the dataset profile and reasons about *this* data.
+
+| Backend | Auth | What it drives |
+|---|---|---|
+| **Claude Code CLI** | your subscription — no key | hypothesis + skeptic, and (big-data mode) reads files / DBs and runs the backtest |
+| **Codex CLI** | your subscription — no key | same, with `model_reasoning_effort` turned up for data work |
+
+Everything goes through one tiny local bridge that shells out to your already-authenticated CLI and binds to `127.0.0.1` only:
 
 ```bash
-node scripts/fetch-market-data.mjs     # pulls 20y of daily data from Yahoo's public chart API
+npm run dialogue-bridge     # keep running while you play
 ```
 
-Backtests are genuinely cross-sectional: signals computed at day *t* earn day *t+1* returns (no lookahead), long/short rank buckets, turnover-based costs, and a chronological in-sample / out-of-sample split. Prefer the old synthetic simulator? Flip **Settings → Data source** — both run the same gates.
+Character **dialogue** is separate and always works offline from an authored bank of 151 bilingual templates; you can optionally route it through the same CLIs, or Claude/OpenAI API keys, for livelier banter.
 
 ## You are the BOSS
 
@@ -106,10 +110,10 @@ Backtests are genuinely cross-sectional: signals computed at day *t* earn day *t
 <img src="docs/media/demo-boss.gif" alt="Boss directives, love and whip" width="92%"/>
 </div>
 
-- **🗣️ Directive bar** — type an order in English or Chinese (*"try momentum with 5-day holds"*, *"被新闻情绪坑过了，换条路"*). The office snaps to attention, argues about it, and the next hypothesis is steered toward your families, horizons, and strictness.
-- **❤️ Love** — praise a researcher: hearts burst, morale rises, the strategy desk explores more boldly.
-- **🪢 Whip** — criticize one: the team gossips about it, and whipping the risk desk *genuinely raises the promotion bar* (stricter status thresholds, harsher gates).
-- **🖱️ Click anything** — leaderboard screen, data cabinet, whiteboard, meeting table, and workstations all open live panels. The office is the only screen; there is no website wrapped around it.
+- **🗣️ Directive bar** — type an order in English or Chinese (*"try momentum with 5-day holds"*, *"被新闻情绪坑过了，换条路"*). The next hypothesis is steered toward your families, horizons, and strictness.
+- **❤️ Love** — praise a researcher: morale rises, the strategy desk explores more boldly.
+- **🪢 Whip** — criticize one: the team gossips, and whipping the risk desk *genuinely raises the promotion bar*.
+- **🖱️ Click anything** — leaderboard, data cabinet, whiteboard, meeting table, and workstations open live panels. The office is the only screen.
 
 ## Run a fund, not a screensaver
 
@@ -117,11 +121,11 @@ Backtests are genuinely cross-sectional: signals computed at day *t* earn day *t
 <img src="docs/media/board.png" alt="Fund &amp; Research Board: NAV, niche archive, bandit posteriors, PBO" width="92%"/>
 </div>
 
-- **Virtual fund NAV** in the HUD, marked off the candidate pool's combined real-data performance.
-- **Boss XP and ten titles** — every experiment, candidate, directive, and praise/whip earns XP; climb from *Intern Boss* to *量化教父*.
-- **16 achievements** — from *Graveyard Keeper* (10 rejections) to *Fund Sharpe > 1*, with unlock toasts and a trophy wall.
-- **Fund & Research Board** (click the meeting table): pool equity curve, the MAP-Elites niche grid, the bandit's live posteriors, and the desk's CSCV **probability of backtest overfitting**.
-- **Confetti** when a candidate is promoted; **rare office events** (regulator visits, coffee crises, journal rejections) keep the place alive between runs.
+- **Virtual fund NAV** marked off the candidate pool's combined performance.
+- **Boss XP and ten titles**, from *Intern Boss* to *量化教父*.
+- **16 achievements** with unlock toasts and a trophy wall.
+- **Fund & Research Board** (the meeting table): pool equity curve, MAP-Elites niche grid, the bandit's live posteriors, and the desk's CSCV **probability of backtest overfitting**.
+- **Confetti** on a promotion; **rare office events** keep the place alive between runs.
 
 ## Fully bilingual
 
@@ -129,7 +133,7 @@ Backtests are genuinely cross-sectional: signals computed at day *t* earn day *t
 <img src="docs/media/office-zh.png" alt="The office running in Chinese" width="92%"/>
 </div>
 
-Flip the globe icon in the HUD and the entire game — UI, dialogue, achievements, board — switches between English and 中文. Directives are understood in both languages either way.
+Flip the globe icon and the whole game — UI, dialogue, achievements, board, the dataset & brain settings — switches between English and 中文. Directives are understood in both either way.
 
 ## 🖥️ Put it on your desktop
 
@@ -141,7 +145,7 @@ Flip the globe icon in the HUD and the entire game — UI, dialogue, achievement
 npm run build:wallpaper
 ```
 
-Produces a ready-to-drag **Lively Wallpaper zip** and a **Wallpaper Engine** project. The loop auto-runs chrome-free, and the boss tools collapse into a **draggable floating crown orb** — tap it for Love, Whip, and the directive input right on your desktop. It pauses automatically behind fullscreen apps.
+Produces a **Lively Wallpaper zip** and a **Wallpaper Engine** project. The loop auto-runs chrome-free, and the boss tools collapse into a **draggable floating crown orb**. It pauses behind fullscreen apps.
 
 | Host | How |
 |---|---|
@@ -153,29 +157,11 @@ Produces a ready-to-drag **Lively Wallpaper zip** and a **Wallpaper Engine** pro
 
 ```bash
 npm install
-npm run dev        # open http://127.0.0.1:5173
+npm run dev             # open http://127.0.0.1:5173
+npm run dialogue-bridge # in a second terminal — connect Claude Code or Codex
 ```
 
-Press **▶ Start** and watch the desk work. Give it a directive. Whip someone. Open the board.
-
-## Two pluggable brains
-
-**Dialogue.** Conversations are always generated locally from an authored bank of **151 bilingual script templates (~460 lines)** that condition on live research context — experiment status, deflated-Sharpe odds, lineage, directives, morale — and interpolate the real numbers. Free and offline. Optionally route them through a small model for personalized rewrites (silent local fallback on any failure):
-
-| Backend | Auth | Model |
-|---|---|---|
-| Anthropic API | your API key, browser-direct | `claude-haiku-4-5` (~$0.002/chat) |
-| OpenAI API | your API key, browser-direct | `gpt-5.4-nano` (~$0.0004/chat) |
-| **Claude Code CLI** | your existing subscription — no key | `claude-haiku-4-5` |
-| **Codex CLI** | your existing subscription — no key | account default, low reasoning |
-
-**Research.** Set **Settings → Research brain** to a CLI backend and the *hypothesis itself* — family, parameters, pitch — comes from a real model that reads the desk's memory and recent results, validated against the knowledge base before it touches the loop.
-
-Both go through one tiny local bridge that shells out to your already-authenticated CLI:
-
-```bash
-npm run dialogue-bridge     # keep running while you play; binds to 127.0.0.1 only
-```
+Sign in to Claude Code or Codex, watch the dot in the HUD turn green, press **▶ Start**, and the desk goes to work on the bundled data. Drop in your own CSV, or point it at a database, from Settings.
 
 ## Architecture
 
@@ -183,29 +169,31 @@ npm run dialogue-bridge     # keep running while you play; binds to 127.0.0.1 on
 <img src="docs/media/architecture.svg" alt="Architecture" width="92%"/>
 </div>
 
-- `src/lib/office2d/officeDirector.ts` — character brain: waypoint walking, conversation orchestration (gather → speak in turns → disperse), bubble anti-overlap, boss reactions, confetti.
-- `src/engines/` — deterministic research engines: `strategyKnowledge`, `hypothesisEngine` + `banditEngine`, `realBacktestEngine`, `poolAnalytics` (ΔSharpe · MAP-Elites · CSCV PBO), `riskReviewEngine`, `researchMemory`, `progression`.
-- `src/engines/dialogue/` — the 151-template bank + LLM condenser; `scripts/dialogue-bridge.mjs` — the CLI bridge.
-- `work/RESEARCH_DESIGN_DOC.md` — the research synthesis behind the design (RD-Agent(Q), QuantEvolve, AlphaGen, FinMem/FinCon, Bailey–López de Prado, Harvey–Liu–Zhu, McLean–Pontiff) with exact formulas.
+- `src/engines/dataset/` — the pluggable dataset layer: `datasetProvider` (factory), `inMemoryProvider` (bundled / CSV / remote), `bridgeProvider` (large file / database via the CLI), `csvParse` (long + wide layouts).
+- `src/engines/bridgeResearchAdapter.ts` — the CLI research brain; grounds each hypothesis in the dataset profile, validated against the knowledge base.
+- `src/engines/` — deterministic research engines: `strategyKnowledge`, `hypothesisEngine` + `banditEngine`, `realBacktestEngine` (+ `metricsFromDailyReturns` for the bridge path), `poolAnalytics` (ΔSharpe · MAP-Elites · CSCV PBO), `riskReviewEngine`, `progression`.
+- `scripts/dialogue-bridge.mjs` — the local bridge: `/condense` for dialogue + brain, and `/dataset/inspect` + `/dataset/returns` so the CLI can read a large dataset where it lives.
+- `src/lib/office2d/officeDirector.ts` — character brain: walking, conversations, bubble anti-overlap, confetti.
+- `work/RESEARCH_DESIGN_DOC.md` — the research synthesis (RD-Agent(Q), QuantEvolve, AlphaGen, Bailey–López de Prado, Harvey–Liu–Zhu, McLean–Pontiff) with exact formulas.
 
 ## Verify
 
 ```bash
-npm test           # 17 engine tests: real-data span, no-lookahead, cost monotonicity, bandit determinism, ΔSharpe/PBO sanity, niche elitism, gates, progression
+npm test           # 21 engine tests: real-data span, no-lookahead, cost monotonicity, CSV long/wide parse,
+                   # provider backtest, bridge metricsFromDailyReturns, bandit determinism, gates, progression
 npm run build      # tsc + vite
 ```
 
-## v2.0 — the whole roadmap shipped
+## What shipped
 
-- [x] **20 years of real market data** + real cross-sectional backtester + real pool correlations
-- [x] **Thompson-sampling direction bandit** (RD-Agent(Q)) with history-derived posteriors, narrated in each idea's reasoning trace
-- [x] **Pool-level ΔSharpe reward** (AlphaGen) — strategies scored by what they add to the fund
-- [x] **MAP-Elites niche archive** (QuantEvolve) — family × horizon × risk grid steering exploration to open cells
-- [x] **CSCV probability of backtest overfitting** on the board
-- [x] **Real LLM research loop** via Claude Code / Codex CLI
-- [x] **Game layer** — XP, 10 titles, 16 achievements, fund NAV, office events, confetti
+- [x] **LLM-native research brain** — Claude Code / Codex only, required to run; hypotheses grounded in a live profile of the dataset
+- [x] **Bring your own data** — upload CSV (long or wide) / JSON, or a remote URL, parsed in the browser
+- [x] **Large data, never downloaded** — Parquet / DuckDB / SQLite / Postgres / big files read by the CLI in place; only the daily return series comes back
+- [x] **20 years of real market data** bundled, with a real cross-sectional backtester and real pool correlations
+- [x] **Thompson bandit**, **pool ΔSharpe reward**, **MAP-Elites niches**, **CSCV PBO**
+- [x] **Game layer** — XP, 10 titles, 16 achievements, fund NAV, office events, confetti, full EN / 中文
 
-Next ideas: fundamentals for the quality family, in-game data refresh, multi-desk competition.
+Next ideas: per-name fundamentals for the quality family, an in-game dataset browser, multi-desk competition.
 
 ## Contributors
 

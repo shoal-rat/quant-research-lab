@@ -156,7 +156,9 @@ function describeNewsThought(family: StrategyFamily, rng: () => number, realData
 
 export function proposeStrategy(context: ProposalContext): StrategySpec {
   const { settings, memory, iteration, experiments, bossDirective, explorationBias } = context;
-  const realData = settings.dataSource === "real";
+  // A provider that exposes a computable-family list (any price dataset) keeps
+  // the desk to price-derived signals; mock data (null) allows news families.
+  const realData = Array.isArray(context.computableFamilies);
   const rng = seededRandom(`${settings.researchTaskName}-${iteration}-${experiments.length}-${bossDirective ?? ""}`);
   const eligibleFamilies = realData ? STRATEGY_FAMILIES.filter((family) => family.priceComputable) : STRATEGY_FAMILIES;
   const stats = computeFamilyStats(experiments);

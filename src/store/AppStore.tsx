@@ -20,8 +20,9 @@ import {
   runtimeForPhase,
   tickDailyBehavior
 } from "../engines/agentStateMachine";
-import { MockQuantLLMAdapter } from "../engines/llmAdapters";
 import { BridgeResearchAdapter } from "../engines/bridgeResearchAdapter";
+import { DatasetProvider } from "../engines/dataset/types";
+import { getDatasetProvider } from "../engines/dataset/datasetProvider";
 import { ACHIEVEMENTS, computeLevel, computeXp, fundNav, BossLevel } from "../engines/progression";
 import { deriveResearchMemory } from "../engines/researchMemory";
 import { completeIteration, IterationDraft, prepareIteration } from "../engines/researchLoop";
@@ -55,6 +56,19 @@ export interface GameToast {
   icon: string;
   title: string;
   detail: string;
+}
+
+export interface CliStatus {
+  connected: boolean;
+  checking: boolean;
+  detail: string;
+}
+
+export interface DatasetStatus {
+  ready: boolean;
+  building: boolean;
+  label: string;
+  error?: string;
 }
 
 const defaultLoop: ResearchLoopState = {
@@ -106,7 +120,24 @@ function normalizeAgents(stored: AgentProfile[]): AgentProfile[] {
 }
 
 function normalizeSettings(stored: Settings): Settings {
-  return { ...defaultSettings, ...stored };
+  const merged = { ...defaultSettings, ...stored } as Settings & {
+    dataSource?: "mock" | "real";
+    researchBrain?: string;
+  };
+  // migrate pre-v3 settings: dataSource string -> dataset config
+  if (!stored.dataset && merged.dataSource) {
+    merged.dataset =
+      merged.dataSource === "mock"
+        ? { kind: "mock", label: "Deterministic mock simulator" }
+        : { kind: "bundled", label: "Bundled US equities · 20y dailies" };
+  }
+  if (!merged.dataset) merged.dataset = { ...defaultSettings.dataset };
+  // the local heuristic brain no longer exists; this is an LLM-native project
+  if (merged.researchBrain !== "claude-code" && merged.researchBrain !== "codex") {
+    merged.researchBrain = "claude-code";
+  }
+  delete merged.dataSource;
+  return merged as Settings;
 }
 
 function defaultMood(agentId: string): AgentMood {
@@ -130,6 +161,8 @@ interface AppStoreValue {
   fundValue: number;
   unlockedAchievements: Record<string, number>;
   toasts: GameToast[];
+  cliStatus: CliStatus;
+  datasetStatus: DatasetStatus;
   dismissToast: (id: string) => void;
   updateSettings: (patch: Partial<Settings>) => void;
   updateAgent: (id: string, patch: Partial<AgentProfile>) => void;
@@ -171,17 +204,28 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
     readStored(STORAGE.achievements, {})
   );
   const [toasts, setToasts] = useState<GameToast[]>([]);
-  const adapterRef = useRef<MockQuantLLMAdapter | BridgeResearchAdapter>(new MockQuantLLMAdapter());
   const advancingRef = useRef(false);
   const loopRef = useRef(loop);
   const agentsRef = useRef(agents);
   const settingsRef = useRef(settings);
+  // LLM-native: the research brain is always a CLI (Claude Code / Codex) via
+  // the bridge. The deterministic engine survives only inside the adapter, as
+  // bookkeeping scaffold and a transient mid-run safety net — never selectable.
+  const adapterRef = useRef<BridgeResearchAdapter>(new BridgeResearchAdapter(() => settingsRef.current));
+  const datasetProviderRef = useRef<DatasetProvider | null>(null);
+  const cliRef = useRef<CliStatus>({ connected: false, checking: true, detail: "" });
   const experimentsRef = useRef(experiments);
   const moodRef = useRef(mood);
   const pendingDirectiveRef = useRef<string | undefined>(undefined);
   const draftRef = useRef<IterationDraft | null>(null);
   const directorRef = useRef<OfficeDirector | null>(null);
   const wallpaperMode = useMemo(() => isWallpaperMode(), []);
+  const [datasetStatus, setDatasetStatus] = useState<DatasetStatus>({
+    ready: settings.dataset.kind === "mock" || settings.dataset.kind === "bundled",
+    building: settings.dataset.kind !== "mock",
+    label: settings.dataset.label
+  });
+  const [cliStatus, setCliStatus] = useState<CliStatus>({ connected: false, checking: true, detail: "" });
 
   if (!directorRef.current) {
     directorRef.current = new OfficeDirector(agents);
@@ -335,7 +379,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
           iteration: activeLoop.iteration + 1,
           experiments: activeExperiments,
           bossDirective,
-          explorationBias
+          explorationBias,
+          datasetProvider: datasetProviderRef.current
         });
         await setPhase("proposing", current);
         return;
@@ -364,7 +409,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
                 iteration: nextIterationNumber,
                 experiments: activeExperiments,
                 bossDirective: pendingDirectiveRef.current,
-                explorationBias
+                explorationBias,
+                datasetProvider: datasetProviderRef.current
               });
         draftRef.current = null;
         const experiment = await completeIteration(
@@ -375,7 +421,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
             iteration: nextIterationNumber,
             experiments: activeExperiments,
             explorationBias,
-            strictnessBias
+            strictnessBias,
+            datasetProvider: datasetProviderRef.current
           },
           draft
         );
@@ -498,13 +545,74 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
     return () => window.removeEventListener("qrl-wallpaper-paused", handler);
   }, [director]);
 
-  // research brain selection (local engine vs CLI via the bridge)
+  // build the active dataset provider whenever the dataset config (or the CLI
+  // it would delegate to) changes; the loop reads datasetProviderRef.current
   useEffect(() => {
-    adapterRef.current =
-      settings.researchBrain === "local"
-        ? new MockQuantLLMAdapter()
-        : new BridgeResearchAdapter(() => settingsRef.current);
-  }, [settings.researchBrain]);
+    let cancelled = false;
+    const config = settings.dataset;
+    if (config.kind === "mock") {
+      datasetProviderRef.current = null;
+      setDatasetStatus({ ready: true, building: false, label: config.label });
+      return;
+    }
+    setDatasetStatus({ ready: false, building: true, label: config.label });
+    void getDatasetProvider(config, { bridgeUrl: settings.bridgeUrl, brain: settings.researchBrain }).then((provider) => {
+      if (cancelled) return;
+      datasetProviderRef.current = provider;
+      if (provider) {
+        setDatasetStatus({ ready: true, building: false, label: provider.meta().label });
+      } else {
+        setDatasetStatus({
+          ready: false,
+          building: false,
+          label: config.label,
+          error:
+            config.kind === "bridge"
+              ? "bridge could not inspect the source — is the CLI connected and big-data mode on?"
+              : config.kind === "upload"
+              ? "no file loaded — pick a CSV in Settings"
+              : "could not load this source"
+        });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [settings.dataset, settings.bridgeUrl, settings.researchBrain]);
+
+  // CLI health: this is an LLM-native project, so research is gated on a live
+  // Claude Code / Codex connection through the bridge
+  useEffect(() => {
+    let active = true;
+    const check = async () => {
+      try {
+        const response = await fetch(`${settingsRef.current.bridgeUrl.replace(/\/$/, "")}/health`, { method: "GET" });
+        const payload = (await response.json()) as { claude?: boolean; codex?: boolean };
+        const want = settingsRef.current.researchBrain === "codex" ? payload.codex : payload.claude;
+        const next: CliStatus = {
+          connected: Boolean(want),
+          checking: false,
+          detail: want ? "" : `${settingsRef.current.researchBrain} CLI not detected by the bridge`
+        };
+        if (active) {
+          cliRef.current = next;
+          setCliStatus(next);
+        }
+      } catch {
+        const next: CliStatus = { connected: false, checking: false, detail: "bridge offline — run npm run dialogue-bridge" };
+        if (active) {
+          cliRef.current = next;
+          setCliStatus(next);
+        }
+      }
+    };
+    void check();
+    const id = window.setInterval(check, 15000);
+    return () => {
+      active = false;
+      window.clearInterval(id);
+    };
+  }, [settings.bridgeUrl, settings.researchBrain]);
 
   // progression: achievements + level-up toasts (derived deterministically)
   const bossLevel = useMemo(
@@ -584,6 +692,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
   }, []);
 
   const startResearch = useCallback(() => {
+    // forced LLM-native: no research without a connected Claude Code / Codex CLI
+    if (!cliRef.current.connected && !isWallpaperMode()) {
+      setLoop((prev) => ({ ...prev, running: false, statusMessage: t(settingsRef.current.language, "connectCli") }));
+      return;
+    }
     setLoop((prev) => ({
       ...prev,
       running: true,
@@ -602,6 +715,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
   const toggleAutoRun = useCallback(() => {
     // compute from the committed ref and sync it eagerly so advancePhase sees
     // the post-toggle state; only kick the machine when turning ON
+    if (!loopRef.current.autoRun && !cliRef.current.connected && !isWallpaperMode()) {
+      setLoop((prev) => ({ ...prev, statusMessage: t(settingsRef.current.language, "connectCli") }));
+      return;
+    }
     const next = !loopRef.current.autoRun;
     setLoop((prev) => ({
       ...prev,
@@ -619,6 +736,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
   }, [advancePhase]);
 
   const nextIteration = useCallback(() => {
+    if (!cliRef.current.connected && !isWallpaperMode()) {
+      setLoop((prev) => ({ ...prev, statusMessage: t(settingsRef.current.language, "connectCli") }));
+      return;
+    }
     setLoop((prev) => ({ ...prev, running: false, autoRun: false }));
     void advancePhase();
   }, [advancePhase]);
@@ -726,6 +847,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
       fundValue,
       unlockedAchievements,
       toasts,
+      cliStatus,
+      datasetStatus,
       dismissToast,
       updateSettings,
       updateAgent,
@@ -758,6 +881,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
       fundValue,
       unlockedAchievements,
       toasts,
+      cliStatus,
+      datasetStatus,
       dismissToast,
       updateSettings,
       updateAgent,

@@ -99,9 +99,43 @@ export interface AgentRuntime {
 
 export type DialogueBackend = "local" | "anthropic" | "openai" | "claude-code" | "codex";
 export type DataSource = "mock" | "real";
-export type ResearchBrain = "local" | "claude-code" | "codex";
+// This is an LLM-native project: the research brain is always one of the two
+// agentic CLIs. There is no offline/heuristic brain to select.
+export type ResearchBrain = "claude-code" | "codex";
 export type IdeaMode = "explore" | "refine" | "boss_directive" | "repair" | "recombine";
 export type Language = "en" | "zh";
+
+// Pluggable datasets. "bundled" is the shipped 20y JSON; "mock" the
+// deterministic simulator; "upload"/"remote" are user CSV/JSON parsed in the
+// browser; "bridge" delegates to the connected CLI so a dataset too large to
+// hold in the browser (a local file, Parquet, or a SQL database) is read where
+// it lives and only the strategy's daily returns come back.
+export type DatasetKind = "bundled" | "mock" | "upload" | "remote" | "bridge";
+export type BridgeSourceKind = "file" | "url" | "parquet" | "duckdb" | "sqlite" | "postgres";
+
+export interface DatasetColumns {
+  date: string;
+  ticker: string;
+  close: string;
+  industry?: string;
+}
+
+export interface DatasetConfig {
+  kind: DatasetKind;
+  label: string;
+  // upload (raw CSV text is held in a runtime registry, not persisted)
+  uploadName?: string;
+  // remote CSV/JSON fetched into the browser
+  remoteUrl?: string;
+  // bridge: a reference the CLI resolves (path / URL / DSN) + how to read it
+  bridgeRef?: string;
+  bridgeSourceKind?: BridgeSourceKind;
+  // optional SQL/where clause or table for database sources
+  bridgeQuery?: string;
+  // column mapping for csv-like sources (auto-detected when omitted)
+  columns?: DatasetColumns;
+  benchmarkSymbol?: string;
+}
 
 export interface Settings {
   researchTaskName: string;
@@ -125,7 +159,7 @@ export interface Settings {
   openaiApiKey: string;
   bridgeUrl: string;
   language: Language;
-  dataSource: DataSource;
+  dataset: DatasetConfig;
   researchBrain: ResearchBrain;
 }
 
@@ -256,6 +290,7 @@ export interface ExperimentRecord {
   bossDirective?: string;
   strategyParameters: Record<string, number | string | boolean>;
   dataSource?: DataSource;
+  datasetLabel?: string;
   dailyReturns?: number[];
   returnsStartIndex?: number;
   poolSharpeDelta?: number;
@@ -313,6 +348,12 @@ export interface ProposalContext {
   experiments: ExperimentRecord[];
   bossDirective?: string;
   explorationBias: number;
+  // a short text profile of the active dataset (universe size, span, columns,
+  // sample stats) so the CLI brain reasons about the data actually in front of
+  // it rather than a fixed family table
+  datasetProfile?: string;
+  // family keys the active dataset can actually backtest (null = all)
+  computableFamilies?: string[] | null;
 }
 
 export interface LLMCapabilities {

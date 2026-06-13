@@ -207,7 +207,8 @@ function computeRealMetrics(
   weightsHistory: Map<string, number>[],
   yearsPnl: Map<string, number>,
   trials: number,
-  poolCorrelation: number
+  poolCorrelation: number,
+  concentrationOverride?: number
 ): PerformanceMetrics {
   const count = Math.max(1, returns.length);
   const cumulative = returns.reduce((value, next) => value * (1 + next), 1) - 1;
@@ -239,7 +240,8 @@ function computeRealMetrics(
     hhiSum += hhi;
   });
   const avgHhi = weightsHistory.length > 0 ? hhiSum / weightsHistory.length : 0.2;
-  const concentration = clamp(avgHhi * 4, 0, 1);
+  const concentration =
+    concentrationOverride !== undefined ? clamp(concentrationOverride, 0, 1) : clamp(avgHhi * 4, 0, 1);
 
   // year dependency: share of total |PnL| delivered by the single best year
   let totalAbs = 0;
@@ -327,6 +329,95 @@ export function realPoolCorrelation(
     if (corr !== null) max = Math.max(max, Math.abs(corr));
   }
   return round(max, 2);
+}
+
+// Metrics from a precomputed daily-return series. Used by the bridge dataset
+// provider: the connected CLI reads a very large local file / database and
+// streams back the strategy's daily long/short returns (with no lookahead),
+// and the browser turns that series into the same honest metrics + gates the
+// in-memory backtester produces. Turnover and breadth are reported by the CLI
+// (defaults applied otherwise) since they are not recoverable from returns.
+export function metricsFromDailyReturns(input: {
+  returns: number[];
+  dates: string[]; // aligned to returns (length === returns.length)
+  benchmarkReturns?: number[];
+  trials: number;
+  priorCandidates: ExperimentRecord[];
+  avgTurnover?: number;
+  concentration?: number;
+  universeSize: number;
+  dataUsed: string;
+  splitFraction?: number;
+}): RealBacktestOutput {
+  const { returns, dates } = input;
+  const trials = Math.max(1, input.trials);
+  const turnover = clamp(num(input.avgTurnover, 0.15), 0, 5);
+  const concentration = clamp(num(input.concentration, 0.3), 0, 1);
+
+  const yearsFor = (from: number, to: number): Map<string, number> => {
+    const map = new Map<string, number>();
+    for (let index = from; index < to; index += 1) {
+      const year = dates[index]?.slice(0, 4) ?? "?";
+      map.set(year, (map.get(year) ?? 0) + returns[index]);
+    }
+    return map;
+  };
+
+  const sliceMetrics = (from: number, to: number, poolCorrelation: number): PerformanceMetrics => {
+    const slice = returns.slice(from, to);
+    const turnoverSeries = slice.length > 0 ? [turnover] : [];
+    // the CLI reports breadth directly; pass it through as the concentration
+    // estimate rather than fabricating a weight vector
+    return computeRealMetrics(slice, turnoverSeries, [], yearsFor(from, to), trials, poolCorrelation, concentration);
+  };
+
+  // Bridge series have no shared absolute calendar with the bundled engine
+  // (whose returnsStartIndex is ~260). Offsetting by a large constant keeps the
+  // index-based overlap in realSeriesCorrelation from ever matching a bundled
+  // series, so a mixed candidate pool never produces a bogus correlation;
+  // bridge-vs-bridge series still align with each other.
+  const BRIDGE_INDEX_BASE = 1_000_000;
+  const extras: RealBacktestExtras = {
+    dailyReturns: returns.map((value) => Number(value.toFixed(6))),
+    returnsStartIndex: BRIDGE_INDEX_BASE
+  };
+  const poolCorrelation = realPoolCorrelation(extras, input.priorCandidates);
+
+  const splitIndex = Math.floor(returns.length * (input.splitFraction ?? 0.58));
+  const inSample = sliceMetrics(0, splitIndex, poolCorrelation);
+  const outOfSample = sliceMetrics(splitIndex, returns.length, poolCorrelation);
+  const full = sliceMetrics(0, returns.length, poolCorrelation);
+
+  const benchmarkReturns = input.benchmarkReturns ?? [];
+  const equityCurve: EquityPoint[] = [];
+  let equity = 1;
+  let benchmark = 1;
+  let peak = 1;
+  const step = Math.max(1, Math.floor(returns.length / 320));
+  for (let index = 0; index < returns.length; index += 1) {
+    equity *= 1 + returns[index];
+    benchmark *= 1 + (benchmarkReturns[index] ?? 0);
+    peak = Math.max(peak, equity);
+    if (index % step === 0 || index === returns.length - 1) {
+      equityCurve.push({
+        date: dates[index] ?? `t${index}`,
+        equity: round(equity, 4),
+        benchmark: round(benchmark, 4),
+        drawdown: round(equity / peak - 1, 4),
+        split: index < splitIndex ? "in_sample" : "out_of_sample"
+      });
+    }
+  }
+
+  const result: BacktestResult = {
+    inSample,
+    outOfSample,
+    full,
+    equityCurve,
+    generatedCode: "",
+    dataUsed: input.dataUsed
+  };
+  return { result, extras };
 }
 
 export function runRealBacktest(

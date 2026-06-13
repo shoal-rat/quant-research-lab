@@ -1,9 +1,34 @@
+import { useState } from "react";
 import { useAppStore } from "../store/AppStore";
-import { HoldingPeriod, Settings } from "../types";
+import { getUploadedDatasetName, setUploadedDataset } from "../engines/dataset/datasetProvider";
+import { t } from "../i18n";
+import { BridgeSourceKind, DatasetConfig, DatasetKind, HoldingPeriod, Settings } from "../types";
 
 export function SettingsPage(): JSX.Element {
-  const { settings, updateSettings } = useAppStore();
+  const { settings, updateSettings, cliStatus, datasetStatus } = useAppStore();
   const set = <K extends keyof Settings>(key: K, value: Settings[K]) => updateSettings({ [key]: value } as Partial<Settings>);
+  const lang = settings.language;
+  const dataset = settings.dataset;
+  const setDataset = (patch: Partial<DatasetConfig>) => updateSettings({ dataset: { ...dataset, ...patch } });
+  const [uploadName, setUploadName] = useState<string | null>(getUploadedDatasetName());
+
+  const DATASET_LABELS: Record<DatasetKind, { en: string; zh: string }> = {
+    bundled: { en: "Bundled US equities (20y dailies)", zh: "内置美股（20 年日线）" },
+    mock: { en: "Deterministic mock simulator", zh: "确定性模拟器" },
+    upload: { en: "Upload your own CSV / JSON", zh: "上传你自己的 CSV / JSON" },
+    remote: { en: "Remote URL (CSV / JSON)", zh: "远程链接（CSV / JSON）" },
+    bridge: { en: "Large local file / database (via CLI)", zh: "大型本地文件 / 数据库（经 CLI）" }
+  };
+
+  const onKind = (kind: DatasetKind) => setDataset({ kind, label: DATASET_LABELS[kind][lang] });
+
+  const onUpload = async (file: File | undefined) => {
+    if (!file) return;
+    const text = await file.text();
+    setUploadedDataset(file.name, text);
+    setUploadName(file.name);
+    setDataset({ kind: "upload", label: file.name, uploadName: file.name });
+  };
 
   return (
     <div className="settings-page">
@@ -11,27 +36,120 @@ export function SettingsPage(): JSX.Element {
         <div>
           <small>Research configuration</small>
           <h1>Settings</h1>
-          <p>Configure the local autonomous research simulation and UI behavior.</p>
+          <p>Configure the dataset, the LLM-native research brain, and UI behavior.</p>
         </div>
       </div>
 
       <section className="page-card settings-card">
+        <h2>{lang === "zh" ? "数据集与研究大脑" : "Dataset & research brain"}</h2>
+        <p>
+          {lang === "zh"
+            ? "选择数据源——内置行情、你自己的文件、远程链接，或让已连接的 CLI 在原地读取一个超大本地文件 / 数据库（不下载到浏览器）。研究大脑只支持 Claude Code 或 Codex。"
+            : "Pick a data source — bundled prices, your own file, a remote URL, or let the connected CLI read a very large local file / database where it lives (never downloaded into the browser). The research brain is Claude Code or Codex only."}
+        </p>
         <div className="form-grid">
           <label className="field">
-            <span>Data source / 数据源</span>
-            <select value={settings.dataSource} onChange={(event) => set("dataSource", event.target.value as Settings["dataSource"])}>
-              <option value="real">Real market data (20y dailies, bundled)</option>
-              <option value="mock">Deterministic mock simulator</option>
+            <span>{lang === "zh" ? "数据源" : "Data source"}</span>
+            <select value={dataset.kind} onChange={(event) => onKind(event.target.value as DatasetKind)}>
+              {(Object.keys(DATASET_LABELS) as DatasetKind[]).map((kind) => (
+                <option key={kind} value={kind}>
+                  {DATASET_LABELS[kind][lang]}
+                </option>
+              ))}
             </select>
           </label>
           <label className="field">
-            <span>Research brain</span>
+            <span>{lang === "zh" ? "研究大脑（LLM 原生）" : "Research brain (LLM-native)"}</span>
             <select value={settings.researchBrain} onChange={(event) => set("researchBrain", event.target.value as Settings["researchBrain"])}>
-              <option value="local">Local engine (bandit + knowledge base)</option>
-              <option value="claude-code">Claude Code CLI (via bridge)</option>
-              <option value="codex">Codex CLI (via bridge)</option>
+              <option value="claude-code">Claude Code CLI</option>
+              <option value="codex">Codex CLI</option>
             </select>
           </label>
+
+          {dataset.kind === "upload" && (
+            <label className="field full">
+              <span>{lang === "zh" ? "选择 CSV（date,ticker,close 长表 或 date + 每列一只股票宽表）或 JSON" : "Choose a CSV (long: date,ticker,close — or wide: date + one column per ticker) or JSON"}</span>
+              <input type="file" accept=".csv,.json,.txt" onChange={(event) => void onUpload(event.target.files?.[0])} />
+              {uploadName && <small className="field-hint">{lang === "zh" ? "已加载：" : "Loaded: "}{uploadName}</small>}
+            </label>
+          )}
+
+          {dataset.kind === "remote" && (
+            <label className="field full">
+              <span>{lang === "zh" ? "远程数据 URL（CSV 或同结构 JSON，需允许跨域）" : "Remote data URL (CSV, or JSON in the bundle shape; must allow CORS)"}</span>
+              <input
+                value={dataset.remoteUrl ?? ""}
+                placeholder="https://example.com/prices.csv"
+                onChange={(event) => setDataset({ remoteUrl: event.target.value, label: event.target.value })}
+              />
+            </label>
+          )}
+
+          {dataset.kind === "bridge" && (
+            <>
+              <label className="field">
+                <span>{lang === "zh" ? "来源类型" : "Source type"}</span>
+                <select
+                  value={dataset.bridgeSourceKind ?? "file"}
+                  onChange={(event) => setDataset({ bridgeSourceKind: event.target.value as BridgeSourceKind })}
+                >
+                  <option value="file">CSV file (any size)</option>
+                  <option value="parquet">Parquet file</option>
+                  <option value="duckdb">DuckDB</option>
+                  <option value="sqlite">SQLite</option>
+                  <option value="postgres">Postgres (DSN)</option>
+                  <option value="url">Remote URL</option>
+                </select>
+              </label>
+              <label className="field full">
+                <span>{lang === "zh" ? "路径 / 连接串（CLI 在本机解析）" : "Path / connection string (resolved by the CLI on your machine)"}</span>
+                <input
+                  value={dataset.bridgeRef ?? ""}
+                  placeholder="C:\\data\\prices.parquet  ·  postgres://user@host/db  ·  https://…"
+                  onChange={(event) => setDataset({ bridgeRef: event.target.value })}
+                />
+              </label>
+              <label className="field full">
+                <span>{lang === "zh" ? "可选：表名 / SQL（数据库来源）" : "Optional: table name / SQL (for database sources)"}</span>
+                <input
+                  value={dataset.bridgeQuery ?? ""}
+                  placeholder="SELECT date, ticker, adj_close FROM prices"
+                  onChange={(event) => setDataset({ bridgeQuery: event.target.value })}
+                />
+              </label>
+              <p className="field full settings-note">
+                {lang === "zh"
+                  ? "大数据模式：用 QRL_ALLOW_DATA_TOOLS=1 启动桥接器，CLI 才能在原地读取本地文件 / 数据库。"
+                  : "Big-data mode: start the bridge with QRL_ALLOW_DATA_TOOLS=1 so the CLI may read local files / databases in place."}
+              </p>
+            </>
+          )}
+
+          <div className="field full status-row">
+            <span className={`status-chip ${cliStatus.connected ? "ok" : "warn"}`}>
+              {cliStatus.connected ? "● " : "○ "}
+              {cliStatus.connected ? t(lang, "cliConnected") : t(lang, "cliOffline")}
+              {cliStatus.detail ? ` — ${cliStatus.detail}` : ""}
+            </span>
+            <span className={`status-chip ${datasetStatus.ready ? "ok" : datasetStatus.building ? "" : "warn"}`}>
+              {datasetStatus.building ? "◌ " : datasetStatus.ready ? "● " : "○ "}
+              {datasetStatus.building
+                ? t(lang, "datasetBuilding")
+                : datasetStatus.ready
+                ? `${t(lang, "datasetReady")} — ${datasetStatus.label}`
+                : `${t(lang, "datasetFailed")}${datasetStatus.error ? ` — ${datasetStatus.error}` : ""}`}
+            </span>
+          </div>
+
+          <label className="field full">
+            <span>{lang === "zh" ? "桥接器地址（先运行 npm run dialogue-bridge）" : "Bridge URL (run npm run dialogue-bridge first)"}</span>
+            <input value={settings.bridgeUrl} placeholder="http://127.0.0.1:8787" onChange={(event) => set("bridgeUrl", event.target.value)} />
+          </label>
+        </div>
+      </section>
+
+      <section className="page-card settings-card">
+        <div className="form-grid">
           <label className="field">
             <span>Language / 语言</span>
             <select value={settings.language} onChange={(event) => set("language", event.target.value as Settings["language"])}>

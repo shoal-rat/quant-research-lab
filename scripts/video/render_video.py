@@ -14,11 +14,41 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import imageio_ffmpeg
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-VID = os.path.join(ROOT, "work", "video")
-tl = json.load(open(os.path.join(ROOT, "work", "timeline.json"), encoding="utf-8"))
+def _find_root(p):
+    p = os.path.dirname(os.path.abspath(p))
+    while p != os.path.dirname(p):
+        if os.path.exists(os.path.join(p, "package.json")):
+            return p
+        p = os.path.dirname(p)
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+ROOT = _find_root(__file__)
+VID = os.environ.get("QRL_VID", os.path.join(ROOT, "work", "video"))
+tl = json.load(open(os.environ.get("QRL_TIMELINE", os.path.join(ROOT, "work", "timeline.json")), encoding="utf-8"))
 W, H, FPS = tl["width"], tl["height"], tl["fps"]
-OUT = os.path.join(ROOT, "work", "video_silent.mp4")
+OUT = os.environ.get("QRL_OUT", os.path.join(ROOT, "work", "video_silent.mp4"))
+LANG = os.environ.get("QRL_LANG", "en")
+CARD = {
+    "title": "QUANT RESEARCH LAB",
+    "sub": "Real data. Real gates. Really cute.",
+    "outroFree": "Free & open source  ·  MIT",
+    "outroUrl": "github.com/shoal-rat/quant-research-lab",
+    "outroCta": "Press Start, and good luck, Boss.",
+}
+# Chinese (or any localized) card text comes from a JSON file to avoid passing
+# non-ASCII through environment variables.
+if LANG == "zh":
+    _cp = os.environ.get("QRL_CARDS", os.path.join(ROOT, "work", "zh_cards.json"))
+    if os.path.exists(_cp):
+        _c = json.load(open(_cp, encoding="utf-8"))
+        CARD.update({
+            "title": _c.get("cardTitle", CARD["title"]),
+            "sub": _c.get("cardSub", CARD["sub"]),
+            "outroFree": _c.get("outroFree", CARD["outroFree"]),
+            "outroUrl": _c.get("outroUrl", CARD["outroUrl"]),
+            "outroCta": _c.get("outroCta", CARD["outroCta"]),
+        })
 
 # ---------------------------------------------------------------- fonts
 FONT_LAT = "C:/Windows/Fonts/segoeuib.ttf"      # Segoe UI Bold
@@ -168,13 +198,13 @@ def card_title(t01):
     # equity-curve doodle
     pts = [(120 + i * (W - 240) / 10, 470 - 120 * (i / 10) - 18 * math.sin(i)) for i in range(11)]
     d.line(pts, fill=(86, 228, 188), width=5, joint="curve")
-    title = "QUANT RESEARCH LAB"
-    f = font(78)
+    title = CARD["title"]
+    f = pick_font(title, 78)
     tw = d.textlength(title, font=f)
     d.text(((W - tw) / 2 + 3, 243), title, font=f, fill=(0, 0, 0))
     d.text(((W - tw) / 2, 240), title, font=f, fill=(233, 180, 85))
-    sub = "Real data. Real gates. Really cute."
-    fs = font(34, "reg")
+    sub = CARD["sub"]
+    fs = pick_font(sub, 34, "reg")
     sw = d.textlength(sub, font=fs)
     d.text(((W - sw) / 2, 336), sub, font=fs, fill=(205, 187, 155))
     # crown motif
@@ -188,14 +218,14 @@ def card_title(t01):
 def card_outro(t01):
     img = Image.fromarray(BG.copy())
     d = ImageDraw.Draw(img)
-    title = "QUANT RESEARCH LAB"
-    f = font(64)
+    title = CARD["title"]
+    f = pick_font(title, 64)
     tw = d.textlength(title, font=f)
     d.text(((W - tw) / 2, 196), title, font=f, fill=(233, 180, 85))
     lines = [
-        ("Free & open source  ·  MIT", font(30, "reg"), (205, 187, 155)),
-        ("github.com/shoal-rat/quant-research-lab", font(34), (138, 222, 199)),
-        ("Press Start, and good luck, Boss.", font(28, "reg"), (233, 180, 85)),
+        (CARD["outroFree"], pick_font(CARD["outroFree"], 30, "reg"), (205, 187, 155)),
+        (CARD["outroUrl"], font(34), (138, 222, 199)),
+        (CARD["outroCta"], pick_font(CARD["outroCta"], 28, "reg"), (233, 180, 85)),
     ]
     y = 290
     for text, ff, col in lines:

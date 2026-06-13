@@ -1,0 +1,199 @@
+{
+  "totalSec": 120,
+  "musicMood": "Warm, bouncy chiptune-meets-lofi at around 104 BPM, like a cozy cafe management sim: playful pizzicato and a music-box motif under the cute beats. A rising bell-and-claps swell punches into the confetti promotion, then a quick snappy reaction reel, settling soft and twinkly under the outro. Cut on the beat; let the VO-free cuteness cuts snap fast so the faces, not the narration, carry the payoff.",
+  "voVoice": "Microsoft Huihui (zh-CN)",
+  "fullVO": "来认识金融圈最萌的研究小桌。六个Q版研究员，到处溜达、八卦，还冷不丁冒个小气泡。 可爱的反转来了，气泡里的每一个数字，都是真的。 Mira找信号，Ren写代码，Sana盯风险，Ivo逢事就怀疑，Noa跑下一轮迭代，Kira守着未来的数据。 他们研究二十年真实的美国市场数据，三十二只大公司、五千多个日度收盘价。 Kira看守时间戳，谁也别想偷看明天。 一台小小的多臂老虎机来挑下一步：探索、打磨、修补，还是重组。点子全来自十几个有据可查的策略家族，绝不是随机起名。 今天的信号，赚的是明天的收益，还要扣掉交易成本，样本内样本外严格分开。 接着，机械化的闸门决定谁能晋升：贬损夏普比率、拥挤惩罚、成本、回撤，还得真给基金组合带来夏普增量才算数。别家工具在制造过拟合，这台专门跟它对着干。 而你，就是老板。敲一句指令，比如试试动量、持仓五天，整间办公室立刻打起精神。 宠爱一位研究员，爱心啪地炸开，士气飙升，点子也更大胆。 抽一鞭子，全队就开始八卦。抽风险台，晋升门槛真的会被抬高。 一条策略闯过每一道闸门，撒花！六张迷你的灵光乍现笑脸，这就是最爽的时刻。 现在是中文版，轻轻一点也能切回英文，整款游戏全程双语。 它还能当你的动态壁纸，老板的工具都收进一颗悬浮的小皇冠里。 可爱是诱饵，诚实研究才是真章。免费开源，按下开始，祝你好运，老板。",
+  "wordCount": 328,
+  "segments": [
+    {
+      "id": "s01",
+      "source": "title",
+      "start": 0,
+      "end": 5,
+      "title": "量化研究室",
+      "subtitle": "真数据 · 真闸门 · 真的可爱",
+      "vo": "",
+      "transition": "crossfade"
+    },
+    {
+      "id": "s02",
+      "source": "office_loop",
+      "start": 5,
+      "end": 13,
+      "title": "认识这张桌",
+      "subtitle": "六个Q版研究员，一支迷你基金",
+      "vo": "来认识金融圈最萌的研究小桌。六个Q版研究员，到处溜达、八卦，还冷不丁冒个小气泡。",
+      "transition": "crossfade"
+    },
+    {
+      "id": "s03",
+      "source": "closeup",
+      "start": 13,
+      "end": 18,
+      "title": "可爱的反转",
+      "subtitle": "Mira · 信号与策略",
+      "vo": "可爱的反转来了，气泡里的每一个数字，都是真的。",
+      "transition": "cut"
+    },
+    {
+      "id": "s04",
+      "source": "office_loop",
+      "start": 18,
+      "end": 28,
+      "title": "全员登场",
+      "subtitle": "Mira / Ren / Sana / Ivo / Noa / Kira",
+      "vo": "Mira找信号，Ren写代码，Sana盯风险，Ivo逢事就怀疑，Noa跑下一轮迭代，Kira守着未来的数据。",
+      "transition": "crossfade"
+    },
+    {
+      "id": "s05",
+      "source": "office_loop",
+      "start": 28,
+      "end": 38,
+      "title": "二十年真数据",
+      "subtitle": "五千多收盘价 · 三十二只 · 二零零六到二零二六",
+      "vo": "他们研究二十年真实的美国市场数据，三十二只大公司、五千多个日度收盘价。",
+      "transition": "cut"
+    },
+    {
+      "id": "s06",
+      "source": "closeup",
+      "start": 38,
+      "end": 43,
+      "title": "不许偷看",
+      "subtitle": "Kira · 时间戳与数据",
+      "vo": "Kira看守时间戳，谁也别想偷看明天。",
+      "transition": "cut"
+    },
+    {
+      "id": "s07",
+      "source": "board",
+      "start": 43,
+      "end": 55,
+      "title": "诚实的引擎",
+      "subtitle": "老虎机 · 知识库 · 回测",
+      "vo": "一台小小的多臂老虎机来挑下一步：探索、打磨、修补，还是重组。点子全来自十几个有据可查的策略家族，绝不是随机起名。",
+      "transition": "crossfade"
+    },
+    {
+      "id": "s08",
+      "source": "office_loop",
+      "start": 55,
+      "end": 63,
+      "title": "不许偷跑",
+      "subtitle": "第t天信号 → 第t加一天收益",
+      "vo": "今天的信号，赚的是明天的收益，还要扣掉交易成本，样本内样本外严格分开。",
+      "transition": "cut"
+    },
+    {
+      "id": "s09",
+      "source": "board",
+      "start": 63,
+      "end": 76,
+      "title": "闸门说了算",
+      "subtitle": "贬损夏普 · 拥挤惩罚 · 回撤",
+      "vo": "接着，机械化的闸门决定谁能晋升：贬损夏普比率、拥挤惩罚、成本、回撤，还得真给基金组合带来夏普增量才算数。别家工具在制造过拟合，这台专门跟它对着干。",
+      "transition": "cut"
+    },
+    {
+      "id": "s10",
+      "source": "boss_directive",
+      "start": 76,
+      "end": 85,
+      "title": "你才是老板",
+      "subtitle": "下一道指令",
+      "vo": "而你，就是老板。敲一句指令，比如试试动量、持仓五天，整间办公室立刻打起精神。",
+      "transition": "crossfade"
+    },
+    {
+      "id": "s11",
+      "source": "love_burst",
+      "start": 85,
+      "end": 91,
+      "title": "宠爱",
+      "subtitle": "士气上涨，想法更大胆",
+      "vo": "宠爱一位研究员，爱心啪地炸开，士气飙升，点子也更大胆。",
+      "transition": "cut"
+    },
+    {
+      "id": "s12",
+      "source": "whip_gossip",
+      "start": 91,
+      "end": 97,
+      "title": "鞭策",
+      "subtitle": "鞭策风险台 → 抬高门槛",
+      "vo": "抽一鞭子，全队就开始八卦。抽风险台，晋升门槛真的会被抬高。",
+      "transition": "cut"
+    },
+    {
+      "id": "s13",
+      "source": "confetti",
+      "start": 97,
+      "end": 105,
+      "title": "晋升啦",
+      "subtitle": "闯过了每一道闸门",
+      "vo": "一条策略闯过每一道闸门，撒花！六张迷你的灵光乍现笑脸，这就是最爽的时刻。",
+      "transition": "crossfade"
+    },
+    {
+      "id": "s14",
+      "source": "chinese",
+      "start": 105,
+      "end": 110,
+      "title": "全双语",
+      "subtitle": "一键切换",
+      "vo": "现在是中文版，轻轻一点也能切回英文，整款游戏全程双语。",
+      "transition": "cut"
+    },
+    {
+      "id": "s15",
+      "source": "wallpaper",
+      "start": 110,
+      "end": 116,
+      "title": "住进桌面",
+      "subtitle": "壁纸模式 · 皇冠悬浮球",
+      "vo": "它还能当你的动态壁纸，老板的工具都收进一颗悬浮的小皇冠里。",
+      "transition": "crossfade"
+    },
+    {
+      "id": "s16",
+      "source": "closeup",
+      "start": 116,
+      "end": 118,
+      "title": "",
+      "subtitle": "Ren · 编译",
+      "vo": "",
+      "transition": "cut"
+    },
+    {
+      "id": "s17",
+      "source": "love_burst",
+      "start": 118,
+      "end": 119,
+      "title": "",
+      "subtitle": "",
+      "vo": "",
+      "transition": "cut"
+    },
+    {
+      "id": "s18",
+      "source": "whip_gossip",
+      "start": 119,
+      "end": 120,
+      "title": "",
+      "subtitle": "",
+      "vo": "",
+      "transition": "cut"
+    },
+    {
+      "id": "s19",
+      "source": "outro",
+      "start": 120,
+      "end": 121,
+      "title": "量化研究室",
+      "subtitle": "免费开源 · MIT",
+      "vo": "可爱是诱饵，诚实研究才是真章。免费开源，按下开始，祝你好运，老板。",
+      "transition": "cut"
+    }
+  ]
+}

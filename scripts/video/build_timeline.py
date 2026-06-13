@@ -3,9 +3,21 @@ clipped. Writes work/timeline.json and prints the total length."""
 import json
 import os
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-spec = json.load(open(os.path.join(ROOT, "work", "trailer_spec.json"), encoding="utf-8"))
-vodur = {d["id"]: d["dur"] for d in json.load(open(os.path.join(ROOT, "work", "audio", "vo_durations.json"), encoding="utf-8-sig"))}
+def _find_root(p):
+    p = os.path.dirname(os.path.abspath(p))
+    while p != os.path.dirname(p):
+        if os.path.exists(os.path.join(p, "package.json")):
+            return p
+        p = os.path.dirname(p)
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+ROOT = _find_root(__file__)
+SPEC = os.environ.get("QRL_SPEC", os.path.join(ROOT, "work", "trailer_spec.json"))
+VODUR = os.environ.get("QRL_VODUR", os.path.join(ROOT, "work", "audio", "vo_durations.json"))
+TIMELINE = os.environ.get("QRL_TIMELINE", os.path.join(ROOT, "work", "timeline.json"))
+spec = json.load(open(SPEC, encoding="utf-8"))
+vodur = {d["id"]: d["dur"] for d in json.load(open(VODUR, encoding="utf-8-sig"))}
 
 LEAD = 0.18   # silence before a VO line starts inside its segment
 TAIL = 0.30   # breath after a VO line ends
@@ -42,7 +54,7 @@ for seg in spec["segments"]:
 
 total = round(t, 3)
 out = {"total": total, "fps": 30, "width": 1280, "height": 720, "segments": timeline}
-json.dump(out, open(os.path.join(ROOT, "work", "timeline.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+json.dump(out, open(TIMELINE, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 for s in timeline:
     print(f"{s['start']:>6.2f}-{s['end']:<6.2f} ({s['dur']:>4.1f}s) [{s['source']:<14}] {s['id']}")
 print(f"TOTAL {total:.2f}s  ({int(total//60)}:{total%60:04.1f})")

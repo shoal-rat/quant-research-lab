@@ -4,15 +4,18 @@ $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Speech
 
 $root = Split-Path -Parent $PSScriptRoot
-$specPath = Join-Path $root "work\trailer_spec.json"
-$voDir = Join-Path $root "work\audio\vo"
+$specPath = if ($env:QRL_SPEC) { $env:QRL_SPEC } else { Join-Path $root "work\trailer_spec.json" }
+$voDir    = if ($env:QRL_VODIR) { $env:QRL_VODIR } else { Join-Path $root "work\audio\vo" }
+$durPath  = if ($env:QRL_VODUR) { $env:QRL_VODUR } else { Join-Path $root "work\audio\vo_durations.json" }
+$voice    = if ($env:QRL_VOICE) { $env:QRL_VOICE } else { "Microsoft Zira Desktop" }
+$rate     = if ($env:QRL_RATE)  { [int]$env:QRL_RATE } else { 1 }
 New-Item -ItemType Directory -Force -Path $voDir | Out-Null
 
 $spec = Get-Content $specPath -Raw -Encoding UTF8 | ConvertFrom-Json
 
 $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
-$synth.SelectVoice("Microsoft Zira Desktop")
-$synth.Rate = 1       # slightly brisk = lively trailer pace
+$synth.SelectVoice($voice)
+$synth.Rate = $rate
 $synth.Volume = 100
 $fmt = New-Object System.Speech.AudioFormat.SpeechAudioFormatInfo(44100, [System.Speech.AudioFormat.AudioBitsPerSample]::Sixteen, [System.Speech.AudioFormat.AudioChannel]::Mono)
 
@@ -32,4 +35,4 @@ $synth.Dispose()
 
 $total = ($results | Measure-Object -Property dur -Sum).Sum
 Write-Output ("TOTAL_VO {0}s across {1} lines" -f [math]::Round($total, 1), $results.Count)
-$results | ConvertTo-Json | Out-File -FilePath (Join-Path $root "work\audio\vo_durations.json") -Encoding utf8
+$results | ConvertTo-Json | Out-File -FilePath $durPath -Encoding utf8

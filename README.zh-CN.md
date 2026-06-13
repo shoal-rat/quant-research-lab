@@ -17,9 +17,9 @@
 [![壁纸](https://img.shields.io/badge/桌面-动态壁纸-e9b455)](#-放到你的桌面上)
 [![License](https://img.shields.io/badge/license-MIT-8f5a2a)](LICENSE)
 
-<a href="https://github.com/shoal-rat/quant-research-lab/blob/main/docs/media/promo.mp4"><img src="docs/media/promo-poster.png" alt="观看 2 分钟预告片" width="92%"/></a>
+<a href="https://github.com/shoal-rat/quant-research-lab/blob/main/docs/media/promo-zh.mp4"><img src="docs/media/promo-zh-poster.png" alt="观看 2 分钟中文预告片" width="92%"/></a>
 
-🎬 **[▶ 观看 2 分钟预告片 —— 含旁白与声音](https://github.com/shoal-rat/quant-research-lab/blob/main/docs/media/promo.mp4)** · 全程真实游玩 *（在 GitHub 上点击即可在浏览器内播放）*
+🎬 **[▶ 观看 2 分钟中文预告片 —— 全中文配音 + 字幕](https://github.com/shoal-rat/quant-research-lab/blob/main/docs/media/promo-zh.mp4)** · 全程真实游玩 *（在 GitHub 上点击即可在浏览器内播放）* ｜ [English trailer](https://github.com/shoal-rat/quant-research-lab/blob/main/docs/media/promo.mp4)
 
 <br/>
 

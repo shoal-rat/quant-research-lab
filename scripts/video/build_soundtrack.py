@@ -7,11 +7,23 @@ import wave
 
 import numpy as np
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+def _find_root(p):
+    p = os.path.dirname(os.path.abspath(p))
+    while p != os.path.dirname(p):
+        if os.path.exists(os.path.join(p, "package.json")):
+            return p
+        p = os.path.dirname(p)
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+ROOT = _find_root(__file__)
 SR = 44100
-tl = json.load(open(os.path.join(ROOT, "work", "timeline.json"), encoding="utf-8"))
-N = int(tl["total"] * SR)
 AUD = os.path.join(ROOT, "work", "audio")
+tl = json.load(open(os.environ.get("QRL_TIMELINE", os.path.join(ROOT, "work", "timeline.json")), encoding="utf-8"))
+N = int(tl["total"] * SR)
+MUSIC = os.environ.get("QRL_MUSIC", os.path.join(AUD, "music.wav"))
+VODIR = os.environ.get("QRL_VODIR", os.path.join(AUD, "vo"))
+OUT_ST = os.environ.get("QRL_SOUNDTRACK", os.path.join(AUD, "soundtrack.wav"))
 
 BASE = 0.82          # music level when no narration
 DUCK = 0.34          # music multiplier under narration
@@ -28,7 +40,7 @@ def read_wav(p):
     return d
 
 
-music = read_wav(os.path.join(AUD, "music.wav"))
+music = read_wav(MUSIC)
 if music.ndim == 1:
     music = np.stack([music, music], axis=1)
 if len(music) < N:
@@ -41,7 +53,7 @@ gain = np.full(N, BASE, np.float32)
 for seg in tl["segments"]:
     if not seg["vo"].strip():
         continue
-    w = read_wav(os.path.join(AUD, "vo", seg["id"] + ".wav"))
+    w = read_wav(os.path.join(VODIR, seg["id"] + ".wav"))
     if w.ndim == 2:
         w = w.mean(axis=1)
     at = int(seg["voAt"] * SR)
@@ -67,7 +79,7 @@ mix /= (float(np.abs(mix).max()) or 1.0)
 mix *= 0.97
 
 pcm = (mix * 32767).astype(np.int16)
-out = os.path.join(AUD, "soundtrack.wav")
+out = OUT_ST
 with wave.open(out, "wb") as w:
     w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR)
     w.writeframes(pcm.tobytes())

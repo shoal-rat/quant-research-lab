@@ -6,9 +6,19 @@ import wave
 
 import numpy as np
 
+def _find_root(p):
+    p = os.path.dirname(os.path.abspath(p))
+    while p != os.path.dirname(p):
+        if os.path.exists(os.path.join(p, "package.json")):
+            return p
+        p = os.path.dirname(p)
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
 SR = 44100
 DUR = float(sys.argv[1]) if len(sys.argv) > 1 else 121.0
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "audio", "music.wav")
+ROOT = _find_root(__file__)
+OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "work", "audio", "music.wav")
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 
 BPM = 128.0

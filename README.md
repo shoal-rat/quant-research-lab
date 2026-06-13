@@ -47,14 +47,42 @@ Historical simulations only — no brokerage, no investment advice.
 
 ## Meet the desk
 
-| | Researcher | Desk | Signature line |
-|---|---|---|---|
-| 🔴 | **Mira Signal** | Strategy | "This signal smells promising." |
-| 🔵 | **Ren Compile** | Engineering | "If it runs, we are alive." |
-| 🟤 | **Sana Risk** | Risk | "Pretty returns do not mean usable returns." |
-| ⚪ | **Ivo Doubt** | Skeptic | "This may just be luck." |
-| 🟢 | **Noa Ledger** | Experiment manager | "Stop arguing. Next iteration." |
-| 🟣 | **Kira Timestamp** | Data | "Do not use future data." |
+<table>
+  <tr>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/media/portraits/mira.png" width="128" alt="Mira Signal"/><br/>
+      <b>Mira Signal</b> · <sub>Strategy</sub><br/>
+      <sub><i>"This signal smells promising."</i></sub>
+    </td>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/media/portraits/ren.png" width="128" alt="Ren Compile"/><br/>
+      <b>Ren Compile</b> · <sub>Engineering</sub><br/>
+      <sub><i>"If it runs, we are alive."</i></sub>
+    </td>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/media/portraits/sana.png" width="128" alt="Sana Risk"/><br/>
+      <b>Sana Risk</b> · <sub>Risk</sub><br/>
+      <sub><i>"Pretty returns aren't usable returns."</i></sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/media/portraits/ivo.png" width="128" alt="Ivo Doubt"/><br/>
+      <b>Ivo Doubt</b> · <sub>Skeptic</sub><br/>
+      <sub><i>"This may just be luck."</i></sub>
+    </td>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/media/portraits/noa.png" width="128" alt="Noa Ledger"/><br/>
+      <b>Noa Ledger</b> · <sub>Experiment manager</sub><br/>
+      <sub><i>"Stop arguing. Next iteration."</i></sub>
+    </td>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/media/portraits/kira.png" width="128" alt="Kira Timestamp"/><br/>
+      <b>Kira Timestamp</b> · <sub>Data</sub><br/>
+      <sub><i>"Do not use future data."</i></sub>
+    </td>
+  </tr>
+</table>
 
 They walk between desks, gossip about whoever you just whipped, argue four-ways at the meeting table, and quote their actual backtest numbers while doing it.
 

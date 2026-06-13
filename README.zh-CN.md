@@ -47,14 +47,42 @@
 
 ## 认识这张桌子
 
-| | 研究员 | 岗位 | 口头禅 |
-|---|---|---|---|
-| 🔴 | **Mira Signal** | 策略 | “这个信号有戏。” |
-| 🔵 | **Ren Compile** | 工程 | “能跑起来，我们就还活着。” |
-| 🟤 | **Sana Risk** | 风控 | “好看的收益不等于能用的收益。” |
-| ⚪ | **Ivo Doubt** | 怀疑论者 | “这可能只是运气。” |
-| 🟢 | **Noa Ledger** | 实验主管 | “别吵了，下一轮迭代。” |
-| 🟣 | **Kira Timestamp** | 数据 | “不许用未来数据。” |
+<table>
+  <tr>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/media/portraits/mira.png" width="128" alt="Mira Signal"/><br/>
+      <b>Mira Signal</b> · <sub>策略</sub><br/>
+      <sub><i>“这个信号有戏。”</i></sub>
+    </td>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/media/portraits/ren.png" width="128" alt="Ren Compile"/><br/>
+      <b>Ren Compile</b> · <sub>工程</sub><br/>
+      <sub><i>“能跑起来，我们就还活着。”</i></sub>
+    </td>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/media/portraits/sana.png" width="128" alt="Sana Risk"/><br/>
+      <b>Sana Risk</b> · <sub>风控</sub><br/>
+      <sub><i>“好看的收益不等于能用的收益。”</i></sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/media/portraits/ivo.png" width="128" alt="Ivo Doubt"/><br/>
+      <b>Ivo Doubt</b> · <sub>怀疑论者</sub><br/>
+      <sub><i>“这可能只是运气。”</i></sub>
+    </td>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/media/portraits/noa.png" width="128" alt="Noa Ledger"/><br/>
+      <b>Noa Ledger</b> · <sub>实验主管</sub><br/>
+      <sub><i>“别吵了，下一轮迭代。”</i></sub>
+    </td>
+    <td align="center" valign="top" width="33%">
+      <img src="docs/media/portraits/kira.png" width="128" alt="Kira Timestamp"/><br/>
+      <b>Kira Timestamp</b> · <sub>数据</sub><br/>
+      <sub><i>“不许用未来数据。”</i></sub>
+    </td>
+  </tr>
+</table>
 
 他们会在工位之间走动、八卦你刚刚鞭过谁、在会议桌上四方对辩——而且张口就是自己真实的回测数字。
 

@@ -3,7 +3,7 @@ import { chooseDirection } from "./banditEngine";
 import { parseUniverse } from "./mockMarketData";
 import { buildArchive, eliteScore } from "./poolAnalytics";
 import { clamp, pick, seededRandom } from "./random";
-import { getFamily, STRATEGY_FAMILIES, StrategyFamily } from "./strategyKnowledge";
+import { getAllFamilies, getFamily, StrategyFamily } from "./strategyKnowledge";
 
 export interface FamilyStats {
   key: string;
@@ -157,10 +157,14 @@ function describeNewsThought(family: StrategyFamily, rng: () => number, realData
 export function proposeStrategy(context: ProposalContext): StrategySpec {
   const { settings, memory, iteration, experiments, bossDirective, explorationBias } = context;
   // A provider that exposes a computable-family list (any price dataset) keeps
-  // the desk to price-derived signals; mock data (null) allows news families.
-  const realData = Array.isArray(context.computableFamilies);
+  // the desk to families that dataset can backtest — including any DISCOVERED by
+  // the research agent; mock data (null) allows everything (news families too).
+  const computable = context.computableFamilies;
+  const realData = Array.isArray(computable);
   const rng = seededRandom(`${settings.researchTaskName}-${iteration}-${experiments.length}-${bossDirective ?? ""}`);
-  const eligibleFamilies = realData ? STRATEGY_FAMILIES.filter((family) => family.priceComputable) : STRATEGY_FAMILIES;
+  const eligibleFamilies = computable
+    ? getAllFamilies().filter((family) => computable.includes(family.key))
+    : getAllFamilies();
   const stats = computeFamilyStats(experiments);
   const hints = bossDirective ? parseBossDirective(bossDirective) : undefined;
   const reasoning: string[] = [];

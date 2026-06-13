@@ -1,9 +1,25 @@
 import { BacktestParameters, DatasetConfig, ResearchBrain, StrategySpec } from "../../types";
 import { metricsFromReturnSeries } from "../realBacktestEngine";
-import { STRATEGY_FAMILIES } from "../strategyKnowledge";
+import { getAllFamilies, getResearchedFamilies } from "../strategyKnowledge";
 import { DatasetBacktestContext, DatasetMeta, DatasetProvider } from "./types";
 
-const PRICE_FAMILIES = STRATEGY_FAMILIES.filter((family) => family.priceComputable).map((family) => family.key);
+// the bridge kernel can compute every price-derived family, INCLUDING ones the
+// research agent discovered (their signal is shipped to the kernel as an
+// extraFamily); computed at call time so new discoveries are picked up live
+function bridgeComputableFamilies(): string[] {
+  return getAllFamilies()
+    .filter((family) => family.priceComputable)
+    .map((family) => family.key);
+}
+
+// the discovered families' kernel-ready signal formulas, sent with every
+// dataset request so the agent's kernel implements them (and a new discovery
+// busts the kernel cache via the source signature)
+function extraFamilies(): Array<{ key: string; signalSpec: string }> {
+  return getResearchedFamilies()
+    .filter((family) => family.signalSpec)
+    .map((family) => ({ key: family.key, signalSpec: family.signalSpec as string }));
+}
 
 interface InspectReply {
   label?: string;
@@ -60,7 +76,7 @@ export class BridgeDatasetProvider implements DatasetProvider {
       const response = await fetch(`${bridgeUrl.replace(/\/$/, "")}/dataset/inspect`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ backend, source: sourcePayload(config) })
+        body: JSON.stringify({ backend, source: sourcePayload(config), extraFamilies: extraFamilies() })
       });
       if (!response.ok) return null;
       const payload = (await response.json()) as { result?: InspectReply; error?: string };
@@ -103,12 +119,12 @@ export class BridgeDatasetProvider implements DatasetProvider {
   }
 
   computableFamilies(): string[] | null {
-    // the CLI computes signals itself; price families are the safe set
-    return PRICE_FAMILIES;
+    // the kernel computes signals itself, including discovered families
+    return bridgeComputableFamilies();
   }
 
   canBacktest(familyKey: string): boolean {
-    return PRICE_FAMILIES.includes(familyKey);
+    return bridgeComputableFamilies().includes(familyKey);
   }
 
   // memoize the bridge round-trip (the expensive part) by the inputs that
@@ -150,6 +166,7 @@ export class BridgeDatasetProvider implements DatasetProvider {
         body: JSON.stringify({
           backend: this.backend,
           source: sourcePayload(this.config),
+          extraFamilies: extraFamilies(),
           strategy: {
             familyKey: strategy.familyKey,
             parameters: strategy.parameters,

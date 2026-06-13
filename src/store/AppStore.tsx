@@ -23,6 +23,8 @@ import {
 import { BridgeResearchAdapter } from "../engines/bridgeResearchAdapter";
 import { DatasetProvider } from "../engines/dataset/types";
 import { getDatasetProvider } from "../engines/dataset/datasetProvider";
+import { getResearchedFamilies, setResearchedFamilies, StrategyFamily } from "../engines/strategyKnowledge";
+import { researchStrategiesViaBridge } from "../engines/strategyResearch";
 import { ACHIEVEMENTS, computeLevel, computeXp, fundNav, BossLevel } from "../engines/progression";
 import { deriveResearchMemory } from "../engines/researchMemory";
 import { completeIteration, IterationDraft, prepareIteration } from "../engines/researchLoop";
@@ -48,7 +50,8 @@ const STORAGE = {
   loop: "qrl.loop",
   mood: "qrl.mood",
   achievements: "qrl.achievements",
-  level: "qrl.level"
+  level: "qrl.level",
+  researched: "qrl.researchedFamilies"
 };
 
 export interface GameToast {
@@ -144,6 +147,24 @@ function defaultMood(agentId: string): AgentMood {
   return { agentId, morale: 70, praises: 0, scolds: 0, lastBossActionAt: 0 };
 }
 
+// If the boss's directive is a request to go research/read, return the topic to
+// research (the text after the trigger); otherwise null. Explicit research verbs
+// only, so ordinary directives like "try momentum" are not hijacked.
+function parseResearchIntent(text: string): string | null {
+  const lower = text.toLowerCase();
+  const enTriggers = ["research ", "search for ", "find new ", "read about ", "read up on ", "look up ", "discover ", "investigate ", "go read ", "papers on ", "look for new "];
+  for (const trigger of enTriggers) {
+    const index = lower.indexOf(trigger);
+    if (index >= 0) return text.slice(index + trigger.length).trim() || text.trim();
+  }
+  const zhTriggers = ["研究", "搜索", "查找", "读论文", "去读", "发现新", "找新", "调研", "查一下", "搜一下"];
+  for (const trigger of zhTriggers) {
+    const index = text.indexOf(trigger);
+    if (index >= 0) return text.slice(index + trigger.length).trim() || text.trim();
+  }
+  return null;
+}
+
 interface AppStoreValue {
   agents: AgentProfile[];
   settings: Settings;
@@ -163,6 +184,9 @@ interface AppStoreValue {
   toasts: GameToast[];
   cliStatus: CliStatus;
   datasetStatus: DatasetStatus;
+  discoveredFamilies: StrategyFamily[];
+  researching: boolean;
+  researchStrategies: (topic?: string) => void;
   dismissToast: (id: string) => void;
   updateSettings: (patch: Partial<Settings>) => void;
   updateAgent: (id: string, patch: Partial<AgentProfile>) => void;
@@ -226,6 +250,15 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
     label: settings.dataset.label
   });
   const [cliStatus, setCliStatus] = useState<CliStatus>({ connected: false, checking: true, detail: "" });
+  // discovered strategy families (researched from the web), loaded into the
+  // global registry on first render so the loop + UI see them immediately
+  const [discoveredFamilies, setDiscoveredFamilies] = useState<StrategyFamily[]>(() => {
+    const stored = readStored<StrategyFamily[]>(STORAGE.researched, []);
+    setResearchedFamilies(stored);
+    return getResearchedFamilies();
+  });
+  const [researching, setResearching] = useState(false);
+  const researchingRef = useRef(false);
 
   if (!directorRef.current) {
     directorRef.current = new OfficeDirector(agents);
@@ -744,6 +777,61 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
     void advancePhase();
   }, [advancePhase]);
 
+  // ask the connected agent to read the web for new strategy families and fold
+  // them into the knowledge base (and, on the bridge path, the backtest kernel)
+  const researchStrategies = useCallback(
+    (topic?: string) => {
+      if (researchingRef.current) return;
+      if (!cliRef.current.connected && !isWallpaperMode()) {
+        setLoop((prev) => ({ ...prev, statusMessage: t(settingsRef.current.language, "connectCli") }));
+        return;
+      }
+      researchingRef.current = true;
+      setResearching(true);
+      const lang = settingsRef.current.language;
+      const startId = `research-start-${Date.now()}`;
+      setToasts((prev) =>
+        [...prev, { id: startId, icon: "\u{1F50D}", title: t(lang, "researchStart"), detail: topic ? `"${topic.slice(0, 48)}"` : t(lang, "researchStartDetail") }].slice(-4)
+      );
+      director.bossReaction("directive");
+      void researchStrategiesViaBridge(settingsRef.current.bridgeUrl, settingsRef.current.researchBrain, topic ?? "")
+        .then((families) => {
+          setToasts((prev) => prev.filter((toast) => toast.id !== startId));
+          if (families.length > 0) {
+            const merged = [...getResearchedFamilies()];
+            const keys = new Set(merged.map((family) => family.key));
+            for (const family of families) {
+              if (!keys.has(family.key)) {
+                merged.push(family);
+                keys.add(family.key);
+              }
+            }
+            setResearchedFamilies(merged);
+            const persisted = getResearchedFamilies();
+            writeStored(STORAGE.researched, persisted);
+            setDiscoveredFamilies(persisted);
+            director.celebrate();
+            const id = `research-done-${Date.now()}`;
+            setToasts((prev) =>
+              [...prev, { id, icon: "\u{1F4A1}", title: t(lang, "researchDone"), detail: families.map((family) => family.name).join(", ").slice(0, 90) }].slice(-4)
+            );
+            window.setTimeout(() => setToasts((prev) => prev.filter((toast) => toast.id !== id)), 7000);
+          } else {
+            const id = `research-none-${Date.now()}`;
+            setToasts((prev) =>
+              [...prev, { id, icon: "\u{1F4AD}", title: t(lang, "researchNone"), detail: t(lang, "researchNoneDetail") }].slice(-4)
+            );
+            window.setTimeout(() => setToasts((prev) => prev.filter((toast) => toast.id !== id)), 6000);
+          }
+        })
+        .finally(() => {
+          researchingRef.current = false;
+          setResearching(false);
+        });
+    },
+    [director]
+  );
+
   const setActiveObject = useCallback((area?: ResearchLoopState["activeObject"]) => {
     setLoop((prev) => ({ ...prev, activeObject: area }));
   }, []);
@@ -784,9 +872,13 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
           })
         );
       }, 2400);
+      // a directive like "research options-skew factors" both steers the loop
+      // AND kicks off a web research run that adds new families
+      const researchTopic = parseResearchIntent(trimmed);
+      if (researchTopic !== null) researchStrategies(researchTopic);
       setLoop((prev) => ({ ...prev, statusMessage: `${t(settingsRef.current.language, "directiveQueued")}"${trimmed.slice(0, 60)}"` }));
     },
-    [director]
+    [director, researchStrategies]
   );
 
   const applyBossAction = useCallback(
@@ -849,6 +941,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
       toasts,
       cliStatus,
       datasetStatus,
+      discoveredFamilies,
+      researching,
+      researchStrategies,
       dismissToast,
       updateSettings,
       updateAgent,
@@ -883,6 +978,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
       toasts,
       cliStatus,
       datasetStatus,
+      discoveredFamilies,
+      researching,
+      researchStrategies,
       dismissToast,
       updateSettings,
       updateAgent,

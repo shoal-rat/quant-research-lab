@@ -11,7 +11,7 @@ import {
 } from "../types";
 import { MockQuantLLMAdapter } from "./llmAdapters";
 import { proposeStrategy } from "./hypothesisEngine";
-import { STRATEGY_FAMILIES } from "./strategyKnowledge";
+import { getAllFamilies } from "./strategyKnowledge";
 import { clamp } from "./random";
 
 // Research brain via the local CLI bridge: the hypothesis (family, horizon,
@@ -65,8 +65,8 @@ export class BridgeResearchAdapter implements LLMCapabilities {
     const local = proposeStrategy(context);
     const computable = context.computableFamilies;
     const families = computable
-      ? STRATEGY_FAMILIES.filter((family) => computable.includes(family.key))
-      : STRATEGY_FAMILIES;
+      ? getAllFamilies().filter((family) => computable.includes(family.key))
+      : getAllFamilies();
     const familyTable = families
       .map(
         (family) =>

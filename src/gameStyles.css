@@ -1139,3 +1139,40 @@
   padding: 8px 10px;
   margin: 0;
 }
+
+/* ---- discovered strategies (agent web research) ---- */
+.spin { animation: qrl-spin 1s linear infinite; }
+@keyframes qrl-spin { to { transform: rotate(360deg); } }
+.loop-controls .secondary-button.is-busy { border-color: var(--teal); color: var(--teal); }
+
+.discovered-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.discovered-item {
+  border: 1px solid color-mix(in srgb, var(--teal) 30%, var(--line));
+  border-radius: 11px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--teal) 5%, var(--surface-solid));
+}
+.discovered-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.discovered-head strong { color: var(--ink); font-size: 14px; }
+.discovered-tag {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--teal);
+  border: 1px solid color-mix(in srgb, var(--teal) 40%, var(--line));
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.discovered-item p { color: var(--muted); font-size: 12.5px; margin: 6px 0 4px; line-height: 1.45; }
+.discovered-refs { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.discovered-refs a, .discovered-refs span { font-size: 11px; color: var(--teal); text-decoration: none; }
+.discovered-refs a:hover { text-decoration: underline; }

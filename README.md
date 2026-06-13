@@ -122,6 +122,18 @@ When a data source is connected, **Kira (the data agent) writes a reusable backt
 
 What stays deterministic is deliberate: the **honest scoring** — deflated Sharpe, CSCV PBO, pool correlation — runs in the browser so results are reproducible, not re-prompted. The agents adapt to the data; the system scores it the same way every time. Identical backtests and identical skeptic prompts are memoized too, so nothing is computed twice.
 
+## Discover strategies from the literature
+
+The knowledge base isn't fixed. Press the **🔭 Discover** button in the HUD (or tell the desk in the directive bar — *"research options-skew factors"*, *"读论文，找一些价量因子"*) and the agent **searches the web** — recent papers, working papers, financial news, institution research reports — for new price-based factors.
+
+What comes back is validated and folded into the desk automatically:
+
+- the new families join the **knowledge base** (with the citations the agent actually read, shown on the Fund & Research Board),
+- the **research brain** can now propose them,
+- and on a bridge dataset the **kernel regenerates to implement them** — because each backtest ships the discovered families' signal formulas, and a new one busts the kernel cache. No code edits, no redeploy.
+
+So the loop literally grows new strategies while you watch. Honest scoring still gates everything: a freshly discovered factor has to survive the same deflated-Sharpe and pool-correlation checks as the textbook ones.
+
 ## You are the BOSS
 
 <div align="center">
@@ -210,6 +222,7 @@ npm run build      # tsc + vite
 - [x] **Any frequency** — tick / minute / hourly / daily / weekly / monthly, detected from the timestamps; Sharpe annualized correctly for each
 - [x] **Large data, never downloaded** — Parquet / DuckDB / SQLite / Postgres / big files read by the agent in place; only the per-period return series comes back
 - [x] **Compute once, reuse free** — the agent writes a reusable backtest kernel per source, cached; every later backtest runs it with no LLM call. Identical backtests, skeptic prompts, and dialogue are memoized too
+- [x] **Discover strategies from the web** — the agent reads papers / news / institution reports for new price factors and folds them into the knowledge base, the research brain, and the kernel automatically (with citations)
 - [x] **Strong models for data work** — Claude Opus 4.8 / GPT‑5.5‑Codex with structured output and high reasoning effort
 - [x] **20 years of real market data** bundled, with a real cross-sectional backtester and real pool correlations
 - [x] **Thompson bandit**, **pool ΔSharpe reward**, **MAP-Elites niches**, **CSCV PBO**

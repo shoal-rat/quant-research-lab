@@ -1,10 +1,11 @@
-import { CirclePause, FastForward, Play, Zap } from "lucide-react";
+import { CirclePause, FastForward, Loader, Play, Telescope, Zap } from "lucide-react";
 import { phaseLabel, t } from "../i18n";
 import { useAppStore } from "../store/AppStore";
 
 // Compact floating loop controls for the game HUD.
 export function LoopControls(): JSX.Element {
-  const { loop, settings, startResearch, pauseResearch, nextIteration, toggleAutoRun, cliStatus } = useAppStore();
+  const { loop, settings, startResearch, pauseResearch, nextIteration, toggleAutoRun, cliStatus, researching, researchStrategies } =
+    useAppStore();
   const lang = settings.language;
 
   return (
@@ -34,6 +35,14 @@ export function LoopControls(): JSX.Element {
         title={t(lang, "autoRun")}
       >
         <Zap size={15} />
+      </button>
+      <button
+        className={`secondary-button compact ${researching ? "is-busy" : ""}`}
+        onClick={() => researchStrategies()}
+        disabled={researching}
+        title={`${t(lang, "discover")} — ${t(lang, "discoverTip")}`}
+      >
+        {researching ? <Loader size={15} className="spin" /> : <Telescope size={15} />}
       </button>
     </div>
   );

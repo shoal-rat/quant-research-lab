@@ -2,14 +2,14 @@ import { useMemo } from "react";
 import { armPosteriors } from "../engines/banditEngine";
 import { ACHIEVEMENTS } from "../engines/progression";
 import { buildArchive, computePbo, poolEquitySeries, poolSharpe } from "../engines/poolAnalytics";
-import { getFamily, STRATEGY_FAMILIES } from "../engines/strategyKnowledge";
+import { getAllFamilies, getFamily } from "../engines/strategyKnowledge";
 import { number, percent } from "../components/format";
 import { useAppStore } from "../store/AppStore";
 
 // The fund & research board: virtual fund stats, the MAP-Elites niche
 // archive, the direction bandit's posteriors, the desk PBO, and trophies.
 export function BoardPage(): JSX.Element {
-  const { experiments, settings, bossLevel, fundValue, unlockedAchievements } = useAppStore();
+  const { experiments, settings, bossLevel, fundValue, unlockedAchievements, discoveredFamilies } = useAppStore();
   const zh = settings.language === "zh";
 
   const candidates = useMemo(() => experiments.filter((experiment) => experiment.status === "candidate"), [experiments]);
@@ -21,9 +21,10 @@ export function BoardPage(): JSX.Element {
 
   const holdingBuckets = ["fast", "weekly", "monthly"] as const;
   const riskBuckets = ["calm", "normal", "wild"] as const;
-  const familiesWithData = STRATEGY_FAMILIES.filter((family) =>
+  const familiesWithData = getAllFamilies().filter((family) =>
     experiments.some((experiment) => experiment.familyKey === family.key)
   );
+  const discovered = discoveredFamilies;
 
   const sparkline = useMemo(() => {
     if (equity.length < 2) return "";
@@ -109,6 +110,42 @@ export function BoardPage(): JSX.Element {
           ))}
         </div>
       </section>
+
+      {discovered.length > 0 && (
+        <section className="page-card">
+          <h2>{zh ? "已发现的策略（智能体研究）" : "Discovered strategies (agent research)"}</h2>
+          <p className="board-hint">
+            {zh
+              ? "智能体从论文 / 新闻 / 机构报告里读来的新家族，已加入知识库，桥接模式下的回测内核会自动实现它们。"
+              : "New families the agent read out of papers / news / institution reports — added to the knowledge base, and the bridge kernel implements them automatically."}
+          </p>
+          <div className="discovered-list">
+            {discovered.map((family) => (
+              <div className="discovered-item" key={family.key}>
+                <div className="discovered-head">
+                  <strong>{family.name}</strong>
+                  <span className="discovered-tag">{family.factorKind.replaceAll("_", " ")}</span>
+                </div>
+                <p>{family.rationale}</p>
+                {family.references && family.references.length > 0 && (
+                  <div className="discovered-refs">
+                    {family.references.slice(0, 4).map((ref, index) => {
+                      const url = /^https?:\/\//.test(ref);
+                      return url ? (
+                        <a key={index} href={ref} target="_blank" rel="noreferrer noopener">
+                          {ref.replace(/^https?:\/\/(www\.)?/, "").slice(0, 42)}
+                        </a>
+                      ) : (
+                        <span key={index}>{ref.slice(0, 60)}</span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="content-grid two-cols">
         <section className="page-card">

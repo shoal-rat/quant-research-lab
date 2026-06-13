@@ -38,6 +38,16 @@ export interface StrategyFamily {
   // deterministic simulator inputs
   baseEdgeDaily: number;
   decayHalfLifeRuns: number;
+  // --- fields populated when a family is DISCOVERED by the research agent ---
+  origin?: "builtin" | "researched";
+  // a kernel-ready signal formula (in the SIGNAL_SPEC style) the agent's
+  // backtest kernel implements; researched families have no hand-written
+  // in-browser code, so they are computed only by the bridge kernel
+  signalSpec?: string;
+  // citations / URLs the agent read (papers, news, institution reports)
+  references?: string[];
+  // only the bridge kernel can backtest this (no in-browser implementation)
+  bridgeOnly?: boolean;
 }
 
 export const STRATEGY_FAMILIES: StrategyFamily[] = [
@@ -435,8 +445,34 @@ export const STRATEGY_FAMILIES: StrategyFamily[] = [
   }
 ];
 
-export const familyByKey = new Map(STRATEGY_FAMILIES.map((family) => [family.key, family]));
+// Families discovered by the research agent at runtime (persisted by the app
+// in localStorage). They live alongside the built-in literature families.
+let researchedFamilies: StrategyFamily[] = [];
+let familyIndex = new Map<string, StrategyFamily>(STRATEGY_FAMILIES.map((family) => [family.key, family]));
+
+function rebuildIndex(): void {
+  familyIndex = new Map([...STRATEGY_FAMILIES, ...researchedFamilies].map((family) => [family.key, family]));
+}
 
 export function getFamily(key: string): StrategyFamily {
-  return familyByKey.get(key) ?? STRATEGY_FAMILIES[0];
+  return familyIndex.get(key) ?? STRATEGY_FAMILIES[0];
+}
+
+// every known family, built-in first then researched
+export function getAllFamilies(): StrategyFamily[] {
+  return [...STRATEGY_FAMILIES, ...researchedFamilies];
+}
+
+export function getResearchedFamilies(): StrategyFamily[] {
+  return researchedFamilies;
+}
+
+// replace the researched set (called on load from storage and after a research
+// run); later built-ins win key collisions so a discovery can't shadow them
+export function setResearchedFamilies(list: StrategyFamily[]): void {
+  const builtinKeys = new Set(STRATEGY_FAMILIES.map((family) => family.key));
+  researchedFamilies = list
+    .filter((family) => family && family.key && !builtinKeys.has(family.key))
+    .map((family) => ({ ...family, origin: "researched", bridgeOnly: true }));
+  rebuildIndex();
 }

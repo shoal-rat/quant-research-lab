@@ -71,7 +71,23 @@ const STRINGS = {
   },
   datasetReady: { en: "dataset ready", zh: "数据集就绪" },
   datasetBuilding: { en: "loading dataset…", zh: "正在加载数据集…" },
-  datasetFailed: { en: "dataset error", zh: "数据集错误" }
+  datasetFailed: { en: "dataset error", zh: "数据集错误" },
+  discover: { en: "Discover strategies", zh: "发现新策略" },
+  discoverTip: {
+    en: "Send the desk to read papers / news / reports for new strategies",
+    zh: "派团队去读论文 / 新闻 / 研报，挖掘新策略"
+  },
+  researchStart: { en: "Reading the literature…", zh: "正在研读资料…" },
+  researchStartDetail: {
+    en: "The desk is searching papers, news and reports.",
+    zh: "团队正在搜索论文、新闻和研报。"
+  },
+  researchDone: { en: "New strategies discovered!", zh: "发现了新策略！" },
+  researchNone: { en: "No new strategies this time", zh: "这次没找到新策略" },
+  researchNoneDetail: {
+    en: "Nothing solid surfaced — try a topic in the directive bar.",
+    zh: "没挖到靠谱的——在指令栏里给个方向试试。"
+  }
 } satisfies Record<string, Record<Language, string>>;
 
 export type StringKey = keyof typeof STRINGS;

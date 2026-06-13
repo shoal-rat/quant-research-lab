@@ -43,6 +43,8 @@ const TIMEOUT_MS = 45000;
 // it detects the format AND the frequency (hourly/daily/weekly/monthly/...) and
 // computes whatever we ask for, so the browser never assumes a shape.
 const DATA_TIMEOUT_MS = Number(process.env.QRL_DATA_TIMEOUT_MS ?? 480000);
+// web research (search + multiple fetches + reasoning) is the slowest path
+const RESEARCH_TIMEOUT_MS = Number(process.env.QRL_RESEARCH_TIMEOUT_MS ?? 720000);
 const DATA_REASONING = process.env.QRL_DATA_REASONING ?? "high"; // codex effort: low|medium|high|xhigh
 const DATA_CLAUDE_MODEL = process.env.QRL_DATA_CLAUDE_MODEL ?? "claude-opus-4-8"; // strongest for hard data work
 // Off by default: these endpoints run the CLI with file/DB/code access on your
@@ -258,7 +260,7 @@ async function pythonCmd() {
   return (pythonCmdCache = "python");
 }
 
-function sourceSignature(source) {
+function sourceSignature(source, extraFamilies = []) {
   let stamp = "";
   try {
     if (source.ref && fs.existsSync(source.ref) && fs.statSync(source.ref).isFile()) {
@@ -268,7 +270,12 @@ function sourceSignature(source) {
   } catch {
     /* ignore */
   }
-  const raw = JSON.stringify({ kind: source.kind, ref: source.ref ?? "", query: source.query ?? "", columns: source.columns ?? null, stamp });
+  // discovered families are part of the kernel, so a new discovery busts it
+  const fam = extraFamilies
+    .map((f) => `${f.key}=${f.signalSpec}`)
+    .sort()
+    .join("|");
+  const raw = JSON.stringify({ kind: source.kind, ref: source.ref ?? "", query: source.query ?? "", columns: source.columns ?? null, stamp, fam });
   return createHash("sha1").update(raw).digest("hex").slice(0, 16);
 }
 
@@ -307,7 +314,7 @@ const SAMPLE_JOBS = (source) => {
   ];
 };
 
-async function generateKernel(backend, source, sig, failureHint = "") {
+async function generateKernel(backend, source, sig, failureHint = "", extraFamilies = []) {
   const { dir, kernel, meta } = kernelPaths(sig);
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
@@ -337,7 +344,7 @@ It must work for ANY strategy/params with NO edits. It reads the source path fro
 dates and returns MUST be equal length. params.start/end may be wide-open (1900..2100) meaning "all data".
 
 ${SIGNAL_SPEC}
-
+${extraFamilies.length ? `\nADDITIONAL families discovered from the literature — implement these too, same cross-sectional procedure, signal computed from price/return windows:\n${extraFamilies.map((f) => `- ${f.key}: ${f.signalSpec}`).join("\n")}\n` : ""}
 After writing both files, SELF-TEST kernel.py on EACH of these sample jobs (pipe each via stdin) and FIX the kernel until ALL of them print valid result JSON with len(dates)==len(returns)>0 and only finite numbers. They cover different families on purpose — a kernel that only works for momentum is a bug:
 ${JSON.stringify(SAMPLE_JOBS(source))}
 ALSO self-test once more with params.start/end set to a SUBSET inside the data's actual date range (pick a start/end strictly inside the min/max you found) — the kernel must still return the bars in that window, not crash or return empty. The wide-open 1900..2100 range means "all data".
@@ -352,11 +359,11 @@ When BOTH files exist and ALL self-tests pass, reply with ONLY {"kernelReady":tr
   return { kernel, meta: JSON.parse(fs.readFileSync(meta, "utf8")) };
 }
 
-async function ensureKernel(backend, source) {
-  const sig = sourceSignature(source);
+async function ensureKernel(backend, source, extraFamilies = []) {
+  const sig = sourceSignature(source, extraFamilies);
   const cached = readCachedKernel(sig);
   if (cached) return { ...cached, sig, cached: true };
-  const fresh = await generateKernel(backend, source, sig);
+  const fresh = await generateKernel(backend, source, sig, "", extraFamilies);
   return { ...fresh, sig, cached: false };
 }
 
@@ -369,18 +376,18 @@ async function runKernel(kernelPath, job) {
   return json;
 }
 
-async function datasetInspect(backend, source) {
+async function datasetInspect(backend, source, extraFamilies = []) {
   try {
-    const { meta, cached, sig } = await ensureKernel(backend, source);
+    const { meta, cached, sig } = await ensureKernel(backend, source, extraFamilies);
     return { result: { ...meta, cached, kernelId: sig } };
   } catch (error) {
     return { error: String(error.message ?? error) };
   }
 }
 
-async function datasetReturns(backend, source, strategy, params) {
+async function datasetReturns(backend, source, strategy, params, extraFamilies = []) {
   try {
-    const ensured = await ensureKernel(backend, source);
+    const ensured = await ensureKernel(backend, source, extraFamilies);
     const job = { source, strategy, params };
     let out;
     try {
@@ -390,7 +397,7 @@ async function datasetReturns(backend, source, strategy, params) {
       // as a hint so the agent fixes that exact failure, then retry
       const hint = String(kernelError.message ?? kernelError).slice(-600);
       console.error(`[bridge] kernel re-run failed (${hint.slice(0, 120)}); regenerating with the error as a hint`);
-      const regen = await generateKernel(backend, source, ensured.sig, hint);
+      const regen = await generateKernel(backend, source, ensured.sig, hint, extraFamilies);
       out = await runKernel(regen.kernel, job);
       ensured.meta = regen.meta;
     }
@@ -398,6 +405,60 @@ async function datasetReturns(backend, source, strategy, params) {
     if (!out.frequency && ensured.meta.frequency) out.frequency = ensured.meta.frequency;
     out.cached = ensured.cached;
     return { result: out };
+  } catch (error) {
+    return { error: String(error.message ?? error) };
+  }
+}
+
+// --- /research/strategies: the agent reads the web for NEW strategy families --
+// Web-only (no local file access), so it does not need big-data mode. Returns
+// new families with a kernel-ready signalSpec + the URLs the agent actually read.
+async function runClaudeResearch(prompt) {
+  const args = [
+    "-p",
+    "--model",
+    DATA_CLAUDE_MODEL,
+    "--output-format",
+    "json",
+    "--max-turns",
+    "24",
+    "--permission-mode",
+    "bypassPermissions",
+    "--allowedTools",
+    "WebSearch,WebFetch,Bash,Read,Write",
+    "--append-system-prompt",
+    "You are a quant research analyst. Use web search + fetch to read recent papers, news and institution research reports, then reply with ONLY the requested JSON object as your final message."
+  ];
+  const result = await run("claude", [...args], { stdin: prompt, timeoutMs: RESEARCH_TIMEOUT_MS, cwd: NEUTRAL_CWD });
+  try {
+    const envelope = JSON.parse(result.stdout);
+    if (envelope && typeof envelope.result === "string") return { ...result, stdout: envelope.result };
+  } catch {
+    /* use raw stdout */
+  }
+  return result;
+}
+
+async function researchStrategies(backend, topic, existingKeys) {
+  const prompt = `You are the research analyst of a quant desk. Search the web — recent academic / working papers, reputable financial news, and institution or sell-side research reports — for systematic CROSS-SECTIONAL equity strategies (factors) computable from DAILY or intraday PRICE/return data ALONE (no fundamentals, no news columns).
+
+${topic ? `Focus on: ${topic}` : "Find genuinely useful, ideally lesser-known, price-based factors."}
+
+Do NOT repeat families we already have: ${(existingKeys || []).join(", ") || "(none)"}.
+
+Return 1-3 NEW families. Each needs a "signalSpec": a ONE-LINE cross-sectional signal formula in the SAME STYLE as these, computable from trailing price/return windows so a backtest kernel can implement it:
+${SIGNAL_SPEC}
+
+Reply with ONLY this JSON object (cite REAL URLs you actually fetched):
+{"families":[{"key":"snake_case_id","name":"...","factorKind":"momentum|mean_reversion|low_volatility|quality_proxy|seasonality|lead_lag|pairs|vol_managed|trend_overlay|event_drift|earnings_revision|news_sentiment","rationaleKind":"risk_premium|behavioral|structural","rationale":"one-sentence economic story","construction":"how the portfolio is built","signalSpec":"<key>: <one-line formula from price/return windows>","holdingPeriods":[5],"netSharpe":[0.2,0.6],"costSensitivity":"low|medium|high","crowdingRisk":"low|medium|high","failureModes":["...","..."],"parameters":[{"name":"...","min":0,"max":0,"default":0,"step":0}],"keyPapers":["Author (Year) Title"],"references":["https://..."]}]}
+Only include families whose signalSpec is genuinely computable from price/return data.`;
+  try {
+    const result = backend === "codex" ? await runCodexAgentic(prompt, { cwd: NEUTRAL_CWD, addDir: NEUTRAL_CWD }) : await runClaudeResearch(prompt);
+    const json = extractJson(result.stdout);
+    if (!json || !Array.isArray(json.families)) {
+      return { error: `no families from ${backend}: ${(result.stderr || result.stdout || "").slice(-300)}` };
+    }
+    return { result: json };
   } catch (error) {
     return { error: String(error.message ?? error) };
   }
@@ -449,10 +510,11 @@ const server = http.createServer(async (req, res) => {
           return;
         }
         const started = Date.now();
+        const extras = Array.isArray(payload.extraFamilies) ? payload.extraFamilies : [];
         const outcome =
           req.url === "/dataset/inspect"
-            ? await datasetInspect(backend, source)
-            : await datasetReturns(backend, source, payload.strategy ?? {}, payload.params ?? {});
+            ? await datasetInspect(backend, source, extras)
+            : await datasetReturns(backend, source, payload.strategy ?? {}, payload.params ?? {}, extras);
         const secs = ((Date.now() - started) / 1000).toFixed(1);
         if (outcome.error) {
           console.error(`[bridge] ${req.url} ${backend} failed in ${secs}s: ${outcome.error.slice(0, 200)}`);
@@ -508,6 +570,42 @@ const server = http.createServer(async (req, res) => {
     });
     return;
   }
+
+  if (req.method === "POST" && req.url === "/research/strategies") {
+    let body = "";
+    let tooBig = false;
+    req.on("data", (chunk) => {
+      body += chunk;
+      if (body.length > 200_000) {
+        tooBig = true;
+        req.destroy();
+      }
+    });
+    req.on("end", async () => {
+      if (tooBig) return;
+      try {
+        const payload = JSON.parse(body);
+        const backend = payload.backend === "codex" ? "codex" : "claude-code";
+        const topic = typeof payload.topic === "string" ? payload.topic.slice(0, 400) : "";
+        const existingKeys = Array.isArray(payload.existingKeys) ? payload.existingKeys.map(String).slice(0, 60) : [];
+        const started = Date.now();
+        const outcome = await researchStrategies(backend, topic, existingKeys);
+        const secs = ((Date.now() - started) / 1000).toFixed(1);
+        if (outcome.error) {
+          console.error(`[bridge] /research ${backend} failed in ${secs}s: ${outcome.error.slice(0, 200)}`);
+          send(res, 502, outcome);
+        } else {
+          console.log(`[bridge] /research ${backend} ok in ${secs}s (${outcome.result.families?.length ?? 0} families)`);
+          send(res, 200, outcome);
+        }
+      } catch (error) {
+        console.error("[bridge]", String(error));
+        send(res, 500, { error: String(error) });
+      }
+    });
+    return;
+  }
+
   send(res, 404, { error: "not found" });
 });
 
@@ -515,6 +613,7 @@ server.listen(PORT, "127.0.0.1", () => {
   console.log(`Quant Research Lab bridge on http://127.0.0.1:${PORT}`);
   console.log(`  claude model: ${CLAUDE_MODEL} | codex model: ${CODEX_MODEL}`);
   console.log(`  dialogue + research brain: POST /condense`);
+  console.log(`  discover strategies (web search): POST /research/strategies`);
   if (ALLOW_DATA_TOOLS) {
     console.log(`  BIG-DATA MODE ON: the agent writes a reusable backtest kernel ONCE per source, then it runs free`);
     console.log(`    data model: claude=${DATA_CLAUDE_MODEL} | codex reasoning=${DATA_REASONING} | kernel cache: ${KERNEL_DIR}`);

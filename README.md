@@ -17,9 +17,9 @@
 [![Wallpaper](https://img.shields.io/badge/desktop-wallpaper%20ready-e9b455)](#-put-it-on-your-desktop)
 [![License](https://img.shields.io/badge/license-MIT-8f5a2a)](LICENSE)
 
-<video src="https://github.com/shoal-rat/quant-research-lab/raw/main/docs/media/promo.mp4" poster="https://github.com/shoal-rat/quant-research-lab/raw/main/docs/media/promo-poster.png" controls muted playsinline width="92%"></video>
+<a href="https://github.com/shoal-rat/quant-research-lab/blob/main/docs/media/promo.mp4"><img src="docs/media/promo-poster.png" alt="Watch the 2-minute trailer" width="92%"/></a>
 
-🎬 **[▶ Watch the 2-minute trailer](https://github.com/shoal-rat/quant-research-lab/raw/main/docs/media/promo.mp4)** — real gameplay, narration & chiptune *(click if the player doesn't load inline)*
+🎬 **[▶ Watch the 2-minute trailer — with narration & sound](https://github.com/shoal-rat/quant-research-lab/blob/main/docs/media/promo.mp4)** · real gameplay from start to finish *(plays in your browser on GitHub)*
 
 <br/>
 

@@ -19,7 +19,7 @@
 
 <a href="https://github.com/shoal-rat/quant-research-lab/blob/main/docs/media/promo.mp4"><img src="docs/media/promo-poster.png" alt="Watch the 2-minute trailer" width="92%"/></a>
 
-🎬 **[▶ Watch the 2-minute trailer — with narration & sound](https://github.com/shoal-rat/quant-research-lab/blob/main/docs/media/promo.mp4)** · real gameplay from start to finish *(plays in your browser on GitHub)*
+🎬 **[▶ Watch the 2-minute trailer — narration, subtitles & sound](https://github.com/shoal-rat/quant-research-lab/blob/main/docs/media/promo.mp4)** · real gameplay from start to finish *(plays in your browser on GitHub)*
 
 <br/>
 

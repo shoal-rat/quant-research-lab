@@ -7,6 +7,7 @@ import glob
 import json
 import math
 import os
+import re
 import subprocess
 import sys
 
@@ -77,10 +78,13 @@ def pick_font(s, size, kind="bold"):
 
 # strip emoji / symbols PIL can't color-render; keep CJK + basic punctuation
 def clean(s):
+    # strip emoji / pictographs that PIL can't color-render, but KEEP Latin,
+    # CJK ideographs, and CJK/fullwidth punctuation (。，、！？：；（）《》…).
     out = []
     for c in s:
         o = ord(c)
-        if o < 0x2190 or ("一" <= c <= "鿿"):
+        if (o < 0x2190 or 0x3000 <= o <= 0x303F or 0x3400 <= o <= 0x9FFF
+                or 0xFF00 <= o <= 0xFFEF):
             out.append(c)
     return "".join(out).strip(" ·-")
 
@@ -157,38 +161,142 @@ def ken_burns(full, t01, path):
 
 
 # ---------------------------------------------------------------- captions
-def rounded_band(canvas, y0, y1, alpha=0.5):
-    band = canvas[y0:y1].astype(np.float32)
-    dark = np.zeros_like(band)
-    canvas[y0:y1] = (band * (1 - alpha) + dark * alpha).astype(np.uint8)
-    return canvas
+@functools.lru_cache(maxsize=64)
+def split_chunks(text):
+    """Split a VO line into short subtitle chunks (~1 readable line each)."""
+    text = clean(text)
+    if not text:
+        return ()
+    if has_cjk(text):
+        parts = [p for p in re.split(r"(?<=[。！？，、；：])", text) if p.strip()]
+        chunks, cur = [], ""
+        for p in parts:
+            if len(cur) + len(p) <= 20 or not cur:
+                cur += p
+            else:
+                chunks.append(cur)
+                cur = p
+        if cur:
+            chunks.append(cur)
+        out = []
+        for c in chunks:
+            while len(c) > 26:
+                out.append(c[:26])
+                c = c[26:]
+            out.append(c)
+        return tuple(out)
+    parts = [p for p in re.split(r"(?<=[.!?,;:])\s+", text) if p.strip()]
+    chunks, cur = [], ""
+    for p in parts:
+        if len((cur + " " + p).split()) <= 9 or not cur:
+            cur = (cur + " " + p).strip()
+        else:
+            chunks.append(cur)
+            cur = p
+    if cur:
+        chunks.append(cur)
+    return tuple(chunks)
 
 
-def draw_caption(np_img, title, subtitle, pos="bottom"):
+def wrap_lines(d, text, fnt, max_w):
+    if has_cjk(text):
+        lines, cur = [], ""
+        for ch in text:
+            if d.textlength(cur + ch, font=fnt) > max_w and cur:
+                lines.append(cur)
+                cur = ch
+            else:
+                cur += ch
+        if cur:
+            lines.append(cur)
+        return lines
+    lines, cur = [], ""
+    for w in text.split():
+        test = (cur + " " + w).strip()
+        if d.textlength(test, font=fnt) > max_w and cur:
+            lines.append(cur)
+            cur = w
+        else:
+            cur = test
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+def draw_top_label(base, title, subtitle):
+    """Small translucent pill at the top: the marketing section label."""
     title = clean(title)
     subtitle = clean(subtitle)
     if not title and not subtitle:
-        return np_img
-    np_img = np.array(np_img)  # ensure writable
-    if pos == "bottom":
-        y0, y1 = H - 132, H
-    else:
-        y0, y1 = 0, 128
-    np_img = rounded_band(np_img, max(0, y0), min(H, y1), 0.46)
-    img = Image.fromarray(np_img)
-    d = ImageDraw.Draw(img)
-    ty = y0 + (20 if pos == "bottom" else 24)
+        return base
+    img = Image.fromarray(base).convert("RGBA")
+    ov = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(ov)
+    tf = pick_font(title, 30) if title else None
+    sf = pick_font(subtitle, 18, "reg") if subtitle else None
+    tw = d.textlength(title, font=tf) if title else 0
+    sw = d.textlength(subtitle, font=sf) if subtitle else 0
+    pill_w = int(max(tw, sw)) + 46
+    pill_h = (38 if title else 6) + (24 if subtitle else 0) + 12
+    x0 = (W - pill_w) // 2
+    d.rounded_rectangle([x0, 14, x0 + pill_w, 14 + pill_h], radius=15, fill=(18, 14, 10, 170))
+    y = 22
     if title:
-        f = pick_font(title, 44)
-        tw = d.textlength(title, font=f)
-        d.text(((W - tw) / 2 + 2, ty + 2), title, font=f, fill=(0, 0, 0))
-        d.text(((W - tw) / 2, ty), title, font=f, fill=(246, 236, 217))
-        ty += 54
+        d.text(((W - tw) / 2, y), title, font=tf, fill=(246, 236, 217))
+        y += 36
     if subtitle:
-        f = pick_font(subtitle, 24, "reg")
-        tw = d.textlength(subtitle, font=f)
-        d.text(((W - tw) / 2, ty), subtitle, font=f, fill=(233, 180, 85))
-    return np.asarray(img)
+        d.text(((W - sw) / 2, y), subtitle, font=sf, fill=(233, 180, 85))
+    return np.asarray(Image.alpha_composite(img, ov).convert("RGB"))
+
+
+def draw_subtitle(base, text):
+    """Burned-in subtitle of the spoken narration, bottom-centered."""
+    text = clean(text)
+    if not text:
+        return base
+    img = Image.fromarray(base).convert("RGBA")
+    ov = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(ov)
+    fnt = pick_font(text, 34, "reg")
+    lines = wrap_lines(d, text, fnt, W - 220)[:2]
+    line_h = 44
+    band_top = H - line_h * len(lines) - 30
+    d.rectangle([0, band_top - 8, W, H], fill=(0, 0, 0, 125))
+    y = band_top
+    for ln in lines:
+        lw = d.textlength(ln, font=fnt)
+        d.text(((W - lw) / 2, y), ln, font=fnt, fill=(248, 244, 236),
+               stroke_width=3, stroke_fill=(0, 0, 0))
+        y += line_h
+    return np.asarray(Image.alpha_composite(img, ov).convert("RGB"))
+
+
+def active_chunk(seg, k):
+    """The subtitle chunk to show at frame k, timed across the VO window."""
+    chunks = split_chunks(seg["vo"])
+    if not chunks:
+        return ""
+    local_voat = (seg["voAt"] - seg["start"]) if seg.get("voAt") is not None else 0.18
+    vodur = seg.get("voDur", 0) or 0
+    if vodur <= 0:
+        return chunks[0]
+    rel = k / FPS - local_voat
+    if rel < 0:
+        return ""
+    weights = [max(1, len(c)) for c in chunks]
+    tot = sum(weights)
+    cum = 0
+    for c, w in zip(chunks, weights):
+        cum += w
+        if rel <= cum / tot * vodur + 0.08:
+            return c
+    return chunks[-1]
+
+
+def decorate(base, seg, k):
+    base = draw_top_label(base, seg["title"], seg["subtitle"])
+    base = draw_subtitle(base, active_chunk(seg, k))
+    return base
 
 
 # ---------------------------------------------------------------- cards
@@ -254,17 +362,14 @@ def render_segment_frame(seg, k, outN):
     src = seg["source"]
     t01 = k / max(1, outN - 1)
     if src == "title":
-        base = card_title(t01)
-        return draw_caption(base, "", "")  # card already has text
+        return card_title(t01)  # card already carries its own text
     if src == "outro":
-        base = card_outro(t01)
-        return base
+        return draw_subtitle(card_outro(t01), active_chunk(seg, k))
     if src == "board":
         idx = BOARD_PATHS[min(board_seen[0], len(BOARD_PATHS) - 1)]
         still = load_full(os.path.join(VID, "board_still.png"))
         base = ken_burns(still, t01, idx)
-        pos = "bottom"
-        return draw_caption(base, seg["title"], seg["subtitle"], pos)
+        return decorate(base, seg, k)
     if src == "closeup":
         clip, cx, cy, zoom, f0, f1, cfps = CLOSEUP.get(seg["id"], ("office_loop", 0.5, 0.4, 1.7, None, None, 14))
         frames = clip_frames(clip)
@@ -275,15 +380,14 @@ def render_segment_frame(seg, k, outN):
             si = f0 + (int(k * cfps / FPS) % rng)
         full = load_full(frames[si])
         base = crop_zoom(full, cx, cy, zoom, drift=0.4 * math.sin(t01 * math.pi))
-        return draw_caption(base, seg["title"], seg["subtitle"], "bottom")
+        return decorate(base, seg, k)
     # generic gameplay clip
     frames = clip_frames(src)
     sfps = SRC_FPS.get(src, 14)
     si = int(k * sfps / FPS) % len(frames)
     full = load_full(frames[si])
     base = fit_gameplay(full)
-    pos = "top" if src == "boss_directive" else "bottom"
-    return draw_caption(base, seg["title"], seg["subtitle"], pos)
+    return decorate(base, seg, k)
 
 
 # ---------------------------------------------------------------- main

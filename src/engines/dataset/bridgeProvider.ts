@@ -1,5 +1,5 @@
 import { BacktestParameters, DatasetConfig, ResearchBrain, StrategySpec } from "../../types";
-import { metricsFromDailyReturns } from "../realBacktestEngine";
+import { metricsFromReturnSeries } from "../realBacktestEngine";
 import { STRATEGY_FAMILIES } from "../strategyKnowledge";
 import { DatasetBacktestContext, DatasetMeta, DatasetProvider } from "./types";
 
@@ -11,6 +11,8 @@ interface InspectReply {
   start?: string;
   end?: string;
   rows?: number;
+  frequency?: string;
+  periodsPerYear?: number;
   note?: string;
   columns?: { date?: string; ticker?: string; close?: string; industry?: string };
 }
@@ -22,6 +24,8 @@ interface ReturnsReply {
   universe?: number;
   turnover?: number;
   concentration?: number;
+  frequency?: string;
+  periodsPerYear?: number;
   note?: string;
   error?: string;
 }
@@ -76,6 +80,8 @@ export class BridgeDatasetProvider implements DatasetProvider {
       end: this.inspectResult.end ?? "",
       rows: this.inspectResult.rows ?? 0,
       inMemory: false,
+      frequency: this.inspectResult.frequency,
+      periodsPerYear: this.inspectResult.periodsPerYear,
       note: this.inspectResult.note
     };
   }
@@ -88,9 +94,9 @@ export class BridgeDatasetProvider implements DatasetProvider {
     return [
       `Dataset (read by the ${this.backend} CLI where it lives, not downloaded): ${this.config.label}`,
       `Source: ${this.config.bridgeSourceKind ?? "file"} @ ${this.config.bridgeRef ?? "?"}.`,
-      `Profiled: ${r.tickers ?? "?"} names, ${r.rows ?? "?"} rows, ${r.start ?? "?"} to ${r.end ?? "?"}. Columns: ${cols}.`,
+      `Profiled: ${r.tickers ?? "?"} names, ${r.rows ?? "?"} rows, ${r.start ?? "?"} to ${r.end ?? "?"}, ${r.frequency ?? "?"} frequency. Columns: ${cols}.`,
       r.note ? `CLI note: ${r.note}` : "",
-      `The CLI computes the strategy's cross-sectional daily returns over the full (possibly very large) source with no lookahead.`
+      `The CLI computes the strategy's cross-sectional per-period returns over the full (possibly very large) source with no lookahead, at the data's native frequency.`
     ]
       .filter(Boolean)
       .join("\n");
@@ -140,7 +146,9 @@ export class BridgeDatasetProvider implements DatasetProvider {
         Array.isArray(result.dates) && result.dates.length === returns.length
           ? result.dates.map(String)
           : returns.map((_, index) => `t${index}`);
-      return metricsFromDailyReturns({
+      const periodsPerYear = result.periodsPerYear ?? this.inspectResult.periodsPerYear;
+      const frequency = result.frequency ?? this.inspectResult.frequency ?? "?";
+      return metricsFromReturnSeries({
         returns,
         dates,
         benchmarkReturns: Array.isArray(result.benchmarkReturns) ? result.benchmarkReturns.map(Number) : undefined,
@@ -148,8 +156,9 @@ export class BridgeDatasetProvider implements DatasetProvider {
         priorCandidates: context.priorCandidates,
         avgTurnover: result.turnover,
         concentration: result.concentration,
+        periodsPerYear,
         universeSize: result.universe ?? this.inspectResult.tickers ?? 20,
-        dataUsed: `${this.config.label} via ${this.backend} CLI (${result.universe ?? "?"} names${result.note ? `, ${result.note}` : ""})`
+        dataUsed: `${this.config.label} via ${this.backend} CLI (${result.universe ?? "?"} names, ${frequency}${result.note ? `, ${result.note}` : ""})`
       });
     } catch {
       return null;

@@ -65,7 +65,9 @@ The dataset is pluggable. Pick a source in **Settings → Data source**:
 
 The first three load straight into the browser. The fourth is the interesting one:
 
-> **A dataset too big for the browser never enters it.** The connected CLI reads the file or queries the database *in place* — streaming with DuckDB / chunked pandas, never loading it whole — computes the strategy's daily cross-sectional returns with no lookahead, and streams **only that return series** back. The browser turns it into the same honest metrics and gates the bundled engine produces. Nothing is downloaded; the architecture is ready for multi-gigabyte panels and live databases.
+> **A dataset too big for the browser never enters it.** The connected agent reads the file or queries the database *in place* — streaming with DuckDB / chunked pandas, never loading it whole — computes the strategy's cross-sectional returns with no lookahead, and streams **only that return series** back. The browser turns it into the same honest metrics and gates the bundled engine produces. Nothing is downloaded; the architecture is ready for multi-gigabyte panels and live databases.
+
+**Any frequency, any format.** Data isn't always daily. The agent *detects* the sampling frequency from the timestamps — tick, minute, **hourly**, daily, weekly, monthly — and reports the matching annualization factor, so the Sharpe is correct for whatever you feed it. The in-browser CSV path does the same: drop in an hourly file and it keeps every bar instead of collapsing them to a date. You describe *what* to compute; the agent figures out *how* for the shape your data happens to have.
 
 Refresh the bundled set any time, keylessly:
 
@@ -85,7 +87,7 @@ QRL_ALLOW_DATA_TOOLS=1 npm run dialogue-bridge   # lets the CLI read local files
 <img src="docs/media/loop-diagram.svg" alt="The self-iterating research loop" width="92%"/>
 </div>
 
-Backtests are genuinely cross-sectional: signals at day *t* earn day *t+1* returns (no lookahead), long/short rank buckets, turnover-based costs, and a chronological in-sample / out-of-sample split — whether the prices come from the bundle, your CSV, or a database the CLI is reading.
+Backtests are genuinely cross-sectional: signals at bar *t* earn bar *t+1* returns (no lookahead), long/short rank buckets, turnover-based costs, and a chronological in-sample / out-of-sample split — whether the prices come from the bundle, your CSV, or a database the agent is reading, at whatever frequency they arrive in.
 
 ## The research brain is an agentic CLI
 
@@ -93,8 +95,10 @@ This is the LLM-native part, and it is **required**: research will not start unt
 
 | Backend | Auth | What it drives |
 |---|---|---|
-| **Claude Code CLI** | your subscription — no key | hypothesis + skeptic, and (big-data mode) reads files / DBs and runs the backtest |
-| **Codex CLI** | your subscription — no key | same, with `model_reasoning_effort` turned up for data work |
+| **Claude Code CLI** | your subscription — no key | hypothesis + skeptic; in big-data mode a stronger model (**Claude Opus 4.8** by default) reads the file / DB, detects the frequency, and computes the returns |
+| **Codex CLI** | your subscription — no key | same, on **GPT‑5.5‑Codex** with `model_reasoning_effort` turned up (`high`) for data work |
+
+Big-data tasks ask the agent for a precise result (a profile, or the strategy's per-period returns + the annualization factor) and let it write and run the analysis code itself — using Claude Code's `--output-format json` structured output and Codex's higher reasoning effort. Tune the models with `QRL_DATA_CLAUDE_MODEL`, `QRL_DATA_REASONING`.
 
 Everything goes through one tiny local bridge that shells out to your already-authenticated CLI and binds to `127.0.0.1` only:
 
@@ -171,16 +175,17 @@ Sign in to Claude Code or Codex, watch the dot in the HUD turn green, press **�
 
 - `src/engines/dataset/` — the pluggable dataset layer: `datasetProvider` (factory), `inMemoryProvider` (bundled / CSV / remote), `bridgeProvider` (large file / database via the CLI), `csvParse` (long + wide layouts).
 - `src/engines/bridgeResearchAdapter.ts` — the CLI research brain; grounds each hypothesis in the dataset profile, validated against the knowledge base.
-- `src/engines/` — deterministic research engines: `strategyKnowledge`, `hypothesisEngine` + `banditEngine`, `realBacktestEngine` (+ `metricsFromDailyReturns` for the bridge path), `poolAnalytics` (ΔSharpe · MAP-Elites · CSCV PBO), `riskReviewEngine`, `progression`.
-- `scripts/dialogue-bridge.mjs` — the local bridge: `/condense` for dialogue + brain, and `/dataset/inspect` + `/dataset/returns` so the CLI can read a large dataset where it lives.
+- `src/engines/` — deterministic research engines: `strategyKnowledge`, `hypothesisEngine` + `banditEngine`, `realBacktestEngine` (frequency-aware: `metricsFromReturnSeries` + a `periodsPerYear` that flows through Sharpe / annualization / deflated-Sharpe), `poolAnalytics` (ΔSharpe · MAP-Elites · CSCV PBO), `riskReviewEngine`, `progression`. `realMarket.detectFrequency` infers the bar size from the timestamps.
+- `scripts/dialogue-bridge.mjs` — the local bridge: `/condense` for dialogue + brain, and `/dataset/inspect` + `/dataset/returns` so the agent can read a large dataset where it lives, at any frequency.
 - `src/lib/office2d/officeDirector.ts` — character brain: walking, conversations, bubble anti-overlap, confetti.
 - `work/RESEARCH_DESIGN_DOC.md` — the research synthesis (RD-Agent(Q), QuantEvolve, AlphaGen, Bailey–López de Prado, Harvey–Liu–Zhu, McLean–Pontiff) with exact formulas.
 
 ## Verify
 
 ```bash
-npm test           # 21 engine tests: real-data span, no-lookahead, cost monotonicity, CSV long/wide parse,
-                   # provider backtest, bridge metricsFromDailyReturns, bandit determinism, gates, progression
+npm test           # 24 engine tests: real-data span, no-lookahead, cost monotonicity, CSV long/wide parse,
+                   # provider backtest, bridge metricsFromReturnSeries, frequency detection, frequency-aware
+                   # annualization, intraday CSV, bandit determinism, gates, progression
 npm run build      # tsc + vite
 ```
 
@@ -188,7 +193,9 @@ npm run build      # tsc + vite
 
 - [x] **LLM-native research brain** — Claude Code / Codex only, required to run; hypotheses grounded in a live profile of the dataset
 - [x] **Bring your own data** — upload CSV (long or wide) / JSON, or a remote URL, parsed in the browser
-- [x] **Large data, never downloaded** — Parquet / DuckDB / SQLite / Postgres / big files read by the CLI in place; only the daily return series comes back
+- [x] **Any frequency** — tick / minute / hourly / daily / weekly / monthly, detected from the timestamps; Sharpe annualized correctly for each
+- [x] **Large data, never downloaded** — Parquet / DuckDB / SQLite / Postgres / big files read by the agent in place; only the per-period return series comes back
+- [x] **Strong models for data work** — Claude Opus 4.8 / GPT‑5.5‑Codex with structured output and high reasoning effort
 - [x] **20 years of real market data** bundled, with a real cross-sectional backtester and real pool correlations
 - [x] **Thompson bandit**, **pool ΔSharpe reward**, **MAP-Elites niches**, **CSCV PBO**
 - [x] **Game layer** — XP, 10 titles, 16 achievements, fund NAV, office events, confetti, full EN / 中文

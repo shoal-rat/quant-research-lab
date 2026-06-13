@@ -9,7 +9,7 @@ import { buildRealMarketData, RealMarketData, RealTicker } from "../realMarket";
 
 export interface CsvParseResult {
   data: RealMarketData;
-  detected: { layout: "long" | "wide"; columns?: DatasetColumns };
+  detected: { layout: "long" | "wide"; columns?: DatasetColumns; frequency?: string };
   dropped: string[];
 }
 
@@ -36,16 +36,35 @@ function splitCsvLine(line: string): string[] {
   return out.map((value) => value.trim());
 }
 
-function normalizeDate(raw: string): string | null {
+// Normalize a date OR datetime cell to a sortable ISO string, PRESERVING the
+// time component when present so intraday (hourly/minute) data keeps its
+// resolution instead of collapsing many bars onto one day.
+function normalizeTimestamp(raw: string): string | null {
   const value = raw.trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
-  // US m/d/yyyy
-  const us = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (us) return `${us[3]}-${us[1].padStart(2, "0")}-${us[2].padStart(2, "0")}`;
+  // ISO date or datetime
+  const iso = value.match(/^(\d{4}-\d{2}-\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+  if (iso) return iso[2] ? `${iso[1]}T${iso[2]}:${iso[3]}:${iso[4] ?? "00"}` : iso[1];
+  // US m/d/yyyy [h:mm]
+  const us = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2}))?/);
+  if (us) {
+    const date = `${us[3]}-${us[1].padStart(2, "0")}-${us[2].padStart(2, "0")}`;
+    return us[4] ? `${date}T${us[4].padStart(2, "0")}:${us[5]}:00` : date;
+  }
   // yyyymmdd
   if (/^\d{8}$/.test(value)) return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
+  // epoch seconds / millis
+  if (/^\d{10}$/.test(value)) {
+    const dt = new Date(Number(value) * 1000);
+    if (!Number.isNaN(dt.getTime())) return dt.toISOString().slice(0, 19);
+  }
+  if (/^\d{13}$/.test(value)) {
+    const dt = new Date(Number(value));
+    if (!Number.isNaN(dt.getTime())) return dt.toISOString().slice(0, 19);
+  }
   const parsed = new Date(value);
-  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+  if (!Number.isNaN(parsed.getTime())) {
+    return /[:T]/.test(value) ? parsed.toISOString().slice(0, 19) : parsed.toISOString().slice(0, 10);
+  }
   return null;
 }
 
@@ -138,7 +157,7 @@ export function parseMarketCsv(text: string, label: string, columns?: DatasetCol
   if (isLong) {
     for (let i = 1; i < rawLines.length; i += 1) {
       const cells = splitCsvLine(rawLines[i]);
-      const date = normalizeDate(cells[dateCol] ?? "");
+      const date = normalizeTimestamp(cells[dateCol] ?? "");
       const symbol = (cells[tickerCol] ?? "").toUpperCase();
       const close = Number(cells[closeCol]);
       if (!date || !symbol || !Number.isFinite(close) || close <= 0) continue;
@@ -148,10 +167,12 @@ export function parseMarketCsv(text: string, label: string, columns?: DatasetCol
       byDate.set(date, close);
       if (industryCol >= 0 && !industries.has(symbol)) industries.set(symbol, cells[industryCol] ?? "Uncategorized");
     }
+    const data = assemble(label, dateSet, perTicker, industries);
     return {
-      data: assemble(label, dateSet, perTicker, industries),
+      data,
       detected: {
         layout: "long",
+        frequency: data.frequency,
         columns: { date: header[dateCol], ticker: header[tickerCol], close: header[closeCol], industry: industryCol >= 0 ? header[industryCol] : undefined }
       },
       dropped: []
@@ -162,7 +183,7 @@ export function parseMarketCsv(text: string, label: string, columns?: DatasetCol
   const tickerCols = header.map((name, index) => ({ name: name.toUpperCase(), index })).filter((col) => col.index !== dateCol);
   for (let i = 1; i < rawLines.length; i += 1) {
     const cells = splitCsvLine(rawLines[i]);
-    const date = normalizeDate(cells[dateCol] ?? "");
+    const date = normalizeTimestamp(cells[dateCol] ?? "");
     if (!date) continue;
     dateSet.add(date);
     for (const col of tickerCols) {
@@ -173,5 +194,6 @@ export function parseMarketCsv(text: string, label: string, columns?: DatasetCol
       byDate.set(date, close);
     }
   }
-  return { data: assemble(label, dateSet, perTicker, industries), detected: { layout: "wide" }, dropped: [] };
+  const wideData = assemble(label, dateSet, perTicker, industries);
+  return { data: wideData, detected: { layout: "wide", frequency: wideData.frequency }, dropped: [] };
 }

@@ -20,7 +20,9 @@ export class InMemoryDatasetProvider implements DatasetProvider {
       start: this.data.start,
       end: this.data.end,
       rows: universe.length * this.data.dates.length,
-      inMemory: true
+      inMemory: true,
+      frequency: this.data.frequency,
+      periodsPerYear: this.data.periodsPerYear
     };
   }
 
@@ -38,7 +40,7 @@ export class InMemoryDatasetProvider implements DatasetProvider {
     const sample = universe.slice(0, 10).join(", ");
     return [
       `Dataset: ${this.label}`,
-      `In-memory price panel: ${universe.length} names x ${this.data.dates.length} daily closes, ${this.data.start} to ${this.data.end}.`,
+      `In-memory price panel: ${universe.length} names x ${this.data.dates.length} ${this.data.frequency ?? "daily"} closes, ${this.data.start} to ${this.data.end} (annualization ${this.data.periodsPerYear ?? 252}/yr).`,
       `Benchmark: ${this.data.benchmark}. Industries: ${byIndustry || "n/a"}.`,
       `Names include: ${sample}${universe.length > 10 ? ", …" : ""}.`,
       `Only price-derived families are backtestable here (no fundamentals or news columns).`

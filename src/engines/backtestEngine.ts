@@ -82,11 +82,15 @@ function normInv(p: number): number {
 export function deflatedSharpeProbability(
   sharpeAnnual: number,
   returns: number[],
-  trials: number
+  trials: number,
+  periodsPerYear: number = TRADING_DAYS
 ): number {
   const T = returns.length;
   if (T < 20) return 0;
-  const srDaily = sharpeAnnual / Math.sqrt(TRADING_DAYS);
+  // the input Sharpe is annualized with periodsPerYear, so de-annualize with
+  // the same factor to recover the per-period Sharpe (works for hourly /
+  // weekly / monthly data, not just daily)
+  const srDaily = sharpeAnnual / Math.sqrt(Math.max(1, periodsPerYear));
   const mean = returns.reduce((sum, value) => sum + value, 0) / T;
   const sd = Math.sqrt(returns.reduce((sum, value) => sum + (value - mean) ** 2, 0) / Math.max(1, T - 1)) || 1e-9;
   const skew = returns.reduce((sum, value) => sum + ((value - mean) / sd) ** 3, 0) / T;
@@ -158,7 +162,9 @@ function computeMetrics(
     maxDrawdown = Math.min(maxDrawdown, equity / peak - 1);
   });
 
-  const deflated = deflatedSharpeProbability(sharpe, returns, trials);
+  // the mock simulator is daily; pass TRADING_DAYS explicitly so the de-annualization
+  // matches the Math.sqrt(TRADING_DAYS) used to annualize `sharpe` above
+  const deflated = deflatedSharpeProbability(sharpe, returns, trials, TRADING_DAYS);
   const randomBaselineSharpe = clamp(sharpe * 0.26 + concentration * 0.8 - yearDependency * 0.6, -0.8, 1.1);
   const robustnessScore = clamp(
     58 + sharpe * 11 + deflated * 14 + cumulative * 40 - Math.abs(maxDrawdown) * 90 - turnover * 12 - yearDependency * 25,

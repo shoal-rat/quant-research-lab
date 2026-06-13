@@ -13,6 +13,8 @@ export interface DatasetMeta {
   end: string;
   rows: number;
   inMemory: boolean;
+  frequency?: string;
+  periodsPerYear?: number;
   note?: string;
 }
 

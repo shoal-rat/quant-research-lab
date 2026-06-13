@@ -36,9 +36,13 @@ const CLAUDE_MODEL = process.env.QRL_CLAUDE_MODEL ?? "claude-haiku-4-5";
 const CODEX_MODEL = process.env.QRL_CODEX_MODEL ?? "default";
 const TIMEOUT_MS = 45000;
 // Dataset endpoints let the CLI run real analysis code over a (possibly very
-// large) local file or database, so they need longer + a bit more reasoning.
-const DATA_TIMEOUT_MS = Number(process.env.QRL_DATA_TIMEOUT_MS ?? 240000);
-const DATA_REASONING = process.env.QRL_DATA_REASONING ?? "medium";
+// large) local file or database, so they get a stronger model, more reasoning,
+// and a longer timeout than the cheap dialogue path. The agent owns the data:
+// it detects the format AND the frequency (hourly/daily/weekly/monthly/...) and
+// computes whatever we ask for, so the browser never assumes a shape.
+const DATA_TIMEOUT_MS = Number(process.env.QRL_DATA_TIMEOUT_MS ?? 480000);
+const DATA_REASONING = process.env.QRL_DATA_REASONING ?? "high"; // codex effort: low|medium|high|xhigh
+const DATA_CLAUDE_MODEL = process.env.QRL_DATA_CLAUDE_MODEL ?? "claude-opus-4-8"; // strongest for hard data work
 // Off by default: these endpoints run the CLI with file/DB/code access on your
 // machine. Opt in with QRL_ALLOW_DATA_TOOLS=1 when you want big-data mode.
 const ALLOW_DATA_TOOLS = process.env.QRL_ALLOW_DATA_TOOLS === "1";
@@ -127,30 +131,36 @@ async function condenseWithCodex(prompt, model) {
 }
 
 // ---------------------------------------------------------------------------
-// Dataset endpoints: the CLI reads a large dataset where it lives and returns a
-// compact JSON profile (/dataset/inspect) or the strategy's daily returns
-// (/dataset/returns). The browser turns returns into honest metrics + gates.
+// Dataset endpoints: the agent reads a large dataset where it lives, detects its
+// format AND frequency, and returns a compact JSON profile (/dataset/inspect) or
+// the strategy's per-period returns + periodsPerYear (/dataset/returns). The
+// browser turns returns into honest metrics + gates, annualized correctly for
+// hourly / daily / weekly / monthly data alike.
 // ---------------------------------------------------------------------------
 
 // Compact, deterministic spec so both CLIs compute the same cross-section the
 // in-browser engine does — keeping bridge results comparable to bundled ones.
-const SIGNAL_SPEC = `Cross-sectional procedure (identical to the in-app engine):
+// Frequency-agnostic: a "bar" is one row of the data's native frequency (a tick,
+// a minute, an hour, a day, a week, a month — you detect it). Window parameters
+// named "...Days" are counts of BARS, not calendar days.
+const SIGNAL_SPEC = `Cross-sectional procedure (identical to the in-app engine), at the data's NATIVE frequency:
 - Universe = all tickers in the source except any benchmark column.
-- For each rebalance day t (every <holding> trading days), score every name with the family signal using ONLY data up to and including t (no lookahead).
+- A "bar" = one timestamp of the native frequency. Detect the frequency (tick/minute/hourly/daily/weekly/monthly) from the timestamp spacing and report periodsPerYear (e.g. daily≈252, hourly≈252*7, weekly≈52, monthly≈12, minute≈252*390).
+- For each rebalance bar t (every <holding> bars), score every name with the family signal using ONLY data up to and including bar t (no lookahead). Window params named "...Days" are counts of BARS.
 - Rank names by signal; long the top 30% (equal weight 1/k), and if portfolio=long_short also short the bottom 30% (equal weight -1/k).
-- Hold those weights; each subsequent day earn sum(weight_i * simple_return_{i, next day}).
-- On each rebalance subtract cost = 0.5*sum|w_new - w_old| * 2 * (bps/10000) from that day's return.
+- Hold those weights; each subsequent bar earn sum(weight_i * simple_return_{i, next bar}).
+- On each rebalance subtract cost = 0.5*sum|w_new - w_old| * 2 * (bps/10000) from that bar's return.
 Family signals (params in the strategy JSON, sensible defaults if absent):
-- xs_momentum: trailing return over lookbackDays skipping the last skipDays, minus 10*volatilityPenalty*stdev(daily ret,20).
-- short_term_reversal: negative of the trailing return over reversalWindow days.
-- low_volatility: negative trailing stdev of daily returns over volatilityWindow.
-- quality: profitabilityWeight*trailingReturn(120d) - (1-profitabilityWeight)*12*stdev(stabilityWindow).
+- xs_momentum: trailing return over lookbackDays bars skipping the last skipDays bars, minus 10*volatilityPenalty*stdev(per-bar ret,20).
+- short_term_reversal: negative of the trailing return over reversalWindow bars.
+- low_volatility: negative trailing stdev of per-bar returns over volatilityWindow bars.
+- quality: profitabilityWeight*trailingReturn(120 bars) - (1-profitabilityWeight)*12*stdev(stabilityWindow bars).
 - seasonality: 1 if the calendar day-of-month is in the turn-of-month window (>=28+entryDayOffset or <=max(1,holdDays-3)), else 0 (time-series, equal-weight the 1s).
-- pairs_statarb: negative of (own 60d return minus the mean 60d return of same-industry peers).
-- lead_lag: mean of industry peers' trailing 10d return as of t-lagDays.
-- vol_managed: trailingReturn(120d skip 5) * clamp(targetVol/sqrt(252)/stdev(varianceWindow), 0.2, leverageCap).
-- trend_overlay: 1 if close > (1+bufferPct)*MA(trendWindow), else 0 (time-series).
-- fifty_two_week_high: close / trailing max close over lookbackDays.`;
+- pairs_statarb: negative of (own 60-bar return minus the mean 60-bar return of same-industry peers).
+- lead_lag: mean of industry peers' trailing 10-bar return as of bar t-lagDays.
+- vol_managed: trailingReturn(120 bars skip 5) * clamp(targetVol/sqrt(periodsPerYear)/stdev(varianceWindow bars), 0.2, leverageCap).
+- trend_overlay: 1 if close > (1+bufferPct)*MA(trendWindow bars), else 0 (time-series).
+- fifty_two_week_high: close / trailing max close over lookbackDays bars.`;
 
 function tmpWorkspace() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "qrl-data-"));
@@ -169,27 +179,38 @@ function workspaceForSource(source) {
 }
 
 async function runClaudeAgentic(prompt, workspace) {
+  // --output-format json wraps the run in a JSON envelope whose `result` field
+  // is the model's final message (separated from tool logs) — far more reliable
+  // to parse than scraping mixed stdout. We keep OAuth (NOT --bare, which would
+  // force an API key) so it runs on the player's subscription.
   const args = [
     "-p",
     "--model",
-    CLAUDE_MODEL,
+    DATA_CLAUDE_MODEL,
     "--output-format",
-    "text",
+    "json",
     "--max-turns",
-    "16",
+    "20",
     "--permission-mode",
     "bypassPermissions",
     "--allowedTools",
-    "Bash",
-    "Read",
-    "Write",
-    "Glob",
+    "Bash,Read,Write,Glob",
     "--add-dir",
     workspace.addDir,
     "--append-system-prompt",
-    "You are a data-analysis API. Use your tools to run code (python/pandas/duckdb/sqlite3) that reads only as much as needed; never load a huge file fully into memory. Reply with ONLY the requested JSON object as your final message."
+    "You are a data-analysis API. First detect the data's format AND sampling frequency, then use your tools to run code (python/pandas/duckdb/sqlite3) that streams only as much as needed; never load a huge file fully into memory. Reply with ONLY the requested JSON object as your final message."
   ];
-  return run("claude", [...args], { stdin: prompt, timeoutMs: DATA_TIMEOUT_MS, cwd: workspace.cwd });
+  const result = await run("claude", [...args], { stdin: prompt, timeoutMs: DATA_TIMEOUT_MS, cwd: workspace.cwd });
+  // unwrap the envelope to the final assistant text
+  try {
+    const envelope = JSON.parse(result.stdout);
+    if (envelope && typeof envelope.result === "string") {
+      return { ...result, stdout: envelope.result };
+    }
+  } catch {
+    /* fall through: use raw stdout */
+  }
+  return result;
 }
 
 async function runCodexAgentic(prompt, workspace) {
@@ -233,10 +254,12 @@ async function datasetInspect(backend, source) {
 
 SOURCE: ${JSON.stringify(source)}
 
-It is long-format price data (a date column, a ticker/symbol column, an adjusted-close column, optionally an industry/sector column) OR wide-format (a date column and one price column per ticker). Detect which.
+It is long-format price data (a date/timestamp column, a ticker/symbol column, an adjusted-close/price column, optionally an industry/sector column) OR wide-format (a date/timestamp column and one price column per ticker). Detect which.
+
+Also detect the sampling FREQUENCY from the spacing between consecutive timestamps for one ticker: tick, minute, hourly, daily, weekly, or monthly. Report the matching periodsPerYear (minute≈98280, hourly≈1764, daily≈252, weekly≈52, monthly≈12). The timestamp column may include a time-of-day.
 
 Reply with ONLY this JSON object:
-{"label":"<short human label>","tickers":<distinct ticker count>,"rows":<total row count>,"start":"<YYYY-MM-DD min date>","end":"<YYYY-MM-DD max date>","columns":{"date":"<col>","ticker":"<col or '' if wide>","close":"<col>","industry":"<col or ''>"},"note":"<one short caveat or layout note>"}`;
+{"label":"<short human label>","tickers":<distinct ticker count>,"rows":<total row count>,"start":"<min timestamp>","end":"<max timestamp>","frequency":"<tick|minute|hourly|daily|weekly|monthly>","periodsPerYear":<number>,"columns":{"date":"<col>","ticker":"<col or '' if wide>","close":"<col>","industry":"<col or ''>"},"note":"<one short caveat or layout note>"}`;
   try {
     const result = backend === "codex" ? await runCodexAgentic(prompt, workspace) : await runClaudeAgentic(prompt, workspace);
     const json = extractJson(result.stdout);
@@ -249,7 +272,7 @@ Reply with ONLY this JSON object:
 
 async function datasetReturns(backend, source, strategy, params) {
   const workspace = workspaceForSource(source);
-  const prompt = `Backtest one strategy over this dataset and return its daily return series. The dataset may be very large — stream it (duckdb, or pandas in chunks); do not hold it all in memory.
+  const prompt = `Backtest one strategy over this dataset and return its per-period return series at the data's NATIVE frequency. The dataset may be very large — stream it (duckdb, or pandas in chunks); do not hold it all in memory.
 
 SOURCE: ${JSON.stringify(source)}
 STRATEGY: ${JSON.stringify(strategy)}
@@ -258,10 +281,10 @@ TRANSACTION COST: ${params.transactionCostBps} bps per side
 
 ${SIGNAL_SPEC}
 
-Compute the portfolio's daily after-cost return for every trading day in range. If there are more than 3000 trading days, keep them all but you MAY round returns to 6 dp. Also compute the benchmark's daily return (a benchmark column if present, else an equal-weight index of all names), the average per-rebalance turnover, and an average concentration (mean Herfindahl of absolute weights, 0..1).
+Detect the native frequency first. Compute the portfolio's after-cost return for every bar in range (hourly bars if the data is hourly, daily if daily, etc.). If there are more than 4000 bars, keep them all but you MAY round returns to 6 dp. Also compute the benchmark's per-bar return (a benchmark column if present, else an equal-weight index of all names), the average per-rebalance turnover, and an average concentration (mean Herfindahl of absolute weights, 0..1).
 
 Reply with ONLY this JSON object:
-{"dates":["YYYY-MM-DD", ...],"returns":[<after-cost daily return>, ...],"benchmarkReturns":[<daily>, ...],"universe":<name count>,"turnover":<avg per-rebalance turnover>,"concentration":<0..1>,"note":"<one short note>"}
+{"dates":["<bar timestamp>", ...],"returns":[<after-cost per-bar return>, ...],"benchmarkReturns":[<per-bar>, ...],"frequency":"<tick|minute|hourly|daily|weekly|monthly>","periodsPerYear":<number>,"universe":<name count>,"turnover":<avg per-rebalance turnover>,"concentration":<0..1>,"note":"<one short note>"}
 dates and returns MUST be the same length.`;
   try {
     const result = backend === "codex" ? await runCodexAgentic(prompt, workspace) : await runClaudeAgentic(prompt, workspace);
@@ -376,7 +399,8 @@ server.listen(PORT, "127.0.0.1", () => {
   console.log(`  claude model: ${CLAUDE_MODEL} | codex model: ${CODEX_MODEL}`);
   console.log(`  dialogue + research brain: POST /condense`);
   if (ALLOW_DATA_TOOLS) {
-    console.log(`  BIG-DATA MODE ON: /dataset/inspect + /dataset/returns let the CLI read local files/DBs (reasoning=${DATA_REASONING})`);
+    console.log(`  BIG-DATA MODE ON: /dataset/inspect + /dataset/returns let the agent read local files/DBs at any frequency`);
+    console.log(`    data model: claude=${DATA_CLAUDE_MODEL} | codex reasoning=${DATA_REASONING}`);
   } else {
     console.log(`  big-data mode OFF — set QRL_ALLOW_DATA_TOOLS=1 to let the CLI backtest large local/remote/DB datasets`);
   }

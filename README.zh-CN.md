@@ -65,7 +65,9 @@
 
 前三种直接加载进浏览器。第四种才是重点：
 
-> **塞不进浏览器的数据集，永远不会进入浏览器。** 已连接的 CLI 在数据*原地*读取文件或查询数据库——用 DuckDB / 分块 pandas 流式处理，绝不整体载入内存——计算该策略的横截面日收益（无前视），只把**那条收益序列**回传。浏览器再把它变成与内置引擎相同的诚实指标与闸门。什么都不下载；这套架构为数 GB 级面板和在线数据库准备就绪。
+> **塞不进浏览器的数据集，永远不会进入浏览器。** 已连接的智能体在数据*原地*读取文件或查询数据库——用 DuckDB / 分块 pandas 流式处理，绝不整体载入内存——计算该策略的横截面收益（无前视），只把**那条收益序列**回传。浏览器再把它变成与内置引擎相同的诚实指标与闸门。什么都不下载；这套架构为数 GB 级面板和在线数据库准备就绪。
+
+**任意频率，任意格式。** 数据不一定是日线。智能体会从时间戳*自动识别*采样频率——tick、分钟、**小时**、日、周、月——并报告对应的年化因子，所以无论喂什么，Sharpe 都是对的。浏览器内的 CSV 路径也一样：拖进一个小时级文件，它会保留每一根 bar，而不是把它们塌缩成一天。你只描述*要算什么*，由智能体决定*在你这份数据的形状上怎么算*。
 
 随时免密钥刷新内置数据集：
 
@@ -85,7 +87,7 @@ QRL_ALLOW_DATA_TOOLS=1 npm run dialogue-bridge   # 允许 CLI 在本机原地读
 <img src="docs/media/loop-diagram.svg" alt="自我迭代的研究循环" width="92%"/>
 </div>
 
-回测是真正的横截面：第 *t* 日算信号、吃第 *t+1* 日收益（无前视）、多空分位组合、按换手计成本、按时间顺序切分样本内/样本外——无论价格来自内置包、你的 CSV，还是 CLI 正在读取的数据库。
+回测是真正的横截面：第 *t* 根 bar 算信号、吃第 *t+1* 根 bar 的收益（无前视）、多空分位组合、按换手计成本、按时间顺序切分样本内/样本外——无论价格来自内置包、你的 CSV，还是智能体正在读取的数据库，也无论它们是什么频率。
 
 ## 研究大脑是一个智能体 CLI
 
@@ -93,8 +95,10 @@ QRL_ALLOW_DATA_TOOLS=1 npm run dialogue-bridge   # 允许 CLI 在本机原地读
 
 | 后端 | 认证 | 驱动什么 |
 |---|---|---|
-| **Claude Code CLI** | 你的订阅，无需 Key | 假设 + 怀疑，以及（大数据模式）读取文件 / 数据库并跑回测 |
-| **Codex CLI** | 你的订阅，无需 Key | 同上，数据任务时调高 `model_reasoning_effort` |
+| **Claude Code CLI** | 你的订阅，无需 Key | 假设 + 怀疑；大数据模式下用更强的模型（默认 **Claude Opus 4.8**）读取文件 / 数据库、识别频率、算出收益 |
+| **Codex CLI** | 你的订阅，无需 Key | 同上，跑在 **GPT‑5.5‑Codex** 上，数据任务调高推理档（`high`） |
+
+大数据任务向智能体提出一个精确的诉求（一份画像，或该策略的每期收益 + 年化因子），让它自己写代码、跑代码——用上 Claude Code 的 `--output-format json` 结构化输出和 Codex 的更高推理档。可用 `QRL_DATA_CLAUDE_MODEL`、`QRL_DATA_REASONING` 调整模型。
 
 两者都经过一个只绑定 `127.0.0.1` 的小桥接器，调用你已登录的命令行：
 
@@ -171,16 +175,16 @@ npm run dialogue-bridge # 另开一个终端——连接 Claude Code 或 Codex
 
 - `src/engines/dataset/`——可插拔数据层：`datasetProvider`（工厂）、`inMemoryProvider`（内置 / CSV / 远程）、`bridgeProvider`（经 CLI 的大文件 / 数据库）、`csvParse`（长表 + 宽表）。
 - `src/engines/bridgeResearchAdapter.ts`——CLI 研究大脑；把每个假设建立在数据画像之上，再经知识库校验。
-- `src/engines/`——确定性研究引擎：`strategyKnowledge`、`hypothesisEngine` + `banditEngine`、`realBacktestEngine`（含给桥接路径用的 `metricsFromDailyReturns`）、`poolAnalytics`（ΔSharpe · MAP-Elites · CSCV PBO）、`riskReviewEngine`、`progression`。
-- `scripts/dialogue-bridge.mjs`——本地桥接器：`/condense`（对话 + 大脑），以及 `/dataset/inspect` + `/dataset/returns`，让 CLI 在原地读取大型数据集。
+- `src/engines/`——确定性研究引擎：`strategyKnowledge`、`hypothesisEngine` + `banditEngine`、`realBacktestEngine`（频率感知：`metricsFromReturnSeries` + 贯穿 Sharpe / 年化 / deflated-Sharpe 的 `periodsPerYear`）、`poolAnalytics`（ΔSharpe · MAP-Elites · CSCV PBO）、`riskReviewEngine`、`progression`。`realMarket.detectFrequency` 从时间戳推断 bar 大小。
+- `scripts/dialogue-bridge.mjs`——本地桥接器：`/condense`（对话 + 大脑），以及 `/dataset/inspect` + `/dataset/returns`，让智能体在原地读取任意频率的大型数据集。
 - `src/lib/office2d/officeDirector.ts`——角色大脑：行走、对话、气泡防重叠、彩带。
 - `work/RESEARCH_DESIGN_DOC.md`——设计背后的研究综述（RD-Agent(Q)、QuantEvolve、AlphaGen、Bailey–López de Prado、Harvey–Liu–Zhu、McLean–Pontiff），含精确公式。
 
 ## 验证
 
 ```bash
-npm test           # 21 个引擎测试：真实数据跨度、无前视、成本单调性、CSV 长/宽表解析、
-                   # 提供器回测、桥接 metricsFromDailyReturns、老虎机确定性、闸门、升级曲线
+npm test           # 24 个引擎测试：真实数据跨度、无前视、成本单调性、CSV 长/宽表解析、提供器回测、
+                   # 桥接 metricsFromReturnSeries、频率识别、频率感知年化、小时级 CSV、老虎机确定性、闸门、升级曲线
 npm run build      # tsc + vite
 ```
 
@@ -188,7 +192,9 @@ npm run build      # tsc + vite
 
 - [x] **LLM 原生研究大脑**——仅支持 Claude Code / Codex，且为运行所必需；假设建立在数据集的实时画像之上
 - [x] **自带你的数据**——上传 CSV（长表或宽表）/ JSON，或远程链接，在浏览器内解析
-- [x] **大数据，永不下载**——Parquet / DuckDB / SQLite / Postgres / 大文件由 CLI 在原地读取，只回传日收益序列
+- [x] **任意频率**——tick / 分钟 / 小时 / 日 / 周 / 月，从时间戳自动识别；每种频率的 Sharpe 都正确年化
+- [x] **大数据，永不下载**——Parquet / DuckDB / SQLite / Postgres / 大文件由智能体在原地读取，只回传每期收益序列
+- [x] **数据任务用强模型**——Claude Opus 4.8 / GPT‑5.5‑Codex，结构化输出 + 高推理档
 - [x] **20 年真实行情**内置，配真实横截面回测器与真实池相关性
 - [x] **Thompson 老虎机**、**池级 ΔSharpe 奖励**、**MAP-Elites 生态位**、**CSCV PBO**
 - [x] **游戏层**——经验值、十级头衔、16 成就、基金净值、办公室事件、彩带、完整 EN / 中文

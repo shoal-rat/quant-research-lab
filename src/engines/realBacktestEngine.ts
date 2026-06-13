@@ -10,13 +10,14 @@ import { deflatedSharpeProbability } from "./backtestEngine";
 import { dateIndex, RealMarketData, realUniverse } from "./realMarket";
 import { clamp, round, seededRandom } from "./random";
 
-// Real-data backtester: computes family signals from 20 years of actual daily
-// adjusted closes, builds a cross-sectional long/short portfolio with costs,
-// and reports honest in-sample / out-of-sample metrics. Signals at day t use
-// only data up to t and earn the return of day t+1 - no lookahead by
-// construction.
+// Real-data backtester: computes family signals from actual adjusted closes at
+// whatever frequency the dataset carries (hourly, daily, weekly, monthly...),
+// builds a cross-sectional long/short portfolio with costs, and reports honest
+// in-sample / out-of-sample metrics. Signals at bar t use only data up to t and
+// earn the return of bar t+1 - no lookahead by construction. Annualization uses
+// the dataset's periodsPerYear, so Sharpe is correct for any frequency.
 
-const TRADING_DAYS = 252;
+const DEFAULT_PERIODS_PER_YEAR = 252;
 
 export interface RealBacktestExtras {
   dailyReturns: number[];
@@ -81,7 +82,8 @@ function computeSignal(
   data: RealMarketData,
   symbol: string,
   at: number,
-  industryPeers: Record<string, string[]>
+  industryPeers: Record<string, string[]>,
+  periodsPerYear: number
 ): number | null {
   const closes = data.tickers[symbol].closes;
   const returns = data.returns[symbol];
@@ -166,7 +168,7 @@ function computeSignal(
       const window = Math.round(num(p.varianceWindow, 20));
       const vol = trailingVol(returns, at, window);
       if (base === null || vol === null || vol === 0) return null;
-      const target = num(p.targetVol, 0.12) / Math.sqrt(TRADING_DAYS);
+      const target = num(p.targetVol, 0.12) / Math.sqrt(periodsPerYear);
       const lever = clamp(target / vol, 0.2, num(p.leverageCap, 1.5));
       return base * lever;
     }
@@ -208,15 +210,16 @@ function computeRealMetrics(
   yearsPnl: Map<string, number>,
   trials: number,
   poolCorrelation: number,
-  concentrationOverride?: number
+  concentrationOverride?: number,
+  periodsPerYear: number = DEFAULT_PERIODS_PER_YEAR
 ): PerformanceMetrics {
   const count = Math.max(1, returns.length);
   const cumulative = returns.reduce((value, next) => value * (1 + next), 1) - 1;
   const mean = returns.reduce((value, next) => value + next, 0) / count;
   const variance = returns.reduce((value, next) => value + (next - mean) ** 2, 0) / Math.max(1, count - 1);
   const volatility = Math.sqrt(Math.max(variance, 1e-9));
-  const sharpe = (mean / volatility) * Math.sqrt(TRADING_DAYS);
-  const annualized = (1 + cumulative) ** (TRADING_DAYS / count) - 1;
+  const sharpe = (mean / volatility) * Math.sqrt(periodsPerYear);
+  const annualized = (1 + cumulative) ** (periodsPerYear / count) - 1;
   const winRate = returns.filter((value) => value > 0).length / count;
   const turnover = turnoverSeries.reduce((value, next) => value + next, 0) / Math.max(1, turnoverSeries.length);
 
@@ -252,7 +255,7 @@ function computeRealMetrics(
   });
   const yearDependency = totalAbs > 0 ? clamp(bestAbs / totalAbs, 0, 1) : 0.5;
 
-  const deflated = deflatedSharpeProbability(sharpe, returns, trials);
+  const deflated = deflatedSharpeProbability(sharpe, returns, trials, periodsPerYear);
   const randomBaselineSharpe = 0; // a random rank portfolio nets ~0 before costs
   const robustnessScore = clamp(
     58 + sharpe * 11 + deflated * 14 + cumulative * 40 - Math.abs(maxDrawdown) * 90 - turnover * 12 - yearDependency * 25,
@@ -331,13 +334,15 @@ export function realPoolCorrelation(
   return round(max, 2);
 }
 
-// Metrics from a precomputed daily-return series. Used by the bridge dataset
-// provider: the connected CLI reads a very large local file / database and
-// streams back the strategy's daily long/short returns (with no lookahead),
-// and the browser turns that series into the same honest metrics + gates the
-// in-memory backtester produces. Turnover and breadth are reported by the CLI
-// (defaults applied otherwise) since they are not recoverable from returns.
-export function metricsFromDailyReturns(input: {
+// Metrics from a precomputed per-period return series at any frequency. Used by
+// the bridge dataset provider: the connected agent (Claude / Codex) reads a very
+// large local file or database, detects the data's frequency, and streams back
+// the strategy's per-period long/short returns (no lookahead) plus the
+// periodsPerYear to annualize by. The browser turns that series into the same
+// honest metrics + gates the in-memory backtester produces. Turnover, breadth,
+// and frequency are reported by the agent since they are not recoverable from
+// the return series alone.
+export function metricsFromReturnSeries(input: {
   returns: number[];
   dates: string[]; // aligned to returns (length === returns.length)
   benchmarkReturns?: number[];
@@ -348,11 +353,13 @@ export function metricsFromDailyReturns(input: {
   universeSize: number;
   dataUsed: string;
   splitFraction?: number;
+  periodsPerYear?: number;
 }): RealBacktestOutput {
   const { returns, dates } = input;
   const trials = Math.max(1, input.trials);
   const turnover = clamp(num(input.avgTurnover, 0.15), 0, 5);
   const concentration = clamp(num(input.concentration, 0.3), 0, 1);
+  const periodsPerYear = Math.max(1, num(input.periodsPerYear, DEFAULT_PERIODS_PER_YEAR));
 
   const yearsFor = (from: number, to: number): Map<string, number> => {
     const map = new Map<string, number>();
@@ -366,9 +373,9 @@ export function metricsFromDailyReturns(input: {
   const sliceMetrics = (from: number, to: number, poolCorrelation: number): PerformanceMetrics => {
     const slice = returns.slice(from, to);
     const turnoverSeries = slice.length > 0 ? [turnover] : [];
-    // the CLI reports breadth directly; pass it through as the concentration
+    // the agent reports breadth directly; pass it through as the concentration
     // estimate rather than fabricating a weight vector
-    return computeRealMetrics(slice, turnoverSeries, [], yearsFor(from, to), trials, poolCorrelation, concentration);
+    return computeRealMetrics(slice, turnoverSeries, [], yearsFor(from, to), trials, poolCorrelation, concentration, periodsPerYear);
   };
 
   // Bridge series have no shared absolute calendar with the bundled engine
@@ -448,6 +455,7 @@ export function runRealBacktest(
   const costRate = params.transactionCostBps / 10000;
   const longOnly = params.portfolioType === "long_only";
   const isTimeSeriesFamily = strategy.familyKey === "seasonality" || strategy.familyKey === "trend_overlay";
+  const periodsPerYear = data.periodsPerYear ?? DEFAULT_PERIODS_PER_YEAR;
 
   const returns: number[] = [];
   const benchmarkReturns: number[] = [];
@@ -461,7 +469,7 @@ export function runRealBacktest(
     if ((day - slice.start) % holding === 0) {
       const signals: Array<[string, number]> = [];
       for (const symbol of universe) {
-        const signal = computeSignal(strategy, data, symbol, day, industryPeers);
+        const signal = computeSignal(strategy, data, symbol, day, industryPeers, periodsPerYear);
         if (signal !== null && Number.isFinite(signal)) signals.push([symbol, signal]);
       }
       const next = new Map<string, number>();
@@ -540,7 +548,9 @@ export function runRealBacktest(
     weightsHistory.slice(0, Math.ceil(splitIndex / holding)),
     splitYears(0, splitIndex),
     trials,
-    poolCorrelation
+    poolCorrelation,
+    undefined,
+    periodsPerYear
   );
   const outOfSample = computeRealMetrics(
     returns.slice(splitIndex),
@@ -548,9 +558,11 @@ export function runRealBacktest(
     weightsHistory.slice(Math.ceil(splitIndex / holding)),
     splitYears(splitIndex, returns.length),
     trials,
-    poolCorrelation
+    poolCorrelation,
+    undefined,
+    periodsPerYear
   );
-  const full = computeRealMetrics(returns, turnoverSeries, weightsHistory, yearsPnl, trials, poolCorrelation);
+  const full = computeRealMetrics(returns, turnoverSeries, weightsHistory, yearsPnl, trials, poolCorrelation, undefined, periodsPerYear);
 
   // equity curve on real dates
   const equityCurve: EquityPoint[] = [];
@@ -583,7 +595,7 @@ export function runRealBacktest(
     full,
     equityCurve,
     generatedCode: "",
-    dataUsed: `${universe.length} real US equities, ${data.dates[slice.start]} to ${data.dates[slice.end - 1]}, daily adjusted closes (${data.source}), benchmark ${data.benchmark}`
+    dataUsed: `${universe.length} names, ${data.dates[slice.start]} to ${data.dates[slice.end - 1]}, ${data.frequency ?? "daily"} adjusted closes (${data.source}), benchmark ${data.benchmark}`
   };
   return { result, extras };
 }

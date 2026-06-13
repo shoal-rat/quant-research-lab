@@ -1,0 +1,199 @@
+{
+  "totalSec": 120,
+  "musicMood": "Warm, bouncy chiptune-meets-lofi at around 104 BPM, like a cozy cafe management sim: playful pizzicato and a music-box motif under the cute beats. A rising bell-and-claps swell punches into the confetti promotion, then a quick snappy reaction reel, settling soft and twinkly under the outro. Cut on the beat; let the VO-free cuteness cuts snap fast so the faces, not the narration, carry the payoff.",
+  "voVoice": "Microsoft Zira (en-US, female, neutral TTS), ~155 words per minute",
+  "fullVO": "Meet the cutest research desk in finance. Six tiny chibi quants who walk around, gossip, and pop little speech bubbles. And here is the adorable twist. Every number in those bubbles is real. Mira hunts signals, Ren ships the code, Sana watches risk, Ivo doubts everything, Noa runs the next iteration, and Kira guards against future data. They study twenty years of real United States market data. More than five thousand daily closes for thirty-two big companies. Kira guards the timestamps, so nobody ever peeks at tomorrow. A little bandit picks the next move: explore, refine, repair, or recombine. Ideas come from a knowledge base of more than a dozen documented strategy families, never a random name generator. A signal earns the next day's return, with trading costs, and a strict split between in-sample and out-of-sample. Then mechanical gates decide what gets promoted. A deflated Sharpe test, a crowding penalty, costs, and drawdown. And it only counts if it adds to the fund. Other tools manufacture overfitting. This one fights it. And you are the boss. Type a directive in English or Chinese, like try momentum with five-day holds, and the whole office snaps to attention. Love a researcher and the hearts burst. Morale goes up, and they explore more boldly. Whip one and the team gossips. Whip the risk desk, and the promotion bar literally goes up. And when a strategy clears every single gate, confetti. Six tiny eureka faces. This is the good part. One click flips the whole office into Chinese. Dialogue, menus, achievements, all of it. It even runs as your live wallpaper, your boss tools tucked into a little floating crown. Cuteness is the bait. Honest research is the catch. Free and open source. Press Start, and good luck, Boss.",
+  "wordCount": 295,
+  "segments": [
+    {
+      "id": "s01",
+      "source": "title",
+      "start": 0,
+      "end": 5,
+      "title": "QUANT RESEARCH LAB",
+      "subtitle": "Real data. Real gates. Really cute.",
+      "vo": "",
+      "transition": "crossfade"
+    },
+    {
+      "id": "s02",
+      "source": "office_loop",
+      "start": 5,
+      "end": 13,
+      "title": "Meet the desk 💬",
+      "subtitle": "six chibi quants, one tiny fund",
+      "vo": "Meet the cutest research desk in finance. Six tiny chibi quants who walk around, gossip, and pop little speech bubbles.",
+      "transition": "crossfade"
+    },
+    {
+      "id": "s03",
+      "source": "closeup",
+      "start": 13,
+      "end": 18,
+      "title": "the adorable twist ✨",
+      "subtitle": "Mira Signal · Strategy",
+      "vo": "And here is the adorable twist. Every number in those bubbles is real.",
+      "transition": "cut"
+    },
+    {
+      "id": "s04",
+      "source": "office_loop",
+      "start": 18,
+      "end": 28,
+      "title": "meet the cast 🐣",
+      "subtitle": "Mira · Ren · Sana · Ivo · Noa · Kira",
+      "vo": "Mira hunts signals, Ren ships the code, Sana watches risk, Ivo doubts everything, Noa runs the next iteration, and Kira guards against future data.",
+      "transition": "crossfade"
+    },
+    {
+      "id": "s05",
+      "source": "office_loop",
+      "start": 28,
+      "end": 38,
+      "title": "20 years of REAL data",
+      "subtitle": "~5,000 closes · 32 tickers · 2006–2026",
+      "vo": "They study twenty years of real United States market data. More than five thousand daily closes for thirty-two big companies.",
+      "transition": "cut"
+    },
+    {
+      "id": "s06",
+      "source": "closeup",
+      "start": 38,
+      "end": 43,
+      "title": "🔎 no peeking",
+      "subtitle": "Kira Timestamp · Data",
+      "vo": "Kira guards the timestamps, so nobody ever peeks at tomorrow.",
+      "transition": "cut"
+    },
+    {
+      "id": "s07",
+      "source": "board",
+      "start": 43,
+      "end": 55,
+      "title": "the honest engine",
+      "subtitle": "bandit · knowledge base · backtest",
+      "vo": "A little bandit picks the next move: explore, refine, repair, or recombine. Ideas come from a knowledge base of more than a dozen documented strategy families, never a random name generator.",
+      "transition": "crossfade"
+    },
+    {
+      "id": "s08",
+      "source": "office_loop",
+      "start": 55,
+      "end": 63,
+      "title": "no lookahead",
+      "subtitle": "signal day t → return day t+1",
+      "vo": "A signal earns the next day's return, with trading costs, and a strict split between in-sample and out-of-sample.",
+      "transition": "cut"
+    },
+    {
+      "id": "s09",
+      "source": "board",
+      "start": 63,
+      "end": 76,
+      "title": "the gates decide",
+      "subtitle": "deflated Sharpe · crowding · drawdown",
+      "vo": "Then mechanical gates decide what gets promoted. A deflated Sharpe test, a crowding penalty, costs, and drawdown. And it only counts if it adds to the fund. Other tools manufacture overfitting. This one fights it.",
+      "transition": "cut"
+    },
+    {
+      "id": "s10",
+      "source": "boss_directive",
+      "start": 76,
+      "end": 85,
+      "title": "YOU are the boss 👑",
+      "subtitle": "type a directive · English or 中文",
+      "vo": "And you are the boss. Type a directive in English or Chinese, like try momentum with five-day holds, and the whole office snaps to attention.",
+      "transition": "crossfade"
+    },
+    {
+      "id": "s11",
+      "source": "love_burst",
+      "start": 85,
+      "end": 91,
+      "title": "LOVE 💗",
+      "subtitle": "morale up · bolder ideas",
+      "vo": "Love a researcher and the hearts burst. Morale goes up, and they explore more boldly.",
+      "transition": "cut"
+    },
+    {
+      "id": "s12",
+      "source": "whip_gossip",
+      "start": 91,
+      "end": 97,
+      "title": "WHIP 😤",
+      "subtitle": "whip Risk → raise the bar",
+      "vo": "Whip one and the team gossips. Whip the risk desk, and the promotion bar literally goes up.",
+      "transition": "cut"
+    },
+    {
+      "id": "s13",
+      "source": "confetti",
+      "start": 97,
+      "end": 105,
+      "title": "PROMOTED 🎉",
+      "subtitle": "it cleared every single gate",
+      "vo": "And when a strategy clears every single gate, confetti. Six tiny eureka faces. This is the good part.",
+      "transition": "crossfade"
+    },
+    {
+      "id": "s14",
+      "source": "chinese",
+      "start": 105,
+      "end": 110,
+      "title": "全中文 🌐",
+      "subtitle": "one globe click",
+      "vo": "One click flips the whole office into Chinese. Dialogue, menus, achievements, all of it.",
+      "transition": "cut"
+    },
+    {
+      "id": "s15",
+      "source": "wallpaper",
+      "start": 110,
+      "end": 116,
+      "title": "lives on your desktop",
+      "subtitle": "wallpaper mode · crown orb",
+      "vo": "It even runs as your live wallpaper, your boss tools tucked into a little floating crown.",
+      "transition": "crossfade"
+    },
+    {
+      "id": "s16",
+      "source": "closeup",
+      "start": 116,
+      "end": 118,
+      "title": "🤩",
+      "subtitle": "Ren Compile · \"if it runs, we are alive\"",
+      "vo": "",
+      "transition": "cut"
+    },
+    {
+      "id": "s17",
+      "source": "love_burst",
+      "start": 118,
+      "end": 119,
+      "title": "💗💗💗",
+      "subtitle": "",
+      "vo": "",
+      "transition": "cut"
+    },
+    {
+      "id": "s18",
+      "source": "whip_gossip",
+      "start": 119,
+      "end": 120,
+      "title": "😤💢",
+      "subtitle": "",
+      "vo": "",
+      "transition": "cut"
+    },
+    {
+      "id": "s19",
+      "source": "outro",
+      "start": 120,
+      "end": 121,
+      "title": "QUANT RESEARCH LAB",
+      "subtitle": "⭐ Free & open source · MIT · GitHub",
+      "vo": "Cuteness is the bait. Honest research is the catch. Free and open source. Press Start, and good luck, Boss.",
+      "transition": "cut"
+    }
+  ]
+}

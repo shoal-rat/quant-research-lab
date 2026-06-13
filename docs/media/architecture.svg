@@ -71,7 +71,7 @@
   <g>
     <rect x="52" y="318" width="174" height="48" rx="9" class="box"/>
     <text x="66" y="339" class="boxName">strategyKnow.</text>
-    <text x="66" y="356" class="boxSub">15 families, priors</text>
+    <text x="66" y="356" class="boxSub">14 families, priors</text>
     <rect x="242" y="318" width="178" height="48" rx="9" class="box"/>
     <text x="256" y="339" class="boxName">hypothesis+bandit</text>
     <text x="256" y="356" class="boxSub">Thompson 4 arms</text>

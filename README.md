@@ -17,6 +17,12 @@
 [![Wallpaper](https://img.shields.io/badge/desktop-wallpaper%20ready-e9b455)](#-put-it-on-your-desktop)
 [![License](https://img.shields.io/badge/license-MIT-8f5a2a)](LICENSE)
 
+<video src="https://github.com/shoal-rat/quant-research-lab/raw/main/docs/media/promo.mp4" poster="https://github.com/shoal-rat/quant-research-lab/raw/main/docs/media/promo-poster.png" controls muted playsinline width="92%"></video>
+
+🎬 **[▶ Watch the 2-minute trailer](https://github.com/shoal-rat/quant-research-lab/raw/main/docs/media/promo.mp4)** — real gameplay, narration & chiptune *(click if the player doesn't load inline)*
+
+<br/>
+
 <img src="docs/media/demo-office.gif" alt="The office running a research loop on real market data" width="92%"/>
 
 *One real research iteration: a Thompson bandit picks the direction, the whiteboard gets a hypothesis, the backtest runs on 20 years of daily prices, risk gates fire, and the desk argues about it at the meeting table. Every number in every speech bubble is real.*
@@ -31,7 +37,7 @@ A **cozy anime office sim that is secretly a serious autonomous research loop**.
 
 It is honest where research sims usually cheat:
 
-- 🧠 **Ideas come from a knowledge base, not a name generator** — 15 documented equity families (momentum, PEAD, low-vol/BAB, pairs, lead-lag, seasonality…) with literature-grounded net-of-cost Sharpe priors, failure modes, and parameter ranges.
+- 🧠 **Ideas come from a knowledge base, not a name generator** — 14 documented equity families (momentum, PEAD, low-vol/BAB, pairs, lead-lag, seasonality…) with literature-grounded net-of-cost Sharpe priors, failure modes, and parameter ranges.
 - 🎰 **A Thompson-sampling bandit picks the research direction** — `explore / refine / repair / recombine`, with posteriors learned from how much each direction actually moved the fund.
 - 🛡️ **Promotion is gated mechanically** — Bailey–López de Prado **deflated Sharpe** against the desk's global trial count, a WorldQuant-style **alpha-pool correlation penalty**, cost/turnover/drawdown/baseline checks. The risk officer reads the verdict; she never overrides it.
 - 📉 **Candidates are scored by pool ΔSharpe** — a strategy is only worth what it adds to the fund's combined daily-return series, not its solo stats.

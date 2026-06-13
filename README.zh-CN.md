@@ -17,6 +17,12 @@
 [![壁纸](https://img.shields.io/badge/桌面-动态壁纸-e9b455)](#-放到你的桌面上)
 [![License](https://img.shields.io/badge/license-MIT-8f5a2a)](LICENSE)
 
+<video src="https://github.com/shoal-rat/quant-research-lab/raw/main/docs/media/promo.mp4" poster="https://github.com/shoal-rat/quant-research-lab/raw/main/docs/media/promo-poster.png" controls muted playsinline width="92%"></video>
+
+🎬 **[▶ 观看 2 分钟预告片](https://github.com/shoal-rat/quant-research-lab/raw/main/docs/media/promo.mp4)** —— 全程真实游玩，含旁白与芯片音乐 *（若播放器未内嵌加载，请点击）*
+
+<br/>
+
 <img src="docs/media/demo-office.gif" alt="办公室在真实行情上跑研究循环" width="92%"/>
 
 *一次真实的研究迭代：方向老虎机选路线、白板上写假设、回测跑在 20 年日度行情上、风控闸门逐条宣读、会议桌上吵成一团——气泡里的每一个数字都是真算出来的。*
@@ -31,7 +37,7 @@
 
 在研究模拟最容易作弊的地方，它选择诚实：
 
-- 🧠 **想法来自知识库，不是随机起名器**——15 个文献级策略家族（动量、PEAD、低波动/BAB、配对、产业链联动、季节性……），每个都带扣除成本后的 Sharpe 先验、失效模式和参数区间。
+- 🧠 **想法来自知识库，不是随机起名器**——14 个文献级策略家族（动量、PEAD、低波动/BAB、配对、产业链联动、季节性……），每个都带扣除成本后的 Sharpe 先验、失效模式和参数区间。
 - 🎰 **Thompson 采样老虎机决定研究方向**——`探索 / 精修 / 修复 / 杂交`四条臂，后验由“每个方向究竟让基金动了多少”学出来。
 - 🛡️ **晋升由机械闸门决定**——按全桌试验数计算的 Bailey–López de Prado **Deflated Sharpe**、WorldQuant 式 **Alpha 池相关性惩罚**、成本/换手/回撤/随机基线检查。风控官只负责宣读结果，从不通融。
 - 📉 **候选按池级 ΔSharpe 计分**——一个策略的价值不看单兵数据，只看它给基金合并收益序列加了多少。

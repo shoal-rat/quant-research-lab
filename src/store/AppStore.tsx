@@ -185,6 +185,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
 
   if (!directorRef.current) {
     directorRef.current = new OfficeDirector(agents);
+    if (import.meta.env.DEV) {
+      // capture/debug hook for demo recordings; dev builds only
+      (window as unknown as { __qrlDirector?: OfficeDirector }).__qrlDirector = directorRef.current;
+    }
   }
   const director = directorRef.current;
 

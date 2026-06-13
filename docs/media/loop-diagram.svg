@@ -40,7 +40,7 @@
 
     <rect x="320" y="110" width="220" height="80" rx="12" class="node"/>
     <text x="336" y="138" class="nodeTitle">1 · Hypothesis</text>
-    <text x="336" y="157" class="nodeSub">15-family knowledge base,</text>
+    <text x="336" y="157" class="nodeSub">14-family knowledge base,</text>
     <text x="336" y="172" class="nodeSub">steered toward open niches</text>
 
     <rect x="580" y="110" width="210" height="80" rx="12" class="node"/>

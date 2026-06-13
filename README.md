@@ -43,14 +43,16 @@ Historical simulations only — no brokerage, no investment advice.
 
 ## Meet the desk
 
+Each researcher is a **cooperating agent role**: Kira maps and reads the data, Mira proposes, Ren executes, Sana gates, Ivo refutes, Noa decides.
+
 | | Researcher | Desk | Signature line |
-|---|---|---|---|
-| 🔴 | **Mira Signal** | Strategy | "This signal smells promising." |
-| 🔵 | **Ren Compile** | Engineering | "If it runs, we are alive." |
-| 🟤 | **Sana Risk** | Risk | "Pretty returns do not mean usable returns." |
-| ⚪ | **Ivo Doubt** | Skeptic | "This may just be luck." |
-| 🟢 | **Noa Ledger** | Experiment manager | "Stop arguing. Next iteration." |
-| 🟣 | **Kira Timestamp** | Data | "Do not use future data." |
+|:---:|---|---|---|
+| <img src="docs/media/portraits/mira.png" width="64" alt="Mira Signal"/> | **Mira Signal** | Strategy | *"This signal smells promising."* |
+| <img src="docs/media/portraits/ren.png" width="64" alt="Ren Compile"/> | **Ren Compile** | Engineering | *"If it runs, we are alive."* |
+| <img src="docs/media/portraits/sana.png" width="64" alt="Sana Risk"/> | **Sana Risk** | Risk | *"Pretty returns do not mean usable returns."* |
+| <img src="docs/media/portraits/ivo.png" width="64" alt="Ivo Doubt"/> | **Ivo Doubt** | Skeptic | *"This may just be luck."* |
+| <img src="docs/media/portraits/noa.png" width="64" alt="Noa Ledger"/> | **Noa Ledger** | Experiment manager | *"Stop arguing. Next iteration."* |
+| <img src="docs/media/portraits/kira.png" width="64" alt="Kira Timestamp"/> | **Kira Timestamp** | Data | *"Do not use future data."* |
 
 ## Bring your own data
 
@@ -107,6 +109,18 @@ npm run dialogue-bridge     # keep running while you play
 ```
 
 Character **dialogue** is separate and always works offline from an authored bank of 151 bilingual templates; you can optionally route it through the same CLIs, or Claude/OpenAI API keys, for livelier banter.
+
+## Cooperating agents, computed once
+
+The desk is a **multi-agent system**, and the agents do the *format-dependent* work — because the shape of your data is unknown until they look at it. The trick is to never make them redo it.
+
+<div align="center">
+<img src="docs/media/agent-flow.svg" alt="Agents cooperate; the kernel is written once, then runs free" width="94%"/>
+</div>
+
+When a data source is connected, **Kira (the data agent) writes a reusable backtest kernel for it — once.** She reads the source in place, works out its schema and frequency, and emits a self-contained `kernel.py` that implements every strategy family for *that* data. The bridge caches it keyed by the source (a file edit busts the cache automatically). After that, **every backtest just runs the cached kernel — plain Python, no LLM, no tokens.** Ren executes, Sana gates, Ivo refutes, Noa decides; the bandit picks the next idea. One agent call per source, then the loop is free.
+
+What stays deterministic is deliberate: the **honest scoring** — deflated Sharpe, CSCV PBO, pool correlation — runs in the browser so results are reproducible, not re-prompted. The agents adapt to the data; the system scores it the same way every time. Identical backtests and identical skeptic prompts are memoized too, so nothing is computed twice.
 
 ## You are the BOSS
 
@@ -195,6 +209,7 @@ npm run build      # tsc + vite
 - [x] **Bring your own data** — upload CSV (long or wide) / JSON, or a remote URL, parsed in the browser
 - [x] **Any frequency** — tick / minute / hourly / daily / weekly / monthly, detected from the timestamps; Sharpe annualized correctly for each
 - [x] **Large data, never downloaded** — Parquet / DuckDB / SQLite / Postgres / big files read by the agent in place; only the per-period return series comes back
+- [x] **Compute once, reuse free** — the agent writes a reusable backtest kernel per source, cached; every later backtest runs it with no LLM call. Identical backtests, skeptic prompts, and dialogue are memoized too
 - [x] **Strong models for data work** — Claude Opus 4.8 / GPT‑5.5‑Codex with structured output and high reasoning effort
 - [x] **20 years of real market data** bundled, with a real cross-sectional backtester and real pool correlations
 - [x] **Thompson bandit**, **pool ΔSharpe reward**, **MAP-Elites niches**, **CSCV PBO**

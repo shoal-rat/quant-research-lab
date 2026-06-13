@@ -25,9 +25,6 @@ export interface RealMarketData {
   returns: Record<string, (number | null)[]>;
 }
 
-// The on-disk/bundle shape before per-ticker returns are derived.
-export type RealMarketBundle = Omit<RealMarketData, "returns"> & { returns?: never };
-
 // Infer the sampling frequency (and the matching annualization factor) from the
 // median gap between consecutive timestamps. Works for ISO dates ("2020-01-02")
 // and ISO datetimes ("2020-01-02T09:30:00").

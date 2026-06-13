@@ -1,0 +1,121 @@
+<svg width="1120" height="600" viewBox="0 0 1120 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Agent cooperation and the compute-once kernel">
+  <defs>
+    <linearGradient id="afbg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fbf5ea"/>
+      <stop offset="1" stop-color="#f2e7d3"/>
+    </linearGradient>
+    <linearGradient id="afgold" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#e9b455"/>
+      <stop offset="1" stop-color="#d49b41"/>
+    </linearGradient>
+    <marker id="afArr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7a5232"/>
+    </marker>
+    <marker id="afTeal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2f9c95"/>
+    </marker>
+    <marker id="afPurple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9a6fd0"/>
+    </marker>
+    <style>
+      .node { fill: #fffdf7; stroke: #7a5232; stroke-width: 2; }
+      .role { font: 700 11px 'Segoe UI', system-ui, sans-serif; fill: #2f9c95; letter-spacing: 0.4px; }
+      .ttl { font: 700 15px 'Segoe UI', system-ui, sans-serif; fill: #3c2e1f; }
+      .sub { font: 500 11.5px 'Segoe UI', system-ui, sans-serif; fill: #82705a; }
+      .hdr { font: 800 23px 'Segoe UI', system-ui, sans-serif; fill: #3c2e1f; }
+      .flow { fill: none; stroke: #7a5232; stroke-width: 2.4; marker-end: url(#afArr); }
+      .pull { fill: none; stroke: #9a6fd0; stroke-width: 2.2; stroke-dasharray: 6 5; marker-end: url(#afPurple); animation: afdash 2.6s linear infinite; }
+      .loopline { fill: none; stroke: #2f9c95; stroke-width: 2.2; stroke-dasharray: 7 6; marker-end: url(#afTeal); animation: afdash 3.2s linear infinite; }
+      @keyframes afdash { to { stroke-dashoffset: -52; } }
+      .band { font: 800 13px 'Segoe UI', system-ui, sans-serif; letter-spacing: 1.2px; }
+    </style>
+  </defs>
+
+  <rect width="1120" height="600" rx="16" fill="url(#afbg)" stroke="#d8c5a5" stroke-width="2"/>
+  <text x="40" y="46" class="hdr">Cooperating agents · the calculation is written once, then runs free</text>
+
+  <!-- ===== COMPUTE ONCE band ===== -->
+  <rect x="36" y="68" width="1048" height="150" rx="14" fill="#efe6f7" stroke="#c792ea" stroke-width="1.6"/>
+  <text x="54" y="92" class="band" fill="#7a4fb0">① COMPUTE ONCE — per data source</text>
+
+  <!-- data source -->
+  <rect x="54" y="108" width="240" height="92" rx="12" class="node"/>
+  <text x="72" y="134" class="ttl">Any data source</text>
+  <text x="72" y="154" class="sub">CSV · Parquet · DuckDB · SQLite</text>
+  <text x="72" y="170" class="sub">Postgres · URL — any format,</text>
+  <text x="72" y="186" class="sub">any frequency (hour/day/week…)</text>
+
+  <!-- Kira writes the kernel -->
+  <rect x="430" y="108" width="270" height="92" rx="12" class="node" stroke="#9a6fd0"/>
+  <text x="448" y="128" class="role" fill="#7a4fb0">KIRA · DATA AGENT</text>
+  <text x="448" y="150" class="ttl">writes a reusable kernel</text>
+  <text x="448" y="170" class="sub">reads the source in place, detects</text>
+  <text x="448" y="186" class="sub">schema + frequency, emits kernel.py</text>
+
+  <!-- cached kernel -->
+  <rect x="836" y="108" width="226" height="92" rx="12" class="node" stroke="#2f9c95"/>
+  <text x="854" y="128" class="role">CACHED KERNEL</text>
+  <text x="854" y="150" class="ttl">📦 kernel.py</text>
+  <text x="854" y="170" class="sub">a self-contained backtester for</text>
+  <text x="854" y="186" class="sub">this source — runs without an LLM</text>
+
+  <!-- arrows in band -->
+  <path class="flow" d="M 294 154 L 426 154"/>
+  <text x="318" y="146" class="role" fill="#7a4fb0">1 agent call</text>
+  <path class="flow" d="M 700 154 L 832 154"/>
+  <text x="724" y="146" class="role" fill="#7a4fb0">write + self-test</text>
+
+  <!-- ===== REUSE FREE band ===== -->
+  <text x="54" y="256" class="band" fill="#2f7a52">② REUSE FREE — every iteration after that</text>
+
+  <!-- bandit -->
+  <rect x="40" y="276" width="150" height="78" rx="12" class="node"/>
+  <text x="56" y="300" class="ttl">Bandit</text>
+  <text x="56" y="320" class="sub">picks the next</text>
+  <text x="56" y="336" class="sub">direction</text>
+
+  <!-- Mira proposes -->
+  <rect x="220" y="276" width="180" height="78" rx="12" class="node"/>
+  <text x="236" y="296" class="role">MIRA · STRATEGY</text>
+  <text x="236" y="318" class="ttl">proposes</text>
+  <text x="236" y="338" class="sub">family + params, grounded in data</text>
+
+  <!-- Ren runs the kernel -->
+  <rect x="430" y="276" width="200" height="78" rx="12" class="node" stroke="#2f9c95"/>
+  <text x="446" y="296" class="role">REN · EXECUTOR</text>
+  <text x="446" y="318" class="ttl">runs the kernel ▶</text>
+  <text x="446" y="338" class="sub">no LLM — just python, seconds</text>
+
+  <!-- Sana gates -->
+  <rect x="660" y="276" width="180" height="78" rx="12" class="node"/>
+  <text x="676" y="296" class="role">SANA · RISK</text>
+  <text x="676" y="318" class="ttl">gates it</text>
+  <text x="676" y="338" class="sub">deflated Sharpe · pool corr · costs</text>
+
+  <!-- Ivo + Noa stacked -->
+  <rect x="870" y="276" width="192" height="78" rx="12" class="node"/>
+  <text x="886" y="296" class="role">IVO · SKEPTIC → NOA · MANAGER</text>
+  <text x="886" y="318" class="ttl">refute, then decide</text>
+  <text x="886" y="338" class="sub">candidate / retest / reject</text>
+
+  <!-- main flow arrows -->
+  <path class="flow" d="M 190 315 L 216 315"/>
+  <path class="flow" d="M 400 315 L 426 315"/>
+  <path class="flow" d="M 630 315 L 656 315"/>
+  <path class="flow" d="M 840 315 L 866 315"/>
+
+  <!-- the executor pulls the cached kernel (no LLM) -->
+  <path class="pull" d="M 530 276 C 530 230 880 240 940 204"/>
+  <text x="600" y="244" class="role" fill="#7a4fb0">pulls the cached kernel — 0 tokens</text>
+
+  <!-- loop back to bandit -->
+  <path class="loopline" d="M 966 354 C 966 420 120 420 110 360"/>
+  <text x="470" y="414" class="role">decision → memory → bandit (next idea)</text>
+
+  <!-- ===== takeaway ===== -->
+  <rect x="40" y="452" width="1022" height="116" rx="14" fill="#2e2317"/>
+  <text x="62" y="486" font-family="'Segoe UI', system-ui, sans-serif" font-size="18" font-weight="800" fill="#f3e7d2">The agent writes the calculation; the system runs it.</text>
+  <text x="62" y="514" font-family="'Segoe UI', system-ui, sans-serif" font-size="13.5" fill="#cdbb9b">Because the data's format is unknown, an agent — not hard-coded TypeScript — owns parsing, signals and returns for it.</text>
+  <text x="62" y="536" font-family="'Segoe UI', system-ui, sans-serif" font-size="13.5" fill="#cdbb9b">It does that ONCE per source and caches the kernel, so the research loop never pays for the same work twice.</text>
+  <text x="62" y="558" font-family="'Segoe UI', system-ui, sans-serif" font-size="13.5" fill="#e9b455">Honest scoring (deflated Sharpe · CSCV PBO · pool correlation) stays deterministic in the browser — reproducible, not re-prompted.</text>
+</svg>

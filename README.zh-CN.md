@@ -43,14 +43,16 @@
 
 ## 认识这张桌子
 
+每位研究员都是一个**相互协作的智能体角色**：Kira 对接并读取数据，Mira 提假设，Ren 执行，Sana 把闸门，Ivo 反驳，Noa 拍板。
+
 | | 研究员 | 岗位 | 口头禅 |
-|---|---|---|---|
-| 🔴 | **Mira Signal** | 策略 | “这个信号有戏。” |
-| 🔵 | **Ren Compile** | 工程 | “能跑起来，我们就还活着。” |
-| 🟤 | **Sana Risk** | 风控 | “好看的收益不等于能用的收益。” |
-| ⚪ | **Ivo Doubt** | 怀疑论者 | “这可能只是运气。” |
-| 🟢 | **Noa Ledger** | 实验主管 | “别吵了，下一轮迭代。” |
-| 🟣 | **Kira Timestamp** | 数据 | “不许用未来数据。” |
+|:---:|---|---|---|
+| <img src="docs/media/portraits/mira.png" width="64" alt="Mira Signal"/> | **Mira Signal** | 策略 | *“这个信号有戏。”* |
+| <img src="docs/media/portraits/ren.png" width="64" alt="Ren Compile"/> | **Ren Compile** | 工程 | *“能跑起来，我们就还活着。”* |
+| <img src="docs/media/portraits/sana.png" width="64" alt="Sana Risk"/> | **Sana Risk** | 风控 | *“好看的收益不等于能用的收益。”* |
+| <img src="docs/media/portraits/ivo.png" width="64" alt="Ivo Doubt"/> | **Ivo Doubt** | 怀疑论者 | *“这可能只是运气。”* |
+| <img src="docs/media/portraits/noa.png" width="64" alt="Noa Ledger"/> | **Noa Ledger** | 实验主管 | *“别吵了，下一轮迭代。”* |
+| <img src="docs/media/portraits/kira.png" width="64" alt="Kira Timestamp"/> | **Kira Timestamp** | 数据 | *“不许用未来数据。”* |
 
 ## 自带你的数据
 
@@ -107,6 +109,18 @@ npm run dialogue-bridge     # 游玩期间保持运行
 ```
 
 角色**对话**是独立的，永远可离线工作（151 个双语模板创作库）；你也可以选择让它走同一套 CLI，或用 Claude / OpenAI 的 API Key，换取更生动的吐槽。
+
+## 智能体协作，只算一次
+
+这张桌子是一个**多智能体系统**，由智能体来做所有*依赖格式*的计算——因为在它们看一眼之前，你的数据长什么样是未知的。关键在于：永远别让它们重复做同一件事。
+
+<div align="center">
+<img src="docs/media/agent-flow.svg" alt="智能体协作；内核只写一次，之后免费运行" width="94%"/>
+</div>
+
+当一个数据源接入时，**Kira（数据智能体）为它写一个可复用的回测内核——只写一次。** 她在原地读取数据、弄清它的结构与频率，产出一个自包含的 `kernel.py`，为*这份*数据实现所有策略家族。桥接器按数据源把它缓存起来（文件一改动，缓存自动失效）。此后，**每次回测都只是运行这个缓存内核——纯 Python，不调用 LLM，不花 token。** Ren 执行、Sana 把闸门、Ivo 反驳、Noa 拍板，老虎机选下一个想法。每个数据源一次智能体调用，之后整个循环都是免费的。
+
+哪些保持确定性是有意为之：**诚实的打分**——deflated Sharpe、CSCV PBO、池相关性——都在浏览器里跑，所以结果可复现，而不是反复重问模型。智能体适配数据，系统每次都用同样的方式给它打分。相同的回测、相同的怀疑提问也都会被记忆化，绝不重复计算。
 
 ## 你是老板
 
@@ -194,6 +208,7 @@ npm run build      # tsc + vite
 - [x] **自带你的数据**——上传 CSV（长表或宽表）/ JSON，或远程链接，在浏览器内解析
 - [x] **任意频率**——tick / 分钟 / 小时 / 日 / 周 / 月，从时间戳自动识别；每种频率的 Sharpe 都正确年化
 - [x] **大数据，永不下载**——Parquet / DuckDB / SQLite / Postgres / 大文件由智能体在原地读取，只回传每期收益序列
+- [x] **只算一次，之后免费**——智能体为每个数据源写一个可复用回测内核并缓存；之后每次回测都直接运行它，不再调用 LLM。相同的回测、怀疑提问、对话也都会被记忆化
 - [x] **数据任务用强模型**——Claude Opus 4.8 / GPT‑5.5‑Codex，结构化输出 + 高推理档
 - [x] **20 年真实行情**内置，配真实横截面回测器与真实池相关性
 - [x] **Thompson 老虎机**、**池级 ΔSharpe 奖励**、**MAP-Elites 生态位**、**CSCV PBO**

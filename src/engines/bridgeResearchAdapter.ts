@@ -30,6 +30,9 @@ interface BridgeChoice {
 
 export class BridgeResearchAdapter implements LLMCapabilities {
   private readonly fallback = new MockQuantLLMAdapter();
+  // the skeptic's objection is a pure function of the rounded metrics, so two
+  // experiments with the same numbers reuse one CLI call instead of two
+  private readonly challengeCache = new Map<string, string>();
 
   constructor(private readonly getSettings: () => Settings) {}
 
@@ -148,10 +151,23 @@ Reply with ONLY a JSON object: {"familyKey": "...", "holdingPeriod": 1|3|5|20, "
 
   async challengeResult(experiment: ExperimentRecord): Promise<string> {
     const oos = experiment.outOfSampleResult;
+    const cacheKey = [
+      experiment.familyKey,
+      Math.round(oos.sharpeRatio * 10),
+      Math.round(oos.maxDrawdown * 100),
+      Math.round(oos.deflatedSharpe * 100),
+      oos.trialsAtDiscovery,
+      Math.round(oos.alphaPoolCorrelation * 100)
+    ].join(":");
+    const cached = this.challengeCache.get(cacheKey);
+    if (cached) return cached;
     const prompt = `You are a merciless quant skeptic. One sentence (max 140 chars) challenging this backtest. Facts: OOS Sharpe ${oos.sharpeRatio}, after-cost return ${(oos.returnAfterCosts * 100).toFixed(1)}%, max drawdown ${(oos.maxDrawdown * 100).toFixed(1)}%, deflated-Sharpe survival ${(oos.deflatedSharpe * 100).toFixed(0)}% over ${oos.trialsAtDiscovery} trials, pool correlation ${(oos.alphaPoolCorrelation * 100).toFixed(0)}%. Reply with ONLY the sentence.`;
     const text = await this.callBridge(prompt, 45000);
     if (text && text.trim().length > 10 && text.length < 300) {
-      return text.trim().replace(/^["']|["']$/g, "");
+      const objection = text.trim().replace(/^["']|["']$/g, "");
+      if (this.challengeCache.size > 80) this.challengeCache.clear();
+      this.challengeCache.set(cacheKey, objection);
+      return objection;
     }
     return this.fallback.challengeResult(experiment);
   }

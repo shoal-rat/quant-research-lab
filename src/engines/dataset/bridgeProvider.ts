@@ -111,7 +111,38 @@ export class BridgeDatasetProvider implements DatasetProvider {
     return PRICE_FAMILIES.includes(familyKey);
   }
 
-  async runBacktest(strategy: StrategySpec, params: BacktestParameters, context: DatasetBacktestContext) {
+  // memoize the bridge round-trip (the expensive part) by the inputs that
+  // actually change the return series; identical backtests in a session never
+  // hit the bridge twice. Metrics are recomputed fresh below from the cached
+  // series so they still reflect the current trial count / candidate pool.
+  private readonly returnsCache = new Map<string, Promise<ReturnsReply | null>>();
+
+  private returnsKey(strategy: StrategySpec, params: BacktestParameters): string {
+    return [
+      strategy.familyKey,
+      JSON.stringify(strategy.parameters),
+      strategy.holdingPeriod,
+      strategy.portfolioType,
+      params.dateRange.start,
+      params.dateRange.end,
+      params.transactionCostBps
+    ].join("|");
+  }
+
+  private fetchReturns(strategy: StrategySpec, params: BacktestParameters): Promise<ReturnsReply | null> {
+    const key = this.returnsKey(strategy, params);
+    let pending = this.returnsCache.get(key);
+    if (!pending) {
+      pending = this.postReturns(strategy, params).then((value) => {
+        if (!value) this.returnsCache.delete(key); // never cache a failure
+        return value;
+      });
+      this.returnsCache.set(key, pending);
+    }
+    return pending;
+  }
+
+  private async postReturns(strategy: StrategySpec, params: BacktestParameters): Promise<ReturnsReply | null> {
     try {
       const response = await fetch(`${this.bridgeUrl.replace(/\/$/, "")}/dataset/returns`, {
         method: "POST",
@@ -134,7 +165,15 @@ export class BridgeDatasetProvider implements DatasetProvider {
       });
       if (!response.ok) return null;
       const payload = (await response.json()) as { result?: ReturnsReply; error?: string };
-      const result = payload.result;
+      return payload.result ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  async runBacktest(strategy: StrategySpec, params: BacktestParameters, context: DatasetBacktestContext) {
+    try {
+      const result = await this.fetchReturns(strategy, params);
       if (!result || !Array.isArray(result.returns) || result.returns.length < 60) return null;
       // coerce a stray non-finite value to a flat day rather than dropping it —
       // dropping would desync the returns array from the parallel dates array

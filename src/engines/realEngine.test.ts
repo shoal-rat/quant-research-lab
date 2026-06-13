@@ -6,7 +6,7 @@ import { chooseDirection, armPosteriors } from "./banditEngine";
 import { computePbo, poolSharpe, poolSharpeDelta, buildArchive } from "./poolAnalytics";
 import { computeLevel, computeXp, ACHIEVEMENTS } from "./progression";
 import { runRealBacktest } from "./realBacktestEngine";
-import { RealMarketData } from "./realMarket";
+import { buildRealMarketData, RealMarketData } from "./realMarket";
 import { proposeStrategy } from "./hypothesisEngine";
 import { STRATEGY_FAMILIES } from "./strategyKnowledge";
 import { ExperimentRecord, ProposalContext } from "../types";
@@ -15,18 +15,8 @@ const PRICE_FAMILIES = STRATEGY_FAMILIES.filter((family) => family.priceComputab
 
 function loadDataset(): RealMarketData {
   const file = path.join(__dirname, "..", "..", "public", "assets", "data", "market-real.json");
-  const data = JSON.parse(fs.readFileSync(file, "utf8")) as RealMarketData;
-  data.returns = {};
-  for (const [symbol, ticker] of Object.entries(data.tickers)) {
-    const returns: (number | null)[] = [null];
-    for (let index = 1; index < ticker.closes.length; index += 1) {
-      const previous = ticker.closes[index - 1];
-      const current = ticker.closes[index];
-      returns.push(previous && current ? current / previous - 1 : null);
-    }
-    data.returns[symbol] = returns;
-  }
-  return data;
+  // reuse the production builder rather than duplicating the returns loop
+  return buildRealMarketData(JSON.parse(fs.readFileSync(file, "utf8")) as Omit<RealMarketData, "returns">);
 }
 
 const dataset = loadDataset();

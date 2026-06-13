@@ -13,16 +13,18 @@
 //   POST /dataset/returns   -> { result: {dates,returns,benchmarkReturns,universe,turnover,...} } | { error }
 //        body: { backend, source, strategy, params }
 //
-// The two /dataset/* routes are how a very large dataset is handled: the CLI
+// The two /dataset/* routes are how a very large dataset is handled: the agent
 // reads it where it lives (a big local file, Parquet, DuckDB/SQLite/Postgres,
-// or a URL) and streams back only the strategy's daily returns — nothing is
-// downloaded into the browser. They run the CLI with code/file access, so they
-// are OFF unless you start the bridge with QRL_ALLOW_DATA_TOOLS=1.
+// or a URL) and writes a reusable backtest KERNEL once; thereafter every
+// backtest just runs that cached kernel (plain python, no LLM) and streams back
+// the strategy's per-period returns — nothing is downloaded into the browser.
+// They run the CLI with code/file access, so they are OFF unless you start the
+// bridge with QRL_ALLOW_DATA_TOOLS=1.
 //
 // The app builds the prompt and validates the JSON reply; this server only
 // shells out to the CLI. It binds to 127.0.0.1 only.
 import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
@@ -46,6 +48,13 @@ const DATA_CLAUDE_MODEL = process.env.QRL_DATA_CLAUDE_MODEL ?? "claude-opus-4-8"
 // Off by default: these endpoints run the CLI with file/DB/code access on your
 // machine. Opt in with QRL_ALLOW_DATA_TOOLS=1 when you want big-data mode.
 const ALLOW_DATA_TOOLS = process.env.QRL_ALLOW_DATA_TOOLS === "1";
+// The agent writes a reusable backtest KERNEL (kernel.py) ONCE per data source;
+// it is cached here and then executed for every strategy/params with NO further
+// LLM call. This is how "the agent owns all the calculation" stays cheap: one
+// agent run per source, then free forever.
+const KERNEL_DIR = path.join(os.tmpdir(), "qrl-kernels");
+// dialogue replies are deterministic enough to reuse for an identical prompt
+const condenseCache = new Map();
 const isWindows = process.platform === "win32";
 
 // CLIs run from a neutral temp directory so they never pick up a project's
@@ -162,21 +171,6 @@ Family signals (params in the strategy JSON, sensible defaults if absent):
 - trend_overlay: 1 if close > (1+bufferPct)*MA(trendWindow bars), else 0 (time-series).
 - fifty_two_week_high: close / trailing max close over lookbackDays bars.`;
 
-function tmpWorkspace() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "qrl-data-"));
-}
-
-// Local file-ish sources get their own directory mounted so the agent can read
-// them; URL / Postgres sources run in a throwaway workspace.
-function workspaceForSource(source) {
-  const localKinds = new Set(["file", "parquet", "duckdb", "sqlite"]);
-  if (localKinds.has(source.kind) && source.ref && fs.existsSync(source.ref)) {
-    const dir = fs.statSync(source.ref).isDirectory() ? source.ref : path.dirname(source.ref);
-    return { cwd: dir, addDir: dir, cleanup: false };
-  }
-  const dir = tmpWorkspace();
-  return { cwd: dir, addDir: dir, cleanup: true };
-}
 
 async function runClaudeAgentic(prompt, workspace) {
   // --output-format json wraps the run in a JSON envelope whose `result` field
@@ -248,51 +242,164 @@ function extractJson(text) {
   }
 }
 
-async function datasetInspect(backend, source) {
-  const workspace = workspaceForSource(source);
-  const prompt = `Inspect this market dataset and report a compact profile. Do NOT load the whole thing into memory — read the header, then use COUNT / MIN / MAX / DISTINCT (duckdb or SQL) or chunked reads.
+// --- agent-generated reusable kernel cache -------------------------------
+// The agent writes kernel.py + meta.json for a source ONCE; both are cached
+// under a signature of the source. Inspect reads meta.json; returns runs
+// kernel.py (plain python, no LLM) for any strategy/params. One agent call per
+// source, then every backtest is free.
+
+let pythonCmdCache = null;
+async function pythonCmd() {
+  if (pythonCmdCache) return pythonCmdCache;
+  for (const cmd of ["python", "python3"]) {
+    const probe = await run(cmd, ["--version"], { timeoutMs: 8000 });
+    if (probe.code === 0) return (pythonCmdCache = cmd);
+  }
+  return (pythonCmdCache = "python");
+}
+
+function sourceSignature(source) {
+  let stamp = "";
+  try {
+    if (source.ref && fs.existsSync(source.ref) && fs.statSync(source.ref).isFile()) {
+      const st = fs.statSync(source.ref);
+      stamp = `${st.size}:${Math.round(st.mtimeMs)}`; // file edits bust the cache automatically
+    }
+  } catch {
+    /* ignore */
+  }
+  const raw = JSON.stringify({ kind: source.kind, ref: source.ref ?? "", query: source.query ?? "", columns: source.columns ?? null, stamp });
+  return createHash("sha1").update(raw).digest("hex").slice(0, 16);
+}
+
+function kernelPaths(sig) {
+  const dir = path.join(KERNEL_DIR, sig);
+  return { dir, kernel: path.join(dir, "kernel.py"), meta: path.join(dir, "meta.json") };
+}
+
+function readCachedKernel(sig) {
+  const { kernel, meta } = kernelPaths(sig);
+  if (fs.existsSync(kernel) && fs.existsSync(meta)) {
+    try {
+      return { kernel, meta: JSON.parse(fs.readFileSync(meta, "utf8")) };
+    } catch {
+      /* corrupt meta -> regenerate */
+    }
+  }
+  return null;
+}
+
+// self-test the kernel on several DIFFERENT families during generation so bugs
+// in any one branch (a length mismatch, an empty bucket) surface before the
+// kernel is cached, not on a later backtest
+const SAMPLE_JOBS = (source) => {
+  const wide = { start: "1900-01-01", end: "2100-01-01", transactionCostBps: 10 };
+  const mk = (familyKey, parameters, portfolioType = "long_short") => ({
+    source,
+    strategy: { familyKey, parameters, holdingPeriod: 5, portfolioType },
+    params: wide
+  });
+  return [
+    mk("xs_momentum", { lookbackDays: 60, skipDays: 2, volatilityPenalty: 0.3 }),
+    mk("low_volatility", { volatilityWindow: 20 }),
+    mk("short_term_reversal", { reversalWindow: 5 }),
+    mk("trend_overlay", { trendWindow: 100, bufferPct: 0.01 }, "long_only")
+  ];
+};
+
+async function generateKernel(backend, source, sig, failureHint = "") {
+  const { dir, kernel, meta } = kernelPaths(sig);
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  // the agent works in the kernel dir (writes kernel.py + meta.json there) and
+  // can read the source dir for local files
+  let sourceDir = dir;
+  try {
+    if (source.ref && fs.existsSync(source.ref)) {
+      sourceDir = fs.statSync(source.ref).isDirectory() ? source.ref : path.dirname(source.ref);
+    }
+  } catch {
+    /* url/db: no local dir */
+  }
+  const workspace = { cwd: dir, addDir: sourceDir, cleanup: false };
+
+  const prompt = `Set up a REUSABLE backtest kernel for a market dataset, ONCE. Write two files into the CURRENT directory.
 
 SOURCE: ${JSON.stringify(source)}
 
-It is long-format price data (a date/timestamp column, a ticker/symbol column, an adjusted-close/price column, optionally an industry/sector column) OR wide-format (a date/timestamp column and one price column per ticker). Detect which.
+(1) meta.json — a compact profile, detecting the layout (long: date,ticker,close[,industry]  OR  wide: date + one price column per ticker) and the sampling FREQUENCY from timestamp spacing. Do NOT load the whole file — use duckdb / chunked reads / COUNT/MIN/MAX/DISTINCT.
+{"label":"<short>","tickers":<distinct count>,"rows":<row count>,"start":"<min ts>","end":"<max ts>","frequency":"<tick|minute|hourly|daily|weekly|monthly>","periodsPerYear":<minute≈98280|hourly≈1764|daily≈252|weekly≈52|monthly≈12>,"columns":{"date":"<col>","ticker":"<col or '' if wide>","close":"<col>","industry":"<col or ''>"},"note":"<short>"}
 
-Also detect the sampling FREQUENCY from the spacing between consecutive timestamps for one ticker: tick, minute, hourly, daily, weekly, or monthly. Report the matching periodsPerYear (minute≈98280, hourly≈1764, daily≈252, weekly≈52, monthly≈12). The timestamp column may include a time-of-day.
+(2) kernel.py — a self-contained, REUSABLE Python 3 program. It reads ONE JSON "job" from stdin:
+{"source":{<same shape as SOURCE>},"strategy":{"familyKey","parameters","holdingPeriod","portfolioType"},"params":{"start","end","transactionCostBps"}}
+It must work for ANY strategy/params with NO edits. It reads the source path from job["source"]["ref"] (stream it; never load a huge file fully), applies the format you detected, computes the cross-section below, and prints ONLY the result JSON:
+{"dates":[...],"returns":[...],"benchmarkReturns":[...],"frequency":"...","periodsPerYear":N,"universe":N,"turnover":f,"concentration":f,"note":"..."}
+dates and returns MUST be equal length. params.start/end may be wide-open (1900..2100) meaning "all data".
 
-Reply with ONLY this JSON object:
-{"label":"<short human label>","tickers":<distinct ticker count>,"rows":<total row count>,"start":"<min timestamp>","end":"<max timestamp>","frequency":"<tick|minute|hourly|daily|weekly|monthly>","periodsPerYear":<number>,"columns":{"date":"<col>","ticker":"<col or '' if wide>","close":"<col>","industry":"<col or ''>"},"note":"<one short caveat or layout note>"}`;
+${SIGNAL_SPEC}
+
+After writing both files, SELF-TEST kernel.py on EACH of these sample jobs (pipe each via stdin) and FIX the kernel until ALL of them print valid result JSON with len(dates)==len(returns)>0 and only finite numbers. They cover different families on purpose — a kernel that only works for momentum is a bug:
+${JSON.stringify(SAMPLE_JOBS(source))}
+ALSO self-test once more with params.start/end set to a SUBSET inside the data's actual date range (pick a start/end strictly inside the min/max you found) — the kernel must still return the bars in that window, not crash or return empty. The wide-open 1900..2100 range means "all data".
+Watch for: off-by-one length mismatches between price and return arrays, empty long/short buckets on thin days, NaN/inf, and date filtering that wrongly empties the result. The kernel must be GENERAL (handle every family in the spec and any date sub-range), not specialized to one job.
+${failureHint ? `\nIMPORTANT — your previous kernel FAILED at runtime with this error; fix exactly this:\n${failureHint}\n` : ""}
+When BOTH files exist and ALL self-tests pass, reply with ONLY {"kernelReady":true}.`;
+
+  const result = backend === "codex" ? await runCodexAgentic(prompt, workspace) : await runClaudeAgentic(prompt, workspace);
+  if (!fs.existsSync(kernel) || !fs.existsSync(meta)) {
+    throw new Error(`agent did not produce kernel.py + meta.json: ${(result.stderr || result.stdout || "").slice(-300)}`);
+  }
+  return { kernel, meta: JSON.parse(fs.readFileSync(meta, "utf8")) };
+}
+
+async function ensureKernel(backend, source) {
+  const sig = sourceSignature(source);
+  const cached = readCachedKernel(sig);
+  if (cached) return { ...cached, sig, cached: true };
+  const fresh = await generateKernel(backend, source, sig);
+  return { ...fresh, sig, cached: false };
+}
+
+async function runKernel(kernelPath, job) {
+  const py = await pythonCmd();
+  const result = await run(py, [kernelPath], { stdin: JSON.stringify(job), timeoutMs: DATA_TIMEOUT_MS, cwd: path.dirname(kernelPath) });
+  if (result.code !== 0) throw new Error(`kernel exit ${result.code}: ${(result.stderr || "").slice(-300)}`);
+  const json = extractJson(result.stdout);
+  if (!json) throw new Error(`kernel produced no JSON: ${(result.stdout || "").slice(-200)}`);
+  return json;
+}
+
+async function datasetInspect(backend, source) {
   try {
-    const result = backend === "codex" ? await runCodexAgentic(prompt, workspace) : await runClaudeAgentic(prompt, workspace);
-    const json = extractJson(result.stdout);
-    if (!json) return { error: `no JSON from ${backend}: ${(result.stderr || result.stdout || "").slice(-300)}` };
-    return { result: json };
-  } finally {
-    if (workspace.cleanup) fs.rmSync(workspace.cwd, { recursive: true, force: true });
+    const { meta, cached, sig } = await ensureKernel(backend, source);
+    return { result: { ...meta, cached, kernelId: sig } };
+  } catch (error) {
+    return { error: String(error.message ?? error) };
   }
 }
 
 async function datasetReturns(backend, source, strategy, params) {
-  const workspace = workspaceForSource(source);
-  const prompt = `Backtest one strategy over this dataset and return its per-period return series at the data's NATIVE frequency. The dataset may be very large — stream it (duckdb, or pandas in chunks); do not hold it all in memory.
-
-SOURCE: ${JSON.stringify(source)}
-STRATEGY: ${JSON.stringify(strategy)}
-DATE RANGE: ${params.start} to ${params.end}
-TRANSACTION COST: ${params.transactionCostBps} bps per side
-
-${SIGNAL_SPEC}
-
-Detect the native frequency first. Compute the portfolio's after-cost return for every bar in range (hourly bars if the data is hourly, daily if daily, etc.). If there are more than 4000 bars, keep them all but you MAY round returns to 6 dp. Also compute the benchmark's per-bar return (a benchmark column if present, else an equal-weight index of all names), the average per-rebalance turnover, and an average concentration (mean Herfindahl of absolute weights, 0..1).
-
-Reply with ONLY this JSON object:
-{"dates":["<bar timestamp>", ...],"returns":[<after-cost per-bar return>, ...],"benchmarkReturns":[<per-bar>, ...],"frequency":"<tick|minute|hourly|daily|weekly|monthly>","periodsPerYear":<number>,"universe":<name count>,"turnover":<avg per-rebalance turnover>,"concentration":<0..1>,"note":"<one short note>"}
-dates and returns MUST be the same length.`;
   try {
-    const result = backend === "codex" ? await runCodexAgentic(prompt, workspace) : await runClaudeAgentic(prompt, workspace);
-    const json = extractJson(result.stdout);
-    if (!json) return { error: `no JSON from ${backend}: ${(result.stderr || result.stdout || "").slice(-300)}` };
-    return { result: json };
-  } finally {
-    if (workspace.cleanup) fs.rmSync(workspace.cwd, { recursive: true, force: true });
+    const ensured = await ensureKernel(backend, source);
+    const job = { source, strategy, params };
+    let out;
+    try {
+      out = await runKernel(ensured.kernel, job); // free: no LLM, just runs the cached kernel
+    } catch (kernelError) {
+      // the cached kernel choked on this job — regenerate once with the error
+      // as a hint so the agent fixes that exact failure, then retry
+      const hint = String(kernelError.message ?? kernelError).slice(-600);
+      console.error(`[bridge] kernel re-run failed (${hint.slice(0, 120)}); regenerating with the error as a hint`);
+      const regen = await generateKernel(backend, source, ensured.sig, hint);
+      out = await runKernel(regen.kernel, job);
+      ensured.meta = regen.meta;
+    }
+    if (out.periodsPerYear === undefined && ensured.meta.periodsPerYear !== undefined) out.periodsPerYear = ensured.meta.periodsPerYear;
+    if (!out.frequency && ensured.meta.frequency) out.frequency = ensured.meta.frequency;
+    out.cached = ensured.cached;
+    return { result: out };
+  } catch (error) {
+    return { error: String(error.message ?? error) };
   }
 }
 
@@ -379,9 +486,19 @@ const server = http.createServer(async (req, res) => {
           send(res, 400, { error: "invalid prompt" });
           return;
         }
+        // identical dialogue prompts reuse the prior reply instead of spawning
+        // the CLI again
+        const cacheKey = `${backend}:${createHash("sha1").update(prompt).digest("hex")}`;
+        const hit = condenseCache.get(cacheKey);
+        if (hit !== undefined) {
+          send(res, 200, { text: hit, cached: true });
+          return;
+        }
         const started = Date.now();
         const text =
           backend === "codex" ? await condenseWithCodex(prompt, model) : await condenseWithClaude(prompt, model);
+        if (condenseCache.size > 200) condenseCache.clear();
+        condenseCache.set(cacheKey, text);
         console.log(`[bridge] ${backend} ok in ${((Date.now() - started) / 1000).toFixed(1)}s (${text.length} chars)`);
         send(res, 200, { text });
       } catch (error) {
@@ -399,8 +516,8 @@ server.listen(PORT, "127.0.0.1", () => {
   console.log(`  claude model: ${CLAUDE_MODEL} | codex model: ${CODEX_MODEL}`);
   console.log(`  dialogue + research brain: POST /condense`);
   if (ALLOW_DATA_TOOLS) {
-    console.log(`  BIG-DATA MODE ON: /dataset/inspect + /dataset/returns let the agent read local files/DBs at any frequency`);
-    console.log(`    data model: claude=${DATA_CLAUDE_MODEL} | codex reasoning=${DATA_REASONING}`);
+    console.log(`  BIG-DATA MODE ON: the agent writes a reusable backtest kernel ONCE per source, then it runs free`);
+    console.log(`    data model: claude=${DATA_CLAUDE_MODEL} | codex reasoning=${DATA_REASONING} | kernel cache: ${KERNEL_DIR}`);
   } else {
     console.log(`  big-data mode OFF — set QRL_ALLOW_DATA_TOOLS=1 to let the CLI backtest large local/remote/DB datasets`);
   }

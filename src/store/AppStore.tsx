@@ -578,6 +578,35 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
     return () => window.removeEventListener("qrl-wallpaper-paused", handler);
   }, [director]);
 
+  // load strategy families discovered by the remote-control routine and shipped
+  // in the repo (public/assets/data/discovered-families.json), merged with this
+  // browser's own localStorage discoveries — so a phone-triggered research run
+  // shows up for everyone on the next load
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("assets/data/discovered-families.json")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((committed) => {
+        if (cancelled || !Array.isArray(committed) || committed.length === 0) return;
+        const merged = [...getResearchedFamilies()];
+        const keys = new Set(merged.map((family) => family.key));
+        for (const family of committed) {
+          if (family && typeof family.key === "string" && typeof family.signalSpec === "string" && !keys.has(family.key)) {
+            merged.push(family as StrategyFamily);
+            keys.add(family.key);
+          }
+        }
+        setResearchedFamilies(merged);
+        setDiscoveredFamilies(getResearchedFamilies());
+      })
+      .catch(() => {
+        /* no committed discoveries yet */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // build the active dataset provider whenever the dataset config (or the CLI
   // it would delegate to) changes; the loop reads datasetProviderRef.current
   useEffect(() => {

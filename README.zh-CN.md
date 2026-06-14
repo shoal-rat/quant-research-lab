@@ -244,7 +244,7 @@ npm run build
 
 | | |
 |---|---|
-| **Weike Zhang**（[@shoal-rat](https://github.com/shoal-rat)） | 创意、方向、美术和项目所有者 |
+| **Shoral Rat**（[@shoal-rat](https://github.com/shoal-rat)） | 创意、方向、美术和项目所有者 |
 
 策略先验在 [`src/engines/strategyKnowledge.ts`](src/engines/strategyKnowledge.ts) 中标注了原始论文。
 

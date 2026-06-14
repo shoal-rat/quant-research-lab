@@ -123,6 +123,7 @@
 }
 
 .loop-controls {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -131,6 +132,23 @@
   border-radius: 12px;
   background: var(--surface);
   box-shadow: var(--shadow);
+}
+
+.hud-review-draft {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 1500;
+  width: min(390px, calc(100vw - 24px));
+  box-shadow: var(--shadow);
+}
+
+.hud-review-draft .mini-kv-list {
+  grid-template-columns: 1fr;
+}
+
+.hud-review-draft .control-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .hud-nav {
@@ -944,6 +962,14 @@
   .loop-controls {
     gap: 4px;
     padding: 4px;
+  }
+
+  .hud-review-draft {
+    position: fixed;
+    top: 58px;
+    right: 8px;
+    left: 8px;
+    width: auto;
   }
 
   .game-hud-top .compact {

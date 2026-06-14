@@ -778,7 +778,7 @@ button {
   left: 18px;
   right: 18px;
   bottom: 14px;
-  z-index: 6;
+  z-index: 900;
   display: flex;
   align-items: center;
   justify-content: space-between;

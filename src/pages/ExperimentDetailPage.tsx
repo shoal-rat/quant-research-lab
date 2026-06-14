@@ -80,6 +80,14 @@ export function ExperimentDetailPage({ id }: { id: string }): JSX.Element {
       {audit && (
         <>
           <section className="page-card">
+            <h2>Research Workflow 2.0</h2>
+            <p>
+              This experiment keeps the full idea audit: discovery card, signal compiler, source credibility, point-in-time
+              contract, validation, operations, feature-store, paper-trading, baseline, and research-feed diagnostics.
+            </p>
+          </section>
+
+          <section className="page-card">
             <h2>Discovery Card</h2>
             <div className="workflow-grid">
               <div className="workflow-item">

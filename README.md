@@ -134,6 +134,12 @@ What comes back is validated and folded into the desk automatically:
 
 So the loop literally grows new strategies while you watch. Honest scoring still gates everything: a freshly discovered factor has to survive the same deflated-Sharpe and pool-correlation checks as the textbook ones.
 
+## Research Workflow 2.0
+
+Each AI idea now becomes more than a backtest. The desk stores a structured discovery card, compiles the vague idea into a concrete signal, scores source credibility, checks novelty against known factors and prior failures, records point-in-time data requirements, and attaches walk-forward, regime, decay, capacity, execution, feature-store, baseline, paper-trading, and research-feed diagnostics to the experiment record.
+
+Turn on **Human review before backtest** in Settings to pause after proposal. The boss can approve, reject, or edit the hypothesis before Kira, Ren, and Sana spend a real test on it.
+
 ## You are the BOSS
 
 <div align="center">
@@ -216,6 +222,8 @@ npm run build      # tsc + vite
 ```
 
 ## What shipped
+
+- [x] **Research Workflow 2.0** - discovery cards, idea-to-signal compilation, source credibility, novelty checks, point-in-time data contracts, walk-forward/regime/decay diagnostics, capacity and execution simulation, human review, paper trading, baselines, and a live research feed
 
 - [x] **LLM-native research brain** — Claude Code / Codex only, required to run; hypotheses grounded in a live profile of the dataset
 - [x] **Bring your own data** — upload CSV (long or wide) / JSON, or a remote URL, parsed in the browser

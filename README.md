@@ -244,7 +244,7 @@ Next ideas: fundamentals for the quality family, an in-game dataset browser, and
 
 | | |
 |---|---|
-| **Weike Zhang** ([@shoal-rat](https://github.com/shoal-rat)) | Concept, direction, art, and project ownership |
+| **Shoral Rat** ([@shoal-rat](https://github.com/shoal-rat)) | Concept, direction, art, and project ownership |
 
 Strategy priors cite their original papers inside [`src/engines/strategyKnowledge.ts`](src/engines/strategyKnowledge.ts).
 

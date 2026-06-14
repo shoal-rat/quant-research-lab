@@ -1,123 +1,120 @@
-<svg width="1100" height="560" viewBox="0 0 1100 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Architecture diagram">
+<svg width="1100" height="590" viewBox="0 0 1100 590" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Architecture diagram">
   <defs>
-    <linearGradient id="abg" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#23282c"/>
-      <stop offset="1" stop-color="#1a1e21"/>
+      <stop offset="1" stop-color="#191e20"/>
     </linearGradient>
-    <marker id="aarr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#8fb8c9"/>
     </marker>
     <style>
       .lane { fill: rgba(255,255,255,0.045); stroke: rgba(255,255,255,0.14); stroke-width: 1.5; }
-      .laneTitle { font: 800 14px 'Segoe UI', system-ui, sans-serif; fill: #9fd2c4; letter-spacing: 1.4px; }
+      .laneTitle { font: 800 13px 'Segoe UI', system-ui, sans-serif; fill: #9fd2c4; letter-spacing: 1.2px; }
       .box { fill: #2c3338; stroke: #56e4bc; stroke-width: 1.6; }
       .boxAlt { fill: #2c3338; stroke: #e9b455; stroke-width: 1.6; }
       .boxData { fill: #2c3338; stroke: #c792ea; stroke-width: 1.6; }
-      .boxName { font: 700 14px 'Consolas', 'Segoe UI Mono', monospace; fill: #ecf4f1; }
-      .boxSub { font: 500 11px 'Segoe UI', system-ui, sans-serif; fill: #93a8a2; }
-      .wire { fill: none; stroke: #8fb8c9; stroke-width: 1.8; marker-end: url(#aarr); opacity: 0.85; }
-      .ahdr { font: 800 22px 'Segoe UI', system-ui, sans-serif; fill: #f0ece2; }
+      .boxAudit { fill: #2c3338; stroke: #7ecdb8; stroke-width: 2.2; }
+      .boxName { font: 700 13px 'Consolas', 'Segoe UI Mono', monospace; fill: #ecf4f1; }
+      .boxSub { font: 500 10.8px 'Segoe UI', system-ui, sans-serif; fill: #93a8a2; }
+      .wire { fill: none; stroke: #8fb8c9; stroke-width: 1.8; marker-end: url(#arr); opacity: 0.86; }
+      .hdr { font: 800 22px 'Segoe UI', system-ui, sans-serif; fill: #f0ece2; letter-spacing: 0; }
     </style>
   </defs>
 
-  <rect width="1100" height="560" rx="16" fill="url(#abg)" stroke="#39424a" stroke-width="2"/>
-  <text x="36" y="42" class="ahdr">Architecture</text>
+  <rect width="1100" height="590" rx="16" fill="url(#bg)" stroke="#39424a" stroke-width="2"/>
+  <text x="36" y="42" class="hdr">Architecture</text>
 
-  <!-- Presentation lane -->
   <rect x="36" y="60" width="1028" height="96" rx="12" class="lane"/>
-  <text x="52" y="82" class="laneTitle">GAME SHELL (React)</text>
-  <g>
-    <rect x="52" y="94" width="160" height="48" rx="9" class="box"/>
-    <text x="66" y="115" class="boxName">OfficeMap2D</text>
-    <text x="66" y="132" class="boxSub">stage, hotspots, effects</text>
-    <rect x="228" y="94" width="150" height="48" rx="9" class="box"/>
-    <text x="242" y="115" class="boxName">BoardPage</text>
-    <text x="242" y="132" class="boxSub">fund · niches · PBO</text>
-    <rect x="394" y="94" width="146" height="48" rx="9" class="boxAlt"/>
-    <text x="408" y="115" class="boxName">BossBar</text>
-    <text x="408" y="132" class="boxSub">directives EN/中文</text>
-    <rect x="556" y="94" width="166" height="48" rx="9" class="boxAlt"/>
-    <text x="570" y="115" class="boxName">LoveWhipPanel</text>
-    <text x="570" y="132" class="boxSub">praise / criticize</text>
-    <rect x="738" y="94" width="140" height="48" rx="9" class="boxAlt"/>
-    <text x="752" y="115" class="boxName">BossOrb</text>
-    <text x="752" y="132" class="boxSub">wallpaper boss key</text>
-    <rect x="894" y="94" width="154" height="48" rx="9" class="box"/>
-    <text x="908" y="115" class="boxName">HUD</text>
-    <text x="908" y="132" class="boxSub">loop · level · fund NAV</text>
-  </g>
+  <text x="52" y="82" class="laneTitle">GAME SHELL</text>
+  <rect x="52" y="94" width="160" height="48" rx="9" class="box"/>
+  <text x="66" y="115" class="boxName">OfficeMap2D</text>
+  <text x="66" y="132" class="boxSub">stage, hotspots, events</text>
+  <rect x="228" y="94" width="150" height="48" rx="9" class="box"/>
+  <text x="242" y="115" class="boxName">BoardPage</text>
+  <text x="242" y="132" class="boxSub">fund, niches, audit</text>
+  <rect x="394" y="94" width="150" height="48" rx="9" class="boxAlt"/>
+  <text x="408" y="115" class="boxName">LoopControls</text>
+  <text x="408" y="132" class="boxSub">start, review, discover</text>
+  <rect x="560" y="94" width="160" height="48" rx="9" class="boxAlt"/>
+  <text x="574" y="115" class="boxName">BossBar</text>
+  <text x="574" y="132" class="boxSub">EN / 中文 directives</text>
+  <rect x="736" y="94" width="150" height="48" rx="9" class="box"/>
+  <text x="750" y="115" class="boxName">DetailPage</text>
+  <text x="750" y="132" class="boxSub">Workflow 2.0 record</text>
+  <rect x="902" y="94" width="146" height="48" rx="9" class="boxAlt"/>
+  <text x="916" y="115" class="boxName">Wallpaper</text>
+  <text x="916" y="132" class="boxSub">chrome-free office</text>
 
-  <!-- Direction lane -->
-  <rect x="36" y="172" width="1028" height="96" rx="12" class="lane"/>
-  <text x="52" y="194" class="laneTitle">CHARACTER DIRECTION</text>
-  <g>
-    <rect x="52" y="206" width="216" height="48" rx="9" class="box"/>
-    <text x="66" y="227" class="boxName">OfficeDirector</text>
-    <text x="66" y="244" class="boxSub">walking · conversations · reactions</text>
-    <rect x="284" y="206" width="206" height="48" rx="9" class="box"/>
-    <text x="298" y="227" class="boxName">dialogueBank</text>
-    <text x="298" y="244" class="boxSub">151 bilingual templates</text>
-    <rect x="506" y="206" width="250" height="48" rx="9" class="boxAlt"/>
-    <text x="520" y="227" class="boxName">llmCondenser</text>
-    <text x="520" y="244" class="boxSub">Haiku 4.5 / GPT-5.4-nano / CLI bridge</text>
-    <rect x="772" y="206" width="276" height="48" rx="9" class="box"/>
-    <text x="786" y="227" class="boxName">AppStore</text>
-    <text x="786" y="244" class="boxSub">loop · mood · XP · achievements · persistence</text>
-  </g>
+  <rect x="36" y="176" width="1028" height="96" rx="12" class="lane"/>
+  <text x="52" y="198" class="laneTitle">STATE AND CHARACTERS</text>
+  <rect x="52" y="210" width="220" height="48" rx="9" class="box"/>
+  <text x="66" y="231" class="boxName">AppStore</text>
+  <text x="66" y="248" class="boxSub">loop, settings, review draft</text>
+  <rect x="288" y="210" width="220" height="48" rx="9" class="box"/>
+  <text x="302" y="231" class="boxName">OfficeDirector</text>
+  <text x="302" y="248" class="boxSub">walking, bubbles, reactions</text>
+  <rect x="524" y="210" width="220" height="48" rx="9" class="box"/>
+  <text x="538" y="231" class="boxName">dialogueBank</text>
+  <text x="538" y="248" class="boxSub">offline bilingual lines</text>
+  <rect x="760" y="210" width="288" height="48" rx="9" class="boxAlt"/>
+  <text x="774" y="231" class="boxName">llmCondenser</text>
+  <text x="774" y="248" class="boxSub">optional dialogue rewrite through bridge/API</text>
 
-  <!-- Engine lane -->
-  <rect x="36" y="284" width="1028" height="96" rx="12" class="lane"/>
-  <text x="52" y="306" class="laneTitle">RESEARCH ENGINES (deterministic)</text>
-  <g>
-    <rect x="52" y="318" width="174" height="48" rx="9" class="box"/>
-    <text x="66" y="339" class="boxName">strategyKnow.</text>
-    <text x="66" y="356" class="boxSub">14 families, priors</text>
-    <rect x="242" y="318" width="178" height="48" rx="9" class="box"/>
-    <text x="256" y="339" class="boxName">hypothesis+bandit</text>
-    <text x="256" y="356" class="boxSub">Thompson 4 arms</text>
-    <rect x="436" y="318" width="180" height="48" rx="9" class="box"/>
-    <text x="450" y="339" class="boxName">realBacktest</text>
-    <text x="450" y="356" class="boxSub">cross-section · costs</text>
-    <rect x="632" y="318" width="186" height="48" rx="9" class="box"/>
-    <text x="646" y="339" class="boxName">poolAnalytics</text>
-    <text x="646" y="356" class="boxSub">ΔSharpe · niches · PBO</text>
-    <rect x="834" y="318" width="120" height="48" rx="9" class="box"/>
-    <text x="848" y="339" class="boxName">riskReview</text>
-    <text x="848" y="356" class="boxSub">10 gates</text>
-    <rect x="970" y="318" width="78" height="48" rx="9" class="box"/>
-    <text x="980" y="339" class="boxName">memory</text>
-    <text x="980" y="356" class="boxSub">lessons</text>
-  </g>
+  <rect x="36" y="292" width="1028" height="108" rx="12" class="lane"/>
+  <text x="52" y="314" class="laneTitle">RESEARCH ENGINES</text>
+  <rect x="52" y="328" width="152" height="50" rx="9" class="box"/>
+  <text x="66" y="349" class="boxName">strategyKnowledge</text>
+  <text x="66" y="366" class="boxSub">families, citations</text>
+  <rect x="220" y="328" width="152" height="50" rx="9" class="box"/>
+  <text x="234" y="349" class="boxName">hypothesis</text>
+  <text x="234" y="366" class="boxSub">bandit, memory, boss hint</text>
+  <rect x="388" y="328" width="150" height="50" rx="9" class="box"/>
+  <text x="402" y="349" class="boxName">realBacktest</text>
+  <text x="402" y="366" class="boxSub">costs, IS/OOS, frequency</text>
+  <rect x="554" y="328" width="154" height="50" rx="9" class="boxAudit"/>
+  <text x="568" y="349" class="boxName">researchWorkflow</text>
+  <text x="568" y="366" class="boxSub">Workflow 2.0 audit</text>
+  <rect x="724" y="328" width="144" height="50" rx="9" class="box"/>
+  <text x="738" y="349" class="boxName">riskReview</text>
+  <text x="738" y="366" class="boxSub">14 checks</text>
+  <rect x="884" y="328" width="164" height="50" rx="9" class="box"/>
+  <text x="898" y="349" class="boxName">poolAnalytics</text>
+  <text x="898" y="366" class="boxSub">delta Sharpe, niches, PBO</text>
 
-  <!-- Data & bridges lane -->
-  <rect x="36" y="396" width="1028" height="96" rx="12" class="lane"/>
-  <text x="52" y="418" class="laneTitle">DATA &amp; BRIDGES</text>
-  <g>
-    <rect x="52" y="430" width="220" height="48" rx="9" class="boxData"/>
-    <text x="66" y="451" class="boxName">market-real.json</text>
-    <text x="66" y="468" class="boxSub">20y · 32 tickers · 5,033 days</text>
-    <rect x="288" y="430" width="226" height="48" rx="9" class="boxData"/>
-    <text x="302" y="451" class="boxName">fetch-market-data</text>
-    <text x="302" y="468" class="boxSub">keyless Yahoo refresh, one command</text>
-    <rect x="530" y="430" width="226" height="48" rx="9" class="boxData"/>
-    <text x="544" y="451" class="boxName">dialogue-bridge</text>
-    <text x="544" y="468" class="boxSub">127.0.0.1 · dialogue + research brain</text>
-    <rect x="772" y="430" width="276" height="48" rx="9" class="boxData"/>
-    <text x="786" y="451" class="boxName">Claude Code / Codex CLI</text>
-    <text x="786" y="468" class="boxSub">your subscription, no API key needed</text>
-  </g>
+  <rect x="36" y="420" width="1028" height="96" rx="12" class="lane"/>
+  <text x="52" y="442" class="laneTitle">DATA AND BRIDGE</text>
+  <rect x="52" y="454" width="200" height="48" rx="9" class="boxData"/>
+  <text x="66" y="475" class="boxName">market-real.json</text>
+  <text x="66" y="492" class="boxSub">20y bundled prices</text>
+  <rect x="268" y="454" width="190" height="48" rx="9" class="boxData"/>
+  <text x="282" y="475" class="boxName">dataset providers</text>
+  <text x="282" y="492" class="boxSub">upload, remote, bridge</text>
+  <rect x="474" y="454" width="218" height="48" rx="9" class="boxData"/>
+  <text x="488" y="475" class="boxName">dialogue-bridge</text>
+  <text x="488" y="492" class="boxSub">127.0.0.1, research and data</text>
+  <rect x="708" y="454" width="160" height="48" rx="9" class="boxData"/>
+  <text x="722" y="475" class="boxName">cached kernel</text>
+  <text x="722" y="492" class="boxSub">large-source backtests</text>
+  <rect x="884" y="454" width="164" height="48" rx="9" class="boxData"/>
+  <text x="898" y="475" class="boxName">Claude / Codex CLI</text>
+  <text x="898" y="492" class="boxSub">already signed in locally</text>
 
-  <!-- wires -->
-  <path class="wire" d="M 132 156 L 132 202"/>
-  <path class="wire" d="M 467 142 C 467 178 410 182 392 202"/>
-  <path class="wire" d="M 639 142 C 639 178 880 182 890 202"/>
-  <path class="wire" d="M 303 156 C 303 182 760 188 800 202"/>
-  <path class="wire" d="M 268 230 L 280 230"/>
-  <path class="wire" d="M 490 230 L 502 230"/>
-  <path class="wire" d="M 910 268 L 910 314"/>
-  <path class="wire" d="M 162 268 L 162 314"/>
-  <path class="wire" d="M 162 426 C 162 398 460 398 500 370"/>
-  <path class="wire" d="M 284 454 L 276 454"/>
-  <path class="wire" d="M 643 426 C 643 404 632 396 631 258"/>
-  <path class="wire" d="M 768 454 L 760 454"/>
+  <path class="wire" d="M 132 156 L 132 206"/>
+  <path class="wire" d="M 470 156 C 470 176 176 180 164 206"/>
+  <path class="wire" d="M 810 156 C 810 182 230 184 192 206"/>
+  <path class="wire" d="M 272 234 L 284 234"/>
+  <path class="wire" d="M 508 234 L 520 234"/>
+  <path class="wire" d="M 878 258 C 878 288 756 300 756 324"/>
+  <path class="wire" d="M 162 272 L 162 324"/>
+  <path class="wire" d="M 372 353 L 384 353"/>
+  <path class="wire" d="M 538 353 L 550 353"/>
+  <path class="wire" d="M 708 353 L 720 353"/>
+  <path class="wire" d="M 868 353 L 880 353"/>
+  <path class="wire" d="M 160 420 L 160 382"/>
+  <path class="wire" d="M 364 420 C 364 394 464 394 464 382"/>
+  <path class="wire" d="M 582 420 C 582 392 630 392 630 382"/>
+  <path class="wire" d="M 786 420 C 786 392 800 392 800 382"/>
+  <path class="wire" d="M 884 478 L 872 478"/>
+
+  <text x="52" y="552" class="boxSub">The CLI adapts to unknown data. The browser keeps scoring, gates, and release records repeatable.</text>
 </svg>

@@ -4,46 +4,45 @@
 
 <br/>
 
-**一间 LLM 原生的量化研究室。六位 Q 版研究员挖掘 Alpha——由 Claude Code 或 Codex 驱动，跑在*你*指定的数据集上——而他们只听命于一个人：你，这张桌子的老板。**
+**一间由 Claude Code 或 Codex 驱动的量化办公室：六位研究员提出想法、跑真实行情、记录证据，也会当场吵起来。**
 
 [English](README.md) · **简体中文**
 
 [![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=white)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-7-646cff?logo=vite&logoColor=white)](https://vite.dev)
-[![LLM 原生](https://img.shields.io/badge/大脑-Claude%20Code%20%2F%20Codex-7b61ff)](#研究大脑是一个智能体-cli)
-[![自带数据](https://img.shields.io/badge/数据-自带数据集-c792ea)](#自带你的数据)
-[![Tests](https://img.shields.io/badge/tests-21%20passing-2f9c95)](#验证)
-[![壁纸](https://img.shields.io/badge/桌面-动态壁纸-e9b455)](#-放到你的桌面上)
+[![研究大脑](https://img.shields.io/badge/大脑-Claude%20Code%20%2F%20Codex-7b61ff)](#研究大脑)
+[![自带数据](https://img.shields.io/badge/数据-自带数据集-c792ea)](#自带数据)
+[![Tests](https://img.shields.io/badge/tests-28%20passing-2f9c95)](#验证)
+[![壁纸](https://img.shields.io/badge/桌面-动态壁纸-e9b455)](#桌面模式)
 [![License](https://img.shields.io/badge/license-MIT-8f5a2a)](LICENSE)
 
 <img src="docs/media/demo-office.gif" alt="办公室在真实行情上跑研究循环" width="92%"/>
 
-*一次真实的研究迭代：智能体 CLI 读完数据后提出假设、方向老虎机选路线、回测跑在真实价格上、风控闸门逐条宣读、会议桌上吵成一团——气泡里的每一个数字都是真算出来的。*
+*一次办公室迭代：CLI 提出假设，老虎机选方向，回测使用真实价格，风控逐条过闸，桌子把结果写进档案。*
 
 </div>
 
 ---
 
-## 这是什么？
+## 这是什么
 
-一个**披着治愈系动漫办公室外壳、骨子里却是 LLM 原生研究循环的项目**。假设由智能体 CLI 写出——**Claude Code 或 Codex，用你自己的订阅，无需 API Key**——它会读取面前真实的数据再下笔。下面这六位研究员跑完整个流程：提出 → 数据审计 → 横截面回测 → 机械风控闸门 → 辩论 → 晋升或埋葬。
+Quant Research Lab 是一个套在量化研究循环外面的办公室模拟器。Claude Code 或 Codex 通过本地桥接器读取当前数据集，提出策略假设；浏览器负责后面的流程：数据检查、横截面回测、风控、辩论、决策和记忆。
 
-它内置了**20 年真实美股价格**，但整套架构是为指向**你的**数据而生的——你拖进来的一个 CSV、一个远程链接，或者一个大到塞不进浏览器的数据集——后者由 CLI 在数据*原地*读取。
+项目内置 20 年美股价格。你也可以上传 CSV、使用远程文件，或连接不该塞进浏览器的大型本地数据源。
 
-在研究模拟最容易作弊的地方，它选择诚实：
+动画不是重点，重点是每次实验留下证据：
 
-- 🧠 **大脑是智能体 CLI**——它会先给真实数据集做画像（名称、跨度、列、统计），把每个假设建立在它真正看到的数据上，再用 15 个文献级策略家族的知识库校验。
-- 🎰 **Thompson 采样老虎机决定研究方向**——`探索 / 精修 / 修复 / 杂交`，后验由“每个方向究竟让基金动了多少”学出来。
-- 🛡️ **晋升由机械闸门决定**——按全桌试验数计算的 Bailey–López de Prado **Deflated Sharpe**、WorldQuant 式 **Alpha 池相关性惩罚**、成本/换手/回撤/随机基线检查。风控官只负责宣读结果，从不通融。
-- 📉 **候选按池级 ΔSharpe 计分**——一个策略的价值只看它给基金合并收益序列加了多少。
-- 🪦 **桌子有记忆**——家族教训、血统、MAP-Elites 生态位档案，以及反复挖同一家族时的边际衰减。
+- 信号只用第 `t` 根 bar 的信息，收益从 `t+1` 开始算；
+- 每轮都检查成本、换手、回撤、随机基线、池相关性和 deflated Sharpe；
+- 桌子会记录家族教训、血统、MAP-Elites 生态位和边际衰减；
+- 候选策略按它给组合基金增加的价值评分，而不是按单条漂亮曲线评分。
 
-仅为历史模拟——不连接券商，不构成投资建议。
+仅做历史模拟。不连接券商。不构成投资建议。
 
 ## 认识这张桌子
 
-每位研究员都是一个**相互协作的智能体角色**：Kira 对接并读取数据，Mira 提假设，Ren 执行，Sana 把闸门，Ivo 反驳，Noa 拍板。
+每位研究员只负责一件事。
 
 | | 研究员 | 岗位 | 口头禅 |
 |:---:|---|---|---|
@@ -54,85 +53,92 @@
 | <img src="docs/media/portraits/noa.png" width="64" alt="Noa Ledger"/> | **Noa Ledger** | 实验主管 | *“别吵了，下一轮迭代。”* |
 | <img src="docs/media/portraits/kira.png" width="64" alt="Kira Timestamp"/> | **Kira Timestamp** | 数据 | *“不许用未来数据。”* |
 
-## 自带你的数据
+## 自带数据
 
-数据集是可插拔的。在 **设置 → 数据源** 里选择：
+在 **设置 -> 数据源** 里选择：
 
-| 来源 | 是什么 | 在哪运行 |
+| 来源 | 内容 | 运行位置 |
 |---|---|---|
-| **内置** | 32 只美股大盘股 20 年日度复权收盘价（已打包） | 浏览器内 |
-| **上传 CSV / JSON** | 你自己的文件——长表（`date,ticker,close[,industry]`）或宽表（`date` + 每列一只股票） | 浏览器内 |
-| **远程链接** | 一个 CSV / JSON 链接（需允许跨域） | 浏览器内 |
-| **大型本地文件 / 数据库** | 大文件、**Parquet、DuckDB、SQLite、Postgres**，或一个 URL——**由 CLI 在原地读取** | CLI，流式 |
+| **内置** | 32 只美股大盘股，20 年日度复权收盘价 | 浏览器 |
+| **上传 CSV / JSON** | 长表（`date,ticker,close[,industry]`）或宽表（`date` 加每只股票一列） | 浏览器 |
+| **远程链接** | CSV 或 JSON，需要允许跨域 | 浏览器 |
+| **大型本地文件 / 数据库** | Parquet、DuckDB、SQLite、Postgres、大文件或 URL | CLI 桥接器 |
 
-前三种直接加载进浏览器。第四种才是重点：
+大数据源留在原地。桥接器让 CLI 检查文件或数据库，算出收益序列，只把浏览器需要的结果传回来。这样大面板和私有数据不会进入前端。
 
-> **塞不进浏览器的数据集，永远不会进入浏览器。** 已连接的智能体在数据*原地*读取文件或查询数据库——用 DuckDB / 分块 pandas 流式处理，绝不整体载入内存——计算该策略的横截面收益（无前视），只把**那条收益序列**回传。浏览器再把它变成与内置引擎相同的诚实指标与闸门。什么都不下载；这套架构为数 GB 级面板和在线数据库准备就绪。
+时间频率不限。日线、小时、分钟、tick、周线、月线都会按实际采样间隔年化，不会被硬塞成日线。
 
-**任意频率，任意格式。** 数据不一定是日线。智能体会从时间戳*自动识别*采样频率——tick、分钟、**小时**、日、周、月——并报告对应的年化因子，所以无论喂什么，Sharpe 都是对的。浏览器内的 CSV 路径也一样：拖进一个小时级文件，它会保留每一根 bar，而不是把它们塌缩成一天。你只描述*要算什么*，由智能体决定*在你这份数据的形状上怎么算*。
-
-随时免密钥刷新内置数据集：
+刷新内置数据：
 
 ```bash
-node scripts/fetch-market-data.mjs     # 从 Yahoo 公开 chart API 拉取 20 年日度行情
+node scripts/fetch-market-data.mjs
 ```
 
-让 CLI 指向一个大型数据源——以大数据模式启动桥接器：
+启用大型数据源模式：
 
 ```bash
-QRL_ALLOW_DATA_TOOLS=1 npm run dialogue-bridge   # 允许 CLI 在本机原地读取文件 / 数据库
+QRL_ALLOW_DATA_TOOLS=1 npm run dialogue-bridge
 ```
 
-## 一个对自己数字负责的研究循环
+## 研究循环
 
 <div align="center">
 <img src="docs/media/loop-diagram.svg" alt="自我迭代的研究循环" width="92%"/>
 </div>
 
-回测是真正的横截面：第 *t* 根 bar 算信号、吃第 *t+1* 根 bar 的收益（无前视）、多空分位组合、按换手计成本、按时间顺序切分样本内/样本外——无论价格来自内置包、你的 CSV，还是智能体正在读取的数据库，也无论它们是什么频率。
+循环本身很直接：
 
-## 研究大脑是一个智能体 CLI
+1. Thompson 采样老虎机选择研究方向。
+2. CLI 根据当前数据画像提出假设。
+3. 如果开启人工审核，先停下来等老板批准。
+4. 跑无前视的横截面回测。
+5. 附上 Workflow 2.0 审计。
+6. 风控、怀疑论者和实验主管决定保留、重测还是埋葬。
 
-这是 LLM 原生的核心，而且是**必需的**：在连接 Claude Code 或 Codex 之前，研究不会开始（红点变绿、门禁横幅消失）。CLI 能做固定引擎做不到的事——读取数据画像，对*这份*数据做推理。
+## Research Workflow 2.0
 
-| 后端 | 认证 | 驱动什么 |
+Workflow 2.0 把一个想法变成可复盘的实验档案。每个完成的实验都会保存：
+
+- 发现卡片：现象、可交易范围、所需数据和引用；
+- 编译后的信号：特征、滞后、持有期、再平衡规则和公式；
+- 来源可信度，以及相对已知因子和历史失败的 novelty 检查；
+- point-in-time 数据合同；
+- walk-forward 窗口、市场状态、衰减、容量、执行压力、特征质量、paper trading 状态、基线和研究 feed。
+
+在设置里打开 **Human review before backtest**，系统会在提出假设后暂停。老板可以批准、拒绝，或写下修改意见，让团队重新生成想法。
+
+## 研究大脑
+
+研究需要一个本地桥接器和已经登录的 CLI。桥接器只绑定 `127.0.0.1`，调用你机器上已认证的命令行。
+
+| 后端 | 认证 | 用途 |
 |---|---|---|
-| **Claude Code CLI** | 你的订阅，无需 Key | 假设 + 怀疑；大数据模式下用更强的模型（默认 **Claude Opus 4.8**）读取文件 / 数据库、识别频率、算出收益 |
-| **Codex CLI** | 你的订阅，无需 Key | 同上，跑在 **GPT‑5.5‑Codex** 上，数据任务调高推理档（`high`） |
+| **Claude Code CLI** | 你的订阅，无需 API key | 假设、怀疑、策略发现，可选大型数据任务 |
+| **Codex CLI** | 你的订阅，无需 API key | 同一路径；数据任务会提高 `model_reasoning_effort` |
 
-大数据任务向智能体提出一个精确的诉求（一份画像，或该策略的每期收益 + 年化因子），让它自己写代码、跑代码——用上 Claude Code 的 `--output-format json` 结构化输出和 Codex 的更高推理档。可用 `QRL_DATA_CLAUDE_MODEL`、`QRL_DATA_REASONING` 调整模型。
-
-两者都经过一个只绑定 `127.0.0.1` 的小桥接器，调用你已登录的命令行：
+运行应用时保持桥接器开启：
 
 ```bash
-npm run dialogue-bridge     # 游玩期间保持运行
+npm run dialogue-bridge
 ```
 
-角色**对话**是独立的，永远可离线工作（151 个双语模板创作库）；你也可以选择让它走同一套 CLI，或用 Claude / OpenAI 的 API Key，换取更生动的吐槽。
+角色对话是单独的。它可以使用离线双语模板，也可以通过同一套桥接/API 设置改写对话。
 
-## 智能体协作，只算一次
-
-这张桌子是一个**多智能体系统**，由智能体来做所有*依赖格式*的计算——因为在它们看一眼之前，你的数据长什么样是未知的。关键在于：永远别让它们重复做同一件事。
+## 只算一次，反复使用
 
 <div align="center">
-<img src="docs/media/agent-flow.svg" alt="智能体协作；内核只写一次，之后免费运行" width="94%"/>
+<img src="docs/media/agent-flow.svg" alt="智能体协作；内核只写一次，之后复用" width="94%"/>
 </div>
 
-当一个数据源接入时，**Kira（数据智能体）为它写一个可复用的回测内核——只写一次。** 她在原地读取数据、弄清它的结构与频率，产出一个自包含的 `kernel.py`，为*这份*数据实现所有策略家族。桥接器按数据源把它缓存起来（文件一改动，缓存自动失效）。此后，**每次回测都只是运行这个缓存内核——纯 Python，不调用 LLM，不花 token。** Ren 执行、Sana 把闸门、Ivo 反驳、Noa 拍板，老虎机选下一个想法。每个数据源一次智能体调用，之后整个循环都是免费的。
+连接大型数据源时，Kira 会为这个数据源写一个可复用的 `kernel.py`。它知道该数据的结构、频率和策略公式。内核缓存后，Ren 后续跑回测不需要再让 CLI 重写计算。
 
-哪些保持确定性是有意为之：**诚实的打分**——deflated Sharpe、CSCV PBO、池相关性——都在浏览器里跑，所以结果可复现，而不是反复重问模型。智能体适配数据，系统每次都用同样的方式给它打分。相同的回测、相同的怀疑提问也都会被记忆化，绝不重复计算。
+评分留在浏览器里确定性执行：deflated Sharpe、CSCV PBO、池相关性、风控闸门和晋升规则都不会反复重问模型。
 
-## 从文献里发现新策略
+## 发现新家族
 
-知识库不是固定的。点 HUD 里的 **🔭 发现** 按钮（或在指令栏里直接说——“研究期权偏度因子”“read papers on volume-price factors”），智能体就会**去搜网络**——最近的论文、工作论文、财经新闻、机构研报——寻找新的价量因子。
+知识库可以在游玩时增长。点 HUD 里的 **Discover**，或在指令栏写 `research options-skew factors`。桥接器会让 CLI 阅读近期论文、工作论文、财经新闻和机构资料，并返回带引用的结构化策略家族。
 
-返回的内容经过校验后会自动并入这张桌子：
-
-- 新家族加入**知识库**（连同智能体真正读过的引用，显示在基金与研究看板上），
-- **研究大脑**之后就能提出它们，
-- 在桥接数据集上，**回测内核会重新生成来实现它们**——因为每次回测都会把已发现家族的信号公式一起发过去，新增一个就会让内核缓存失效。无需改代码，无需重新部署。
-
-于是循环真的会在你眼前长出新策略。诚实的打分依然把着闸门：一个刚发现的因子，必须和教科书因子一样通过 deflated-Sharpe 和池相关性检验。
+通过校验的发现会加入知识库，并显示在基金与研究看板上。对于桥接数据集，缓存内核会重新生成，让新公式可以被测试。
 
 ## 你是老板
 
@@ -140,32 +146,36 @@ npm run dialogue-bridge     # 游玩期间保持运行
 <img src="docs/media/demo-boss.gif" alt="老板指令、爱与鞭子" width="92%"/>
 </div>
 
-- **🗣️ 指令栏**——用中文或英文下令（“试试动量，持有5天”“被新闻情绪坑过了，换条路”）。下一个假设就朝你要的家族、周期和严格度倾斜。
-- **❤️ 爱心**——表扬一位研究员：士气上升，策略台的探索更大胆。
-- **🪢 鞭子**——批评一位：全桌窃窃私语，而且鞭打风控台会*真实地抬高晋升门槛*。
-- **🖱️ 点哪看哪**——排行榜、数据柜、白板、会议桌、工位都能点开实时面板。办公室就是唯一的界面。
+- **指令栏：** 输入中文或英文，下一轮想法会向你的家族、周期或严格度提示倾斜。
+- **爱心：** 表扬研究员，提高士气，让探索更大胆。
+- **鞭子：** 批评研究员。鞭打风控会让晋升门槛更严。
+- **点击办公室：** 排行榜、数据柜、白板、会议桌和工位都能打开实时面板。
 
-## 你经营的是基金，不是屏保
+## 基金看板
 
 <div align="center">
-<img src="docs/media/board.png" alt="基金与研究看板：净值、生态位档案、老虎机后验、PBO" width="92%"/>
+<img src="docs/media/board.png" alt="基金与研究看板：净值、生态位、老虎机后验、PBO" width="92%"/>
 </div>
 
-- **虚拟基金净值**，按候选池合并表现计价。
-- **老板经验值与十级头衔**，从「实习老板」到「量化教父」。
-- **16 个成就**，带解锁弹窗和奖杯墙。
-- **基金与研究看板**（点会议桌）：池净值曲线、MAP-Elites 生态位网格、方向老虎机的实时后验、全桌 CSCV **回测过拟合概率**。
-- 候选晋升时**彩带庆祝**；**罕见办公室事件**让办公室在两轮之间也活着。
+点会议桌打开基金与研究看板：
 
-## 完整双语
+- 候选池计算出的虚拟基金净值；
+- MAP-Elites 生态位网格；
+- 方向老虎机后验；
+- CSCV 回测过拟合概率；
+- 最新 Workflow 2.0 审计摘要。
+
+游戏层还有经验值、10 个老板头衔、16 个成就、晋升彩带、罕见办公室事件和壁纸模式。
+
+## 双语
 
 <div align="center">
 <img src="docs/media/office-zh.png" alt="中文模式下的办公室" width="92%"/>
 </div>
 
-点地球图标，整个游戏——界面、对话、成就、看板、数据集与大脑设置——在英文与中文之间一键切换。指令栏在任一模式下都同时听得懂两种语言。
+地球按钮会在英文和中文之间切换界面、对话、成就、看板、数据设置和研究大脑设置。指令栏在任一模式下都能听懂两种语言。
 
-## 🖥️ 放到你的桌面上
+## 桌面模式
 
 <div align="center">
 <img src="docs/media/demo-wallpaper.gif" alt="壁纸模式与老板悬浮球" width="92%"/>
@@ -175,23 +185,23 @@ npm run dialogue-bridge     # 游玩期间保持运行
 npm run build:wallpaper
 ```
 
-生成可拖入 **Lively Wallpaper** 的 zip 和 **Wallpaper Engine** 工程。循环自动运行、界面隐藏，老板工具收进一颗**可拖动的皇冠悬浮球**。前台有全屏应用时自动暂停。
+命令会生成 Lively Wallpaper zip 和 Wallpaper Engine 工程。壁纸模式隐藏浏览器界面，循环自动运行，老板工具收进一颗可拖动的皇冠悬浮球。
 
 | 宿主 | 用法 |
 |---|---|
-| [Lively Wallpaper](https://github.com/rocksdanister/lively)（免费） | 把 `quant-research-lab-wallpaper.zip` 拖到 Lively 窗口 |
-| Wallpaper Engine（Steam） | 创建壁纸 → 拖入 `wallpaper-package/index.html` |
+| [Lively Wallpaper](https://github.com/rocksdanister/lively) | 把 `quant-research-lab-wallpaper.zip` 拖进 Lively |
+| Wallpaper Engine | 创建壁纸，然后拖入 `wallpaper-package/index.html` |
 | 浏览器预览 | 打开 `/?wallpaper=1` |
 
 ## 快速开始
 
 ```bash
 npm install
-npm run dev             # 打开 http://127.0.0.1:5173
-npm run dialogue-bridge # 另开一个终端——连接 Claude Code 或 Codex
+npm run dev
+npm run dialogue-bridge
 ```
 
-登录 Claude Code 或 Codex，看 HUD 里的圆点变绿，点 **▶ 开始**，团队就会在内置数据上开工。想换数据？在设置里拖进你自己的 CSV，或指向一个数据库。
+打开 Vite 地址，登录 Claude Code 或 Codex，等 HUD 圆点变绿，然后点 **Start research**。
 
 ## 架构
 
@@ -199,33 +209,34 @@ npm run dialogue-bridge # 另开一个终端——连接 Claude Code 或 Codex
 <img src="docs/media/architecture.svg" alt="架构图" width="92%"/>
 </div>
 
-- `src/engines/dataset/`——可插拔数据层：`datasetProvider`（工厂）、`inMemoryProvider`（内置 / CSV / 远程）、`bridgeProvider`（经 CLI 的大文件 / 数据库）、`csvParse`（长表 + 宽表）。
-- `src/engines/bridgeResearchAdapter.ts`——CLI 研究大脑；把每个假设建立在数据画像之上，再经知识库校验。
-- `src/engines/`——确定性研究引擎：`strategyKnowledge`、`hypothesisEngine` + `banditEngine`、`realBacktestEngine`（频率感知：`metricsFromReturnSeries` + 贯穿 Sharpe / 年化 / deflated-Sharpe 的 `periodsPerYear`）、`poolAnalytics`（ΔSharpe · MAP-Elites · CSCV PBO）、`riskReviewEngine`、`progression`。`realMarket.detectFrequency` 从时间戳推断 bar 大小。
-- `scripts/dialogue-bridge.mjs`——本地桥接器：`/condense`（对话 + 大脑），以及 `/dataset/inspect` + `/dataset/returns`，让智能体在原地读取任意频率的大型数据集。
-- `src/lib/office2d/officeDirector.ts`——角色大脑：行走、对话、气泡防重叠、彩带。
-- `work/RESEARCH_DESIGN_DOC.md`——设计背后的研究综述（RD-Agent(Q)、QuantEvolve、AlphaGen、Bailey–López de Prado、Harvey–Liu–Zhu、McLean–Pontiff），含精确公式。
+- `src/engines/dataset/`：provider 工厂、浏览器数据源、桥接数据源、CSV 解析和频率识别。
+- `src/engines/bridgeResearchAdapter.ts`：CLI 策略提案和怀疑论路径。
+- `src/engines/researchWorkflow.ts`：Workflow 2.0 审计构建器。
+- `src/engines/`：策略知识库、假设引擎、老虎机、真实回测、池分析、风控和升级曲线。
+- `scripts/dialogue-bridge.mjs`：本地桥接器，负责对话、研究、策略发现、数据检查和桥接收益。
+- `src/lib/office2d/officeDirector.ts`：行走、对话、反应、气泡和事件。
+- `work/RESEARCH_DESIGN_DOC.md`：评分模型背后的研究笔记和公式。
 
 ## 验证
 
 ```bash
-npm test           # 24 个引擎测试：真实数据跨度、无前视、成本单调性、CSV 长/宽表解析、提供器回测、
-                   # 桥接 metricsFromReturnSeries、频率识别、频率感知年化、小时级 CSV、老虎机确定性、闸门、升级曲线
-npm run build      # tsc + vite
+npm test
+npm run build
 ```
+
+当前测试套件：28 个测试，覆盖真实数据跨度、无前视、成本单调性、CSV 长/宽表解析、provider 回测、桥接指标、频率识别、小时级年化、老虎机确定性、风控闸门、workflow 审计和升级曲线。
 
 ## 已兑现
 
-- [x] **LLM 原生研究大脑**——仅支持 Claude Code / Codex，且为运行所必需；假设建立在数据集的实时画像之上
-- [x] **自带你的数据**——上传 CSV（长表或宽表）/ JSON，或远程链接，在浏览器内解析
-- [x] **任意频率**——tick / 分钟 / 小时 / 日 / 周 / 月，从时间戳自动识别；每种频率的 Sharpe 都正确年化
-- [x] **大数据，永不下载**——Parquet / DuckDB / SQLite / Postgres / 大文件由智能体在原地读取，只回传每期收益序列
-- [x] **只算一次，之后免费**——智能体为每个数据源写一个可复用回测内核并缓存；之后每次回测都直接运行它，不再调用 LLM。相同的回测、怀疑提问、对话也都会被记忆化
-- [x] **从网络发现新策略**——智能体读论文 / 新闻 / 机构研报，挖掘新的价量因子，并连同引用自动并入知识库、研究大脑和回测内核
-- [x] **数据任务用强模型**——Claude Opus 4.8 / GPT‑5.5‑Codex，结构化输出 + 高推理档
-- [x] **20 年真实行情**内置，配真实横截面回测器与真实池相关性
-- [x] **Thompson 老虎机**、**池级 ΔSharpe 奖励**、**MAP-Elites 生态位**、**CSCV PBO**
-- [x] **游戏层**——经验值、十级头衔、16 成就、基金净值、办公室事件、彩带、完整 EN / 中文
+- [x] Research Workflow 2.0：发现卡片、编译信号、来源可信度、novelty、point-in-time 合同、验证、容量、执行压力、paper trading、基线和研究 feed。
+- [x] 通过本地桥接器使用 Claude Code / Codex 作为研究大脑。
+- [x] 自带数据：上传、远程 URL、大型本地文件和数据库。
+- [x] tick、分钟、小时、日、周、月频率感知指标。
+- [x] 大型数据源缓存内核，后续回测复用。
+- [x] 从论文、新闻和机构资料发现策略家族。
+- [x] 内置 20 年美股行情。
+- [x] Thompson bandit、池级 delta-Sharpe 奖励、MAP-Elites 生态位、CSCV PBO。
+- [x] 游戏层：经验值、头衔、成就、基金净值、办公室事件、彩带、EN / 中文。
 
 下一步想法：质量家族接入基本面数据、游戏内数据集浏览器、多桌对抗。
 
@@ -233,9 +244,8 @@ npm run build      # tsc + vite
 
 | | |
 |---|---|
-| **Weike Zhang**（[@shoal-rat](https://github.com/shoal-rat)） | 老板 · 创意与方向 · 美术资源 |
-| **Claude**（Anthropic） | 全栈实现 · 研究综述 · 角色编剧 |
+| **Weike Zhang**（[@shoal-rat](https://github.com/shoal-rat)） | 创意、方向、美术和项目所有者 |
 
-由 Claude Code 构建。角色立绘、办公室场景与“爱与鞭子”套件为项目生成资源；策略先验在 [`src/engines/strategyKnowledge.ts`](src/engines/strategyKnowledge.ts) 中标注了原始论文。
+策略先验在 [`src/engines/strategyKnowledge.ts`](src/engines/strategyKnowledge.ts) 中标注了原始论文。
 
-**免责声明：** 仅为历史模拟 · 不连接券商 · 不构成投资建议。
+**免责声明：** 仅做历史模拟。不连接券商。不构成投资建议。

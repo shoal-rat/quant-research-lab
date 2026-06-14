@@ -1,112 +1,102 @@
-<svg width="1100" height="640" viewBox="0 0 1100 640" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Research loop diagram">
+<svg width="1100" height="660" viewBox="0 0 1100 660" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Research loop diagram">
   <defs>
-    <linearGradient id="lbg" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#fbf5ea"/>
-      <stop offset="1" stop-color="#f2e7d3"/>
+      <stop offset="1" stop-color="#f1e4cc"/>
     </linearGradient>
-    <linearGradient id="lgold" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#e9b455"/>
-      <stop offset="1" stop-color="#d49b41"/>
+    <linearGradient id="dark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#302417"/>
+      <stop offset="1" stop-color="#1d2a27"/>
     </linearGradient>
-    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#7a5232"/>
     </marker>
-    <marker id="arrTeal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <marker id="arrowTeal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#2f9c95"/>
     </marker>
     <style>
+      .hdr { font: 800 24px 'Segoe UI', system-ui, sans-serif; fill: #352819; letter-spacing: 0; }
+      .sub { font: 500 12px 'Segoe UI', system-ui, sans-serif; fill: #766650; }
       .node { fill: #fffdf7; stroke: #7a5232; stroke-width: 2; }
-      .nodeTitle { font: 700 15.5px 'Segoe UI', system-ui, sans-serif; fill: #3c2e1f; }
-      .nodeSub { font: 500 11.5px 'Segoe UI', system-ui, sans-serif; fill: #82705a; }
-      .gate { font: 700 12px 'Segoe UI', system-ui, sans-serif; fill: #a33b35; }
-      .flow { fill: none; stroke: #7a5232; stroke-width: 2.4; marker-end: url(#arr); }
-      .steer { fill: none; stroke: #2f9c95; stroke-width: 2.2; stroke-dasharray: 7 6; marker-end: url(#arrTeal); animation: flowdash 3.2s linear infinite; }
-      @keyframes flowdash { to { stroke-dashoffset: -52; } }
-      .hdr { font: 800 23px 'Segoe UI', system-ui, sans-serif; fill: #3c2e1f; }
-      .lbl { font: 700 13px 'Segoe UI', system-ui, sans-serif; fill: #2f9c95; }
+      .audit { fill: #fffdf7; stroke: #2f9c95; stroke-width: 2.2; }
+      .review { fill: #fff7e8; stroke: #d49b41; stroke-width: 2.2; }
+      .title { font: 800 15px 'Segoe UI', system-ui, sans-serif; fill: #392a1b; }
+      .note { font: 550 11.5px 'Segoe UI', system-ui, sans-serif; fill: #75644f; }
+      .gate { font: 700 11.5px 'Segoe UI', system-ui, sans-serif; fill: #a33b35; }
+      .flow { fill: none; stroke: #7a5232; stroke-width: 2.4; marker-end: url(#arrow); }
+      .feedback { fill: none; stroke: #2f9c95; stroke-width: 2.3; stroke-dasharray: 7 6; marker-end: url(#arrowTeal); animation: dash 3.2s linear infinite; }
+      @keyframes dash { to { stroke-dashoffset: -52; } }
+      .bossTitle { font: 800 18px 'Segoe UI', system-ui, sans-serif; fill: #f5ead5; }
+      .bossText { font: 600 13px 'Segoe UI', system-ui, sans-serif; fill: #d1c0a3; }
     </style>
   </defs>
 
-  <rect width="1100" height="640" rx="16" fill="url(#lbg)" stroke="#d8c5a5" stroke-width="2"/>
-  <text x="40" y="48" class="hdr">The self-iterating research loop — on 20 years of real markets</text>
-  <text x="40" y="72" class="nodeSub">every box is acted out by the characters in the office — every number they say comes from a real backtest</text>
+  <rect width="1100" height="660" rx="16" fill="url(#bg)" stroke="#d8c5a5" stroke-width="2"/>
+  <text x="40" y="48" class="hdr">Research loop with Workflow 2.0 audit</text>
+  <text x="40" y="72" class="sub">The CLI proposes ideas. The browser keeps the scorecard, gates, memory, and fund state reproducible.</text>
 
-  <!-- row 1 -->
   <g>
-    <rect x="40" y="110" width="240" height="80" rx="12" class="node"/>
-    <text x="56" y="138" class="nodeTitle">0 · Direction bandit</text>
-    <text x="56" y="157" class="nodeSub">Thompson sampling over 4 arms:</text>
-    <text x="56" y="172" class="nodeSub">explore · refine · repair · recombine</text>
+    <rect x="40" y="112" width="210" height="78" rx="12" class="node"/>
+    <text x="56" y="139" class="title">1. Direction</text>
+    <text x="56" y="159" class="note">Thompson bandit chooses</text>
+    <text x="56" y="175" class="note">explore, refine, repair, recombine</text>
 
-    <rect x="320" y="110" width="220" height="80" rx="12" class="node"/>
-    <text x="336" y="138" class="nodeTitle">1 · Hypothesis</text>
-    <text x="336" y="157" class="nodeSub">14-family knowledge base,</text>
-    <text x="336" y="172" class="nodeSub">steered toward open niches</text>
+    <rect x="288" y="112" width="210" height="78" rx="12" class="node"/>
+    <text x="304" y="139" class="title">2. CLI hypothesis</text>
+    <text x="304" y="159" class="note">grounded in data profile,</text>
+    <text x="304" y="175" class="note">knowledge base, desk memory</text>
 
-    <rect x="580" y="110" width="210" height="80" rx="12" class="node"/>
-    <text x="596" y="138" class="nodeTitle">2 · Data check</text>
-    <text x="596" y="157" class="nodeSub">timestamp + coverage audit</text>
-    <text x="596" y="172" class="nodeSub">no lookahead, no leaks</text>
+    <rect x="536" y="112" width="210" height="78" rx="12" class="review"/>
+    <text x="552" y="139" class="title">3. Human review</text>
+    <text x="552" y="159" class="note">approve, reject, or edit</text>
+    <text x="552" y="175" class="note">before spending a backtest</text>
 
-    <rect x="830" y="110" width="230" height="80" rx="12" class="node"/>
-    <text x="846" y="138" class="nodeTitle">3 · Real backtest</text>
-    <text x="846" y="157" class="nodeSub">20y daily closes · 32 tickers</text>
-    <text x="846" y="172" class="nodeSub">costs · turnover · IS/OOS split</text>
+    <rect x="784" y="112" width="240" height="78" rx="12" class="node"/>
+    <text x="800" y="139" class="title">4. Backtest</text>
+    <text x="800" y="159" class="note">bar t signal -> t+1 returns</text>
+    <text x="800" y="175" class="note">costs, turnover, IS/OOS split</text>
   </g>
 
-  <!-- row 2 -->
   <g>
-    <rect x="770" y="280" width="290" height="80" rx="12" class="node"/>
-    <text x="786" y="306" class="nodeTitle">4 · Risk gates (mechanical)</text>
-    <text x="786" y="326" class="gate">deflated Sharpe · pool correlation &lt; 0.7</text>
-    <text x="786" y="343" class="gate">cost gate · drawdown · turnover · baseline</text>
+    <rect x="784" y="282" width="240" height="92" rx="12" class="audit"/>
+    <text x="800" y="308" class="title">5. Workflow 2.0</text>
+    <text x="800" y="328" class="note">discovery card, compiled signal,</text>
+    <text x="800" y="344" class="note">source credibility, point-in-time,</text>
+    <text x="800" y="360" class="note">capacity, execution, baselines</text>
 
-    <rect x="510" y="280" width="220" height="80" rx="12" class="node"/>
-    <text x="526" y="306" class="nodeTitle">5 · Debate</text>
-    <text x="526" y="326" class="nodeSub">researcher vs skeptic vs risk,</text>
-    <text x="526" y="341" class="nodeSub">chaired at the meeting table</text>
+    <rect x="524" y="282" width="220" height="92" rx="12" class="node"/>
+    <text x="540" y="308" class="title">6. Risk gates</text>
+    <text x="540" y="328" class="gate">14 checks: Sharpe, costs,</text>
+    <text x="540" y="344" class="gate">drawdown, baselines, source,</text>
+    <text x="540" y="360" class="gate">capacity, execution stress</text>
 
-    <rect x="270" y="280" width="200" height="80" rx="12" class="node"/>
-    <text x="286" y="306" class="nodeTitle">6 · Decision</text>
-    <text x="286" y="326" class="nodeSub">candidate / retest / reject</text>
-    <text x="286" y="341" class="nodeSub">scored by pool ΔSharpe</text>
+    <rect x="284" y="282" width="200" height="92" rx="12" class="node"/>
+    <text x="300" y="308" class="title">7. Debate</text>
+    <text x="300" y="328" class="note">research, risk, skeptic,</text>
+    <text x="300" y="344" class="note">manager decision text</text>
 
-    <rect x="40" y="280" width="190" height="80" rx="12" class="node"/>
-    <text x="56" y="306" class="nodeTitle">7 · Memory</text>
-    <text x="56" y="326" class="nodeSub">lessons · lineage · decay</text>
-    <text x="56" y="341" class="nodeSub">MAP-Elites niche archive</text>
+    <rect x="40" y="282" width="204" height="92" rx="12" class="node"/>
+    <text x="56" y="308" class="title">8. Memory</text>
+    <text x="56" y="328" class="note">family lessons, lineage,</text>
+    <text x="56" y="344" class="note">MAP-Elites, decay, fund NAV</text>
   </g>
 
-  <!-- main flow -->
-  <path class="flow" d="M 280 150 L 316 150"/>
-  <path class="flow" d="M 540 150 L 576 150"/>
-  <path class="flow" d="M 790 150 L 826 150"/>
-  <path class="flow" d="M 945 190 L 945 276"/>
-  <path class="flow" d="M 766 320 L 734 320"/>
-  <path class="flow" d="M 506 320 L 474 320"/>
-  <path class="flow" d="M 266 320 L 234 320"/>
-  <path class="flow" d="M 110 276 C 80 236 90 220 130 194"/>
+  <path class="flow" d="M 250 151 L 284 151"/>
+  <path class="flow" d="M 498 151 L 532 151"/>
+  <path class="flow" d="M 746 151 L 780 151"/>
+  <path class="flow" d="M 904 190 L 904 278"/>
+  <path class="flow" d="M 780 328 L 748 328"/>
+  <path class="flow" d="M 520 328 L 488 328"/>
+  <path class="flow" d="M 280 328 L 248 328"/>
+  <path class="flow" d="M 134 282 C 82 240 92 210 138 193"/>
 
-  <!-- pool ΔSharpe reward back to the bandit -->
-  <path class="steer" d="M 370 364 C 370 412 250 416 250 364 L 250 194"/>
-  <text x="268" y="403" class="lbl">pool ΔSharpe reward → bandit posterior</text>
+  <path class="feedback" d="M 142 374 C 142 438 664 438 664 378"/>
+  <text x="318" y="430" class="title" fill="#2f9c95">decision -> memory -> next bandit posterior</text>
 
-  <!-- boss panel -->
-  <rect x="40" y="470" width="1020" height="130" rx="14" fill="#2e2317"/>
-  <path d="M 320 496 L 330 476 L 343 492 L 356 472 L 369 492 L 382 476 L 392 496 Z" fill="url(#lgold)"/>
-  <text x="62" y="513" font-family="'Segoe UI', system-ui, sans-serif" font-size="19" font-weight="800" fill="#f3e7d2">YOU — the BOSS</text>
-  <text x="62" y="541" font-family="'Segoe UI', system-ui, sans-serif" font-size="14" fill="#cdbb9b">directives (EN / 中文) · Love · Whip</text>
-  <text x="62" y="563" font-family="'Segoe UI', system-ui, sans-serif" font-size="14" fill="#cdbb9b">XP · levels · achievements · fund NAV</text>
-  <text x="430" y="503" class="lbl" fill="#e9b455">"try momentum, 5-day holds" → family + horizon hints for the next idea</text>
-  <text x="430" y="527" class="lbl" fill="#e9b455">Love a researcher → morale up, bolder exploration</text>
-  <text x="430" y="551" class="lbl" fill="#e9b455">Whip the risk desk → stricter status thresholds, harsher gates</text>
-  <text x="430" y="575" class="lbl" fill="#e9b455">Fund &amp; Research Board → niche grid · bandit posteriors · CSCV PBO</text>
-
-  <!-- steering arrows -->
-  <path class="steer" d="M 490 470 C 490 430 490 240 432 194"/>
-  <text x="500" y="437" class="lbl">boss directive</text>
-  <path class="steer" d="M 980 470 C 1010 430 1000 400 970 364"/>
-  <text x="938" y="430" class="lbl">strictness</text>
-  <path class="steer" d="M 135 360 C 135 400 135 430 135 466"/>
-  <text x="60" y="443" class="lbl">morale ↔ mood</text>
+  <rect x="40" y="482" width="1024" height="132" rx="14" fill="url(#dark)"/>
+  <text x="62" y="520" class="bossTitle">Boss controls</text>
+  <text x="62" y="548" class="bossText">Directive bar: bias the next family, holding period, or strictness.</text>
+  <text x="62" y="572" class="bossText">Human review: approve, reject, or edit a proposed hypothesis.</text>
+  <text x="548" y="548" class="bossText">Fund board: NAV, niche grid, bandit posteriors, PBO, latest audit.</text>
+  <text x="548" y="572" class="bossText">Love / whip: morale and gate strictness are part of the simulation.</text>
 </svg>

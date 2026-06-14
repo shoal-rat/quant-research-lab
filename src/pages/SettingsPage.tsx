@@ -255,6 +255,14 @@ export function SettingsPage(): JSX.Element {
           <label className="toggle">
             <input
               type="checkbox"
+              checked={settings.humanReviewRequired}
+              onChange={(event) => set("humanReviewRequired", event.target.checked)}
+            />
+            <span>Human review before backtest</span>
+          </label>
+          <label className="toggle">
+            <input
+              type="checkbox"
               checked={settings.mockLLMEnabled}
               onChange={(event) => set("mockLLMEnabled", event.target.checked)}
             />

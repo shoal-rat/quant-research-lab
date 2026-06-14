@@ -3,6 +3,7 @@ import { chooseDirection } from "./banditEngine";
 import { parseUniverse } from "./mockMarketData";
 import { buildArchive, eliteScore } from "./poolAnalytics";
 import { clamp, pick, seededRandom } from "./random";
+import { compileSignal, defaultDiscoveryCard } from "./researchWorkflow";
 import { getAllFamilies, getFamily, StrategyFamily } from "./strategyKnowledge";
 
 export interface FamilyStats {
@@ -323,7 +324,7 @@ export function proposeStrategy(context: ProposalContext): StrategySpec {
           ? "Hybrid"
           : pick(["Alpha", "Probe", "Patient", "Strict-Cost", "Sector-Neutral", "Fresh"], rng);
 
-  return {
+  const strategy: StrategySpec = {
     id: `strategy-${iteration}-${Math.floor(rng() * 100000)}`,
     name: `${family.name} ${flavor}`,
     hypothesis: family.rationale,
@@ -340,4 +341,7 @@ export function proposeStrategy(context: ProposalContext): StrategySpec {
     ideaReasoning: reasoning,
     bossDirective: hints?.raw
   };
+  strategy.discoveryCard = family.discoveryCard ?? defaultDiscoveryCard(family, strategy);
+  strategy.compiledSignal = family.compiledSignal ?? compileSignal(family, strategy);
+  return strategy;
 }

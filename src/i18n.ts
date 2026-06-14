@@ -96,7 +96,7 @@ export function t(language: Language, key: StringKey): string {
   return STRINGS[key][language];
 }
 
-export const PHASE_LABELS: Record<LoopPhase, Record<Language, string>> = {
+export const PHASE_LABELS: Partial<Record<LoopPhase, Record<Language, string>>> = {
   idle: { en: "idle", zh: "待命" },
   proposing: { en: "proposing", zh: "提出假设" },
   data_check: { en: "data check", zh: "数据审计" },
@@ -108,7 +108,7 @@ export const PHASE_LABELS: Record<LoopPhase, Record<Language, string>> = {
   saved: { en: "saved", zh: "已归档" }
 };
 
-export const PHASE_STATUS: Record<LoopPhase, Record<Language, string>> = {
+export const PHASE_STATUS: Partial<Record<LoopPhase, Record<Language, string>>> = {
   idle: { en: "Waiting for a research task.", zh: "等待研究任务。" },
   proposing: { en: "Strategy Researcher is proposing a hypothesis.", zh: "策略研究员正在提出新假设。" },
   data_check: {
@@ -127,9 +127,9 @@ export const PHASE_STATUS: Record<LoopPhase, Record<Language, string>> = {
 };
 
 export function phaseLabel(language: Language, phase: LoopPhase): string {
-  return PHASE_LABELS[phase][language];
+  return PHASE_LABELS[phase]?.[language] ?? phase.replaceAll("_", " ");
 }
 
 export function phaseStatus(language: Language, phase: LoopPhase): string {
-  return PHASE_STATUS[phase][language];
+  return PHASE_STATUS[phase]?.[language] ?? `Phase: ${phase.replaceAll("_", " ")}`;
 }

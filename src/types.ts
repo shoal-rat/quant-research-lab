@@ -42,6 +42,7 @@ export type RiskCheckStatus = "pass" | "warn" | "fail";
 export type LoopPhase =
   | "idle"
   | "proposing"
+  | "human_review"
   | "data_check"
   | "coding"
   | "backtesting"
@@ -104,6 +105,261 @@ export type DataSource = "mock" | "real";
 export type ResearchBrain = "claude-code" | "codex";
 export type IdeaMode = "explore" | "refine" | "boss_directive" | "repair" | "recombine";
 export type Language = "en" | "zh";
+export type ResearchSourceKind =
+  | "sec_filing"
+  | "earnings_call"
+  | "regulatory_filing"
+  | "company_press_release"
+  | "academic_paper"
+  | "industry_report"
+  | "sell_side"
+  | "news"
+  | "github"
+  | "forum"
+  | "reddit"
+  | "x"
+  | "anonymous_rumor"
+  | "other";
+export type CredibilityTier = "high" | "medium_high" | "medium" | "low" | "very_low";
+export type NoveltyVerdict = "novel" | "known_factor" | "duplicate" | "needs_review";
+export type HumanReviewStatus = "pending" | "approved" | "rejected" | "edited" | "not_required";
+
+export interface ResearchSourceCitation {
+  title: string;
+  sourceType: ResearchSourceKind;
+  url?: string;
+  publishedAt?: string;
+  accessedAt?: string;
+  credibilityScore: number;
+  credibilityTier: CredibilityTier;
+  note?: string;
+}
+
+export interface ResearchDiscoveryCard {
+  phenomenon: string;
+  whyAlphaMayExist: string;
+  tradableUniverse: string;
+  requiredData: string[];
+  signalConstruction: string;
+  timestampLag: string;
+  holdingPeriod: string;
+  failureRisks: string[];
+  sourceCitations: ResearchSourceCitation[];
+}
+
+export interface CompiledSignal {
+  universe: string;
+  feature: string;
+  rank: string;
+  lag: string;
+  hold: string;
+  portfolio: PortfolioType;
+  formula: string;
+  rebalance: string;
+}
+
+export interface SourceCredibilityReport {
+  score: number;
+  tier: CredibilityTier;
+  sources: ResearchSourceCitation[];
+  warnings: string[];
+}
+
+export interface NoveltyCheck {
+  verdict: NoveltyVerdict;
+  nearestKnownFactor: string;
+  knownFactorSimilarity: number;
+  momentumOverlap: number;
+  testedBefore: boolean;
+  highCorrelationToPool: boolean;
+  similarFailures: string[];
+  notes: string[];
+}
+
+export interface PointInTimeDataLayer {
+  asOfPolicy: string;
+  timestampLag: string;
+  requiredDatasets: string[];
+  revisionPolicy: string;
+  leakChecks: string[];
+}
+
+export interface ExperimentRegistryV2 {
+  hypothesisSource: string;
+  dataUsed: string[];
+  parameterChanges: string[];
+  failureReason?: string;
+  similarPastExperiments: string[];
+  repeatedIdea: boolean;
+  forwardTested: boolean;
+  reviewStatus: HumanReviewStatus;
+}
+
+export interface WalkForwardWindow {
+  trainRange: string;
+  testRange: string;
+  testSharpe: number;
+  testReturn: number;
+  passed: boolean;
+}
+
+export interface WalkForwardReport {
+  windows: WalkForwardWindow[];
+  passRate: number;
+  worstSharpe: number;
+  summary: string;
+}
+
+export interface RegimeResult {
+  regime: string;
+  observations: number;
+  sharpe: number;
+  cumulativeReturn: number;
+  maxDrawdown: number;
+  note: string;
+}
+
+export interface RegimeAnalysis {
+  regimes: RegimeResult[];
+  bestRegime: string;
+  worstRegime: string;
+  summary: string;
+}
+
+export interface AlphaDecayReport {
+  lifetimeSharpe: number;
+  recentSharpe: number;
+  sharpeDecline: number;
+  turnoverTrend: string;
+  crowdingTrend: string;
+  retirementSignal: boolean;
+  summary: string;
+}
+
+export interface CapacityReport {
+  advParticipation: number;
+  marketImpactBps: number;
+  bidAskSpreadBps: number;
+  borrowCostBps: number;
+  maxDeployableCapitalUsd: number;
+  bottleneck: string;
+}
+
+export interface ExecutionSimulationReport {
+  slippageBps: number;
+  latencyMs: number;
+  partialFillRate: number;
+  openGapRisk: number;
+  closeAuctionRisk: number;
+  haltStressLoss: number;
+  limitMoveRisk: number;
+  summary: string;
+}
+
+export interface FeatureStoreRecord {
+  featureName: string;
+  dataSource: string;
+  updateTime: string;
+  timestampLag: string;
+  coverage: number;
+  missingRate: number;
+  lookaheadRisk: "low" | "medium" | "high";
+  owner: AgentRole;
+}
+
+export interface HumanReviewState {
+  status: HumanReviewStatus;
+  reviewer?: string;
+  notes: string;
+  checklist: string[];
+}
+
+export interface MemoryGraphNode {
+  id: string;
+  label: string;
+  type: "idea" | "source" | "feature" | "strategy" | "failure" | "success";
+  status?: string;
+}
+
+export interface MemoryGraphLink {
+  from: string;
+  to: string;
+  relation: string;
+  strength: number;
+}
+
+export interface ResearchMemoryGraph {
+  nodes: MemoryGraphNode[];
+  links: MemoryGraphLink[];
+}
+
+export interface PaperTradingSnapshot {
+  status: "queued" | "running" | "complete";
+  startDate: string;
+  daysLive: number;
+  forwardSharpe?: number;
+  forwardReturn?: number;
+  nextSignalDate: string;
+  notes: string;
+}
+
+export interface AgentEvaluationReport {
+  ideaAgent: string;
+  compilerAgent: string;
+  riskAgent: string;
+  sourceUtilityScore: number;
+  promptOverfitRisk: number;
+  notes: string[];
+}
+
+export interface BaselineComparison {
+  baseline: string;
+  sharpe: number;
+  excessSharpe: number;
+  returnDelta: number;
+  passed: boolean;
+}
+
+export interface StrategyLibraryCard {
+  source: string;
+  intuition: string;
+  formula: string;
+  backtest: string;
+  risk: string;
+  usableData: string[];
+  currentStatus: ExperimentStatus;
+}
+
+export interface ResearchFeedEvent {
+  id: string;
+  timestamp: string;
+  agent: string;
+  action: string;
+  detail: string;
+  status: "info" | "blocked" | "approved" | "archived";
+}
+
+export interface ResearchWorkflowAudit {
+  discoveryCard: ResearchDiscoveryCard;
+  compiledSignal: CompiledSignal;
+  credibility: SourceCredibilityReport;
+  novelty: NoveltyCheck;
+  pointInTime: PointInTimeDataLayer;
+  registry: ExperimentRegistryV2;
+  walkForward: WalkForwardReport;
+  regimes: RegimeAnalysis;
+  alphaDecay: AlphaDecayReport;
+  capacity: CapacityReport;
+  execution: ExecutionSimulationReport;
+  feature: FeatureStoreRecord;
+  humanReview: HumanReviewState;
+  memoryGraph: ResearchMemoryGraph;
+  paperTrading: PaperTradingSnapshot;
+  agentEvaluation: AgentEvaluationReport;
+  baselines: BaselineComparison[];
+  libraryCard: StrategyLibraryCard;
+  researchFeed: ResearchFeedEvent[];
+}
 
 // Pluggable datasets. "bundled" is the shipped 20y JSON; "mock" the
 // deterministic simulator; "upload"/"remote" are user CSV/JSON parsed in the
@@ -148,6 +404,7 @@ export interface Settings {
   experimentsPerLoop: number;
   newsEnabled: boolean;
   technicalIndicatorsEnabled: boolean;
+  humanReviewRequired: boolean;
   mockLLMEnabled: boolean;
   catchphrasesShown: boolean;
   casualOfficeChatter: boolean;
@@ -207,6 +464,8 @@ export interface StrategySpec {
   ideaMode: IdeaMode;
   ideaReasoning: string[];
   bossDirective?: string;
+  discoveryCard?: ResearchDiscoveryCard;
+  compiledSignal?: CompiledSignal;
 }
 
 export interface BacktestParameters {
@@ -310,6 +569,7 @@ export interface ExperimentRecord {
   nextIterationSuggestion: string;
   status: ExperimentStatus;
   agentSpeechSummary: string[];
+  workflowAudit?: ResearchWorkflowAudit;
 }
 
 export interface SpeechBubble {

@@ -1,4 +1,5 @@
 import { BacktestResult, ExperimentStatus, RiskCheck, RiskReview, StrategySpec } from "../types";
+import { getFamily } from "./strategyKnowledge";
 
 function check(id: string, label: string, status: RiskCheck["status"], detail: string): RiskCheck {
   return { id, label, status, detail };
@@ -7,6 +8,7 @@ function check(id: string, label: string, status: RiskCheck["status"], detail: s
 export function reviewBacktestRisk(strategy: StrategySpec, backtest: BacktestResult): RiskReview {
   const is = backtest.inSample;
   const oos = backtest.outOfSample;
+  const family = getFamily(strategy.familyKey);
   const checks: RiskCheck[] = [];
 
   checks.push(
@@ -98,6 +100,47 @@ export function reviewBacktestRisk(strategy: StrategySpec, backtest: BacktestRes
       "Correlation with existing alpha pool",
       oos.alphaPoolCorrelation > 0.7 ? "fail" : oos.alphaPoolCorrelation > 0.5 ? "warn" : "pass",
       `Max correlation with promoted candidates is ${(oos.alphaPoolCorrelation * 100).toFixed(0)}%.`
+    )
+  );
+
+  const credibilityScore = family.sourceCredibility?.score ?? (family.origin === "researched" ? 0.55 : 0.82);
+  checks.push(
+    check(
+      "source_credibility",
+      "Source credibility",
+      credibilityScore < 0.35 ? "fail" : credibilityScore < 0.58 ? "warn" : "pass",
+      `Average attached source credibility is ${(credibilityScore * 100).toFixed(0)}%.`
+    )
+  );
+
+  checks.push(
+    check(
+      "point_in_time_data",
+      "Point-in-time data contract",
+      strategy.parameters.timestampLagHours === 0 ? "fail" : family.newsDriven || family.factorKind === "earnings_revision" ? "warn" : "pass",
+      family.newsDriven || family.factorKind === "earnings_revision"
+        ? "External event data requires explicit vendor availability timestamps before production use."
+        : "Price-derived signal uses t to t+1 alignment with no same-bar return use."
+    )
+  );
+
+  const capacityStress = oos.turnover * 0.45 + oos.concentrationScore * 0.45 + (strategy.portfolioType === "long_short" ? 0.08 : 0);
+  checks.push(
+    check(
+      "capacity_model",
+      "Capacity and liquidity",
+      capacityStress > 0.72 ? "fail" : capacityStress > 0.5 ? "warn" : "pass",
+      `Capacity stress score is ${(capacityStress * 100).toFixed(0)}% from turnover, concentration, and shorting needs.`
+    )
+  );
+
+  const executionStress = oos.turnover * 0.55 + Math.abs(oos.maxDrawdown) * 1.2 + (strategy.holdingPeriod <= 3 ? 0.12 : 0);
+  checks.push(
+    check(
+      "execution_simulator",
+      "Execution simulator stress",
+      executionStress > 0.78 ? "fail" : executionStress > 0.52 ? "warn" : "pass",
+      `Execution stress score is ${(executionStress * 100).toFixed(0)}% after slippage, partial-fill, gap, halt, and auction assumptions.`
     )
   );
 

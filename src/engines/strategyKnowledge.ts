@@ -1,4 +1,10 @@
-import { FactorKind, HoldingPeriod } from "../types";
+import {
+  CompiledSignal,
+  FactorKind,
+  HoldingPeriod,
+  ResearchDiscoveryCard,
+  SourceCredibilityReport
+} from "../types";
 
 // Strategy-family knowledge base distilled from the cross-sectional equity
 // literature (Jegadeesh-Titman momentum, De Bondt-Thaler / Lehmann reversal,
@@ -46,6 +52,10 @@ export interface StrategyFamily {
   signalSpec?: string;
   // citations / URLs the agent read (papers, news, institution reports)
   references?: string[];
+  // structured card and signal compiler output from the discovery agent
+  discoveryCard?: ResearchDiscoveryCard;
+  compiledSignal?: CompiledSignal;
+  sourceCredibility?: SourceCredibilityReport;
   // only the bridge kernel can backtest this (no in-browser implementation)
   bridgeOnly?: boolean;
 }

@@ -1,4 +1,5 @@
-import { FactorKind, HoldingPeriod, ResearchBrain } from "../types";
+import { CompiledSignal, FactorKind, HoldingPeriod, PortfolioType, ResearchBrain, ResearchDiscoveryCard } from "../types";
+import { normalizeSourceCitation, sourceCredibility } from "./researchWorkflow";
 import { FamilyParameter, getAllFamilies, StrategyFamily } from "./strategyKnowledge";
 
 // Asks the connected agent (via the bridge) to read the web — papers, news,
@@ -61,6 +62,68 @@ function asStringArray(raw: unknown, limit: number): string[] {
   return raw.filter((value): value is string => typeof value === "string" && value.length > 0).map((value) => value.slice(0, 200)).slice(0, limit);
 }
 
+function readField(record: Record<string, unknown>, ...keys: string[]): unknown {
+  for (const key of keys) {
+    if (record[key] !== undefined) return record[key];
+  }
+  return undefined;
+}
+
+function textField(record: Record<string, unknown>, fallback: string, ...keys: string[]): string {
+  const value = readField(record, ...keys);
+  return typeof value === "string" && value.trim().length > 0 ? value.trim().slice(0, 500) : fallback;
+}
+
+function normalizeDiscoveryCard(
+  raw: Record<string, unknown>,
+  fallback: {
+    name: string;
+    rationale: string;
+    construction: string;
+    signalSpec: string;
+    holdingPeriods: HoldingPeriod[];
+    failureModes: string[];
+    references: string[];
+  }
+): ResearchDiscoveryCard {
+  const cardRaw = readField(raw, "discoveryCard", "discovery_card", "hypothesisCard", "hypothesis_card");
+  const card = cardRaw && typeof cardRaw === "object" ? (cardRaw as Record<string, unknown>) : raw;
+  const sourcesRaw = readField(card, "sourceCitations", "source_citations", "sources", "citations", "references");
+  const references = Array.isArray(sourcesRaw) && sourcesRaw.length > 0 ? sourcesRaw : fallback.references;
+  const requiredData = asStringArray(readField(card, "requiredData", "required_data", "data"), 8);
+  const failureRisks = asStringArray(readField(card, "failureRisks", "failure_risks", "risks", "failureModes"), 6);
+  return {
+    phenomenon: textField(card, fallback.name, "phenomenon", "theme", "observation"),
+    whyAlphaMayExist: textField(card, fallback.rationale, "whyAlphaMayExist", "why_alpha_may_exist", "why", "rationale"),
+    tradableUniverse: textField(card, "Cross-sectional equities", "tradableUniverse", "tradable_universe", "universe"),
+    requiredData: requiredData.length > 0 ? requiredData : ["point-in-time prices", "tradable universe membership", "sector classification"],
+    signalConstruction: textField(card, fallback.signalSpec || fallback.construction, "signalConstruction", "signal_construction", "construction"),
+    timestampLag: textField(card, "1 trading bar", "timestampLag", "timestamp_lag", "lag"),
+    holdingPeriod: textField(card, `${fallback.holdingPeriods[0] ?? 5} trading bars`, "holdingPeriod", "holding_period", "hold"),
+    failureRisks: failureRisks.length > 0 ? failureRisks : fallback.failureModes,
+    sourceCitations: references.slice(0, 8).map((source, index) => normalizeSourceCitation(source, `Research source ${index + 1}`))
+  };
+}
+
+function normalizeCompiledSignal(
+  raw: Record<string, unknown>,
+  fallback: { signalSpec: string; construction: string; holdingPeriods: HoldingPeriod[]; portfolioType: PortfolioType }
+): CompiledSignal {
+  const compiledRaw = readField(raw, "compiledSignal", "compiled_signal", "signalCompiler", "signal_compiler");
+  const compiled = compiledRaw && typeof compiledRaw === "object" ? (compiledRaw as Record<string, unknown>) : {};
+  const portfolio = readField(compiled, "portfolio");
+  return {
+    universe: textField(compiled, "Cross-sectional equities", "universe"),
+    feature: textField(compiled, fallback.signalSpec || fallback.construction, "feature"),
+    rank: textField(compiled, "Rank feature cross-sectionally and trade the tails.", "rank"),
+    lag: textField(compiled, "1 trading bar", "lag", "timestampLag"),
+    hold: textField(compiled, `${fallback.holdingPeriods[0] ?? 5} trading bars`, "hold", "holdingPeriod"),
+    portfolio: portfolio === "long_only" || portfolio === "long_short" ? portfolio : fallback.portfolioType,
+    formula: textField(compiled, fallback.signalSpec || fallback.construction, "formula", "signal", "signalSpec"),
+    rebalance: textField(compiled, `Every ${fallback.holdingPeriods[0] ?? 5} trading bars`, "rebalance")
+  };
+}
+
 // Turn one agent-proposed family into a full, sane StrategyFamily, or null if it
 // is unusable (no signal formula the kernel could implement).
 export function normalizeResearchedFamily(raw: unknown, existingKeys: Set<string>): StrategyFamily | null {
@@ -96,15 +159,39 @@ export function normalizeResearchedFamily(raw: unknown, existingKeys: Set<string
   const netSharpeRaw = Array.isArray(r.netSharpe) ? (r.netSharpe as unknown[]) : [];
   const netLo = num(netSharpeRaw[0], 0.2);
   const netHi = Math.max(netLo, num(netSharpeRaw[1], 0.5));
+  const references = asStringArray(r.references, 5);
+  const fallbackFailureModes =
+    asStringArray(r.failureModes, 4).length > 0
+      ? asStringArray(r.failureModes, 4)
+      : ["Newly discovered - out-of-sample behavior is unproven."];
+  const normalizedHoldingPeriods: HoldingPeriod[] = holdingPeriods.length > 0 ? holdingPeriods : [5];
+  const rationale = typeof r.rationale === "string" ? r.rationale.slice(0, 240) : "Discovered from the literature by the research agent.";
+  const construction = typeof r.construction === "string" ? r.construction.slice(0, 240) : signalSpec;
+  const discoveryCard = normalizeDiscoveryCard(r, {
+    name,
+    rationale,
+    construction,
+    signalSpec,
+    holdingPeriods: normalizedHoldingPeriods,
+    failureModes: fallbackFailureModes,
+    references
+  });
+  const compiledSignal = normalizeCompiledSignal(r, {
+    signalSpec,
+    construction,
+    holdingPeriods: normalizedHoldingPeriods,
+    portfolioType: "long_short"
+  });
+  const credibility = sourceCredibility(discoveryCard.sourceCitations);
 
   return {
     key,
     name,
     factorKind,
     rationaleKind,
-    rationale: typeof r.rationale === "string" ? r.rationale.slice(0, 240) : "Discovered from the literature by the research agent.",
-    construction: typeof r.construction === "string" ? r.construction.slice(0, 240) : signalSpec,
-    holdingPeriods: holdingPeriods.length > 0 ? holdingPeriods : [5],
+    rationale,
+    construction,
+    holdingPeriods: normalizedHoldingPeriods,
     grossSharpe: [Math.max(0.3, netLo + 0.2), netHi + 0.4],
     netSharpe: [Math.max(-0.2, netLo), Math.min(1.2, netHi)],
     costSensitivity: (["low", "medium", "high"] as const).includes(r.costSensitivity as "low") ? (r.costSensitivity as "low" | "medium" | "high") : "medium",
@@ -118,7 +205,10 @@ export function normalizeResearchedFamily(raw: unknown, existingKeys: Set<string
     decayHalfLifeRuns: 8,
     origin: "researched",
     signalSpec,
-    references: asStringArray(r.references, 5),
+    references,
+    discoveryCard,
+    compiledSignal,
+    sourceCredibility: credibility,
     bridgeOnly: true
   };
 }

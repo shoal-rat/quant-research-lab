@@ -12,7 +12,8 @@ import {
   ResearchLoopState,
   ResearchMemory,
   Settings,
-  SpeechBubble
+  SpeechBubble,
+  StrategySpec
 } from "../types";
 import {
   attachBubbleToRuntime,
@@ -186,6 +187,7 @@ interface AppStoreValue {
   datasetStatus: DatasetStatus;
   discoveredFamilies: StrategyFamily[];
   researching: boolean;
+  reviewDraft: StrategySpec | null;
   researchStrategies: (topic?: string) => void;
   dismissToast: (id: string) => void;
   updateSettings: (patch: Partial<Settings>) => void;
@@ -196,6 +198,9 @@ interface AppStoreValue {
   pauseResearch: () => void;
   toggleAutoRun: () => void;
   nextIteration: () => void;
+  approveReviewDraft: () => void;
+  rejectReviewDraft: () => void;
+  editReviewDraft: (directive: string) => void;
   setActiveObject: (area?: ResearchLoopState["activeObject"]) => void;
   clearExperiments: () => void;
   addManualBubble: (bubble: Omit<SpeechBubble, "id" | "createdAt">) => void;
@@ -242,6 +247,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
   const moodRef = useRef(mood);
   const pendingDirectiveRef = useRef<string | undefined>(undefined);
   const draftRef = useRef<IterationDraft | null>(null);
+  const reviewApprovedRef = useRef(false);
   const directorRef = useRef<OfficeDirector | null>(null);
   const wallpaperMode = useMemo(() => isWallpaperMode(), []);
   const [datasetStatus, setDatasetStatus] = useState<DatasetStatus>({
@@ -258,6 +264,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
     return getResearchedFamilies();
   });
   const [researching, setResearching] = useState(false);
+  const [reviewDraft, setReviewDraft] = useState<StrategySpec | null>(null);
   const researchingRef = useRef(false);
 
   if (!directorRef.current) {
@@ -371,7 +378,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
       setAgentRuntime((prev) => runtimeForPhase(phase, agentsRef.current, prev, timestamp));
       // late phases narrate the finished experiment; early phases narrate the
       // freshly proposed draft (never the previous iteration's record)
-      const earlyPhase = ["proposing", "data_check", "coding", "backtesting"].includes(phase);
+      const earlyPhase = ["proposing", "human_review", "data_check", "coding", "backtesting"].includes(phase);
       const script = phaseConversation({
         phase,
         experiment: earlyPhase ? undefined : experiment,
@@ -415,7 +422,26 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
           explorationBias,
           datasetProvider: datasetProviderRef.current
         });
+        if (activeSettings.humanReviewRequired && !reviewApprovedRef.current) {
+          setReviewDraft(draftRef.current.strategy);
+          await setPhase("human_review", current);
+          setLoop((prev) => ({
+            ...prev,
+            running: false,
+            statusMessage: "Human review required before formal testing."
+          }));
+          loopRef.current = { ...loopRef.current, phase: "human_review", running: false };
+          return;
+        }
+        reviewApprovedRef.current = false;
         await setPhase("proposing", current);
+        return;
+      }
+
+      if (activeLoop.phase === "human_review") {
+        setReviewDraft(null);
+        reviewApprovedRef.current = false;
+        await setPhase("data_check", current);
         return;
       }
 
@@ -806,6 +832,56 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
     void advancePhase();
   }, [advancePhase]);
 
+  const approveReviewDraft = useCallback(() => {
+    if (!draftRef.current) return;
+    reviewApprovedRef.current = true;
+    setReviewDraft(null);
+    loopRef.current = { ...loopRef.current, phase: "human_review", running: true, autoRun: false };
+    setLoop((prev) => ({
+      ...prev,
+      phase: "human_review",
+      running: true,
+      autoRun: false,
+      statusMessage: "Human approved the hypothesis; formal testing can start."
+    }));
+    void advancePhase();
+  }, [advancePhase]);
+
+  const rejectReviewDraft = useCallback(() => {
+    draftRef.current = null;
+    reviewApprovedRef.current = false;
+    setReviewDraft(null);
+    loopRef.current = { ...loopRef.current, phase: "idle", running: false, autoRun: false };
+    setLoop((prev) => ({
+      ...prev,
+      phase: "idle",
+      running: false,
+      autoRun: false,
+      statusMessage: "Human rejected the draft; no backtest was run."
+    }));
+  }, []);
+
+  const editReviewDraft = useCallback(
+    (directive: string) => {
+      const trimmed = directive.trim();
+      if (!trimmed) return;
+      pendingDirectiveRef.current = trimmed;
+      draftRef.current = null;
+      reviewApprovedRef.current = false;
+      setReviewDraft(null);
+      loopRef.current = { ...loopRef.current, phase: "idle", running: true, autoRun: false };
+      setLoop((prev) => ({
+        ...prev,
+        phase: "idle",
+        running: true,
+        autoRun: false,
+        statusMessage: `Human edits queued for a regenerated hypothesis: "${trimmed.slice(0, 60)}"`
+      }));
+      void advancePhase();
+    },
+    [advancePhase]
+  );
+
   // ask the connected agent to read the web for new strategy families and fold
   // them into the knowledge base (and, on the bridge path, the backtest kernel)
   const researchStrategies = useCallback(
@@ -972,6 +1048,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
       datasetStatus,
       discoveredFamilies,
       researching,
+      reviewDraft,
       researchStrategies,
       dismissToast,
       updateSettings,
@@ -982,6 +1059,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
       pauseResearch,
       toggleAutoRun,
       nextIteration,
+      approveReviewDraft,
+      rejectReviewDraft,
+      editReviewDraft,
       setActiveObject,
       clearExperiments,
       addManualBubble,
@@ -1009,6 +1089,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
       datasetStatus,
       discoveredFamilies,
       researching,
+      reviewDraft,
       researchStrategies,
       dismissToast,
       updateSettings,
@@ -1019,6 +1100,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
       pauseResearch,
       toggleAutoRun,
       nextIteration,
+      approveReviewDraft,
+      rejectReviewDraft,
+      editReviewDraft,
       setActiveObject,
       clearExperiments,
       addManualBubble,

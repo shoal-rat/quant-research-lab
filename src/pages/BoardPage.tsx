@@ -18,6 +18,7 @@ export function BoardPage(): JSX.Element {
   const pbo = useMemo(() => computePbo(experiments), [experiments]);
   const equity = useMemo(() => poolEquitySeries(candidates), [candidates]);
   const fundSharpe = useMemo(() => poolSharpe(candidates), [candidates]);
+  const latestAudit = useMemo(() => experiments.slice().reverse().find((experiment) => experiment.workflowAudit)?.workflowAudit, [experiments]);
 
   const holdingBuckets = ["fast", "weekly", "monthly"] as const;
   const riskBuckets = ["calm", "normal", "wild"] as const;
@@ -58,6 +59,59 @@ export function BoardPage(): JSX.Element {
           </svg>
         )}
       </section>
+
+      {latestAudit && (
+        <section className="page-card">
+          <h2>{zh ? "研究工作流 2.0" : "Research Workflow 2.0"}</h2>
+          <p className="board-hint">
+            {zh
+              ? "最新实验的发现卡、信号编译、可信度、新颖性、走样本、容量、执行和纸上交易状态。"
+              : "Latest experiment audit: discovery card, signal compiler, credibility, novelty, walk-forward, capacity, execution, and paper trading."}
+          </p>
+          <div className="workflow-grid">
+            <div className="workflow-item">
+              <small>Discovery</small>
+              <strong>{latestAudit.discoveryCard.phenomenon}</strong>
+              <span>{latestAudit.discoveryCard.timestampLag} lag / {latestAudit.discoveryCard.holdingPeriod}</span>
+            </div>
+            <div className="workflow-item">
+              <small>Signal compiler</small>
+              <strong>{latestAudit.compiledSignal.portfolio.replace("_", "-")}</strong>
+              <span>{latestAudit.compiledSignal.rank}</span>
+            </div>
+            <div className="workflow-item">
+              <small>Credibility</small>
+              <strong>{percent(latestAudit.credibility.score, 0)}</strong>
+              <span>{latestAudit.credibility.tier.replace("_", " ")}</span>
+            </div>
+            <div className="workflow-item">
+              <small>Novelty</small>
+              <strong>{latestAudit.novelty.verdict.replace("_", " ")}</strong>
+              <span>nearest: {latestAudit.novelty.nearestKnownFactor}</span>
+            </div>
+            <div className="workflow-item">
+              <small>Walk-forward</small>
+              <strong>{percent(latestAudit.walkForward.passRate, 0)}</strong>
+              <span>worst Sharpe {number(latestAudit.walkForward.worstSharpe)}</span>
+            </div>
+            <div className="workflow-item">
+              <small>Capacity</small>
+              <strong>${(latestAudit.capacity.maxDeployableCapitalUsd / 1_000_000).toFixed(0)}M</strong>
+              <span>{latestAudit.capacity.bottleneck}</span>
+            </div>
+            <div className="workflow-item">
+              <small>Execution</small>
+              <strong>{number(latestAudit.execution.slippageBps, 1)} bps</strong>
+              <span>{latestAudit.execution.summary}</span>
+            </div>
+            <div className="workflow-item">
+              <small>Paper trading</small>
+              <strong>{latestAudit.paperTrading.status}</strong>
+              <span>{latestAudit.paperTrading.notes}</span>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="page-card">
         <h2>{zh ? "生态位档案（MAP-Elites）" : "Niche archive (MAP-Elites)"}</h2>

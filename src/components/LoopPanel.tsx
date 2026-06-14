@@ -1,12 +1,27 @@
-import { CirclePause, FastForward, Play, RotateCcw, Zap } from "lucide-react";
+import { CheckCircle2, CirclePause, FastForward, Play, XCircle, Zap } from "lucide-react";
+import { useState } from "react";
 import { useAppStore } from "../store/AppStore";
 import { MetricCard } from "./MetricCard";
 import { StatusBadge } from "./StatusBadge";
 import { number, percent } from "./format";
 
 export function LoopPanel(): JSX.Element {
-  const { loop, startResearch, pauseResearch, nextIteration, toggleAutoRun, currentExperiment, memory, settings } =
+  const {
+    loop,
+    startResearch,
+    pauseResearch,
+    nextIteration,
+    toggleAutoRun,
+    currentExperiment,
+    memory,
+    settings,
+    reviewDraft,
+    approveReviewDraft,
+    rejectReviewDraft,
+    editReviewDraft
+  } =
     useAppStore();
+  const [editText, setEditText] = useState("");
 
   return (
     <aside className="loop-panel">
@@ -34,10 +49,51 @@ export function LoopPanel(): JSX.Element {
       </div>
 
       <div className="phase-rail">
-        {["proposing", "data_check", "coding", "backtesting", "risk_review", "debate", "decision", "saved"].map((phase) => (
+        {["proposing", "human_review", "data_check", "coding", "backtesting", "risk_review", "debate", "decision", "saved"].map((phase) => (
           <span key={phase} className={loop.phase === phase ? "active" : ""} title={phase} />
         ))}
       </div>
+
+      {reviewDraft && (
+        <section className="review-draft">
+          <div className="review-draft-head">
+            <div>
+              <small>Human review</small>
+              <strong>{reviewDraft.name}</strong>
+            </div>
+            <span>{reviewDraft.holdingPeriod}d</span>
+          </div>
+          <p>{reviewDraft.discoveryCard?.phenomenon ?? reviewDraft.hypothesis}</p>
+          <dl className="mini-kv-list">
+            <div><dt>Feature</dt><dd>{reviewDraft.compiledSignal?.feature ?? reviewDraft.factorLogic}</dd></div>
+            <div><dt>Lag</dt><dd>{reviewDraft.compiledSignal?.lag ?? "1 trading bar"}</dd></div>
+            <div><dt>Hold</dt><dd>{reviewDraft.compiledSignal?.hold ?? `${reviewDraft.holdingPeriod} trading bars`}</dd></div>
+          </dl>
+          <textarea
+            value={editText}
+            placeholder="Edit note, e.g. require sector neutral version or longer lag"
+            onChange={(event) => setEditText(event.target.value)}
+          />
+          <div className="control-row review-actions">
+            <button className="primary-button" onClick={approveReviewDraft}>
+              <CheckCircle2 size={15} /> Approve
+            </button>
+            <button className="secondary-button danger" onClick={rejectReviewDraft}>
+              <XCircle size={15} /> Reject
+            </button>
+            <button
+              className="secondary-button"
+              onClick={() => {
+                editReviewDraft(editText);
+                setEditText("");
+              }}
+              disabled={!editText.trim()}
+            >
+              <FastForward size={15} /> Edit
+            </button>
+          </div>
+        </section>
+      )}
 
       {currentExperiment ? (
         <>

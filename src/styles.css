@@ -886,7 +886,7 @@ button {
 
 .phase-rail {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(9, 1fr);
   gap: 5px;
 }
 
@@ -927,6 +927,39 @@ button {
 
 .metric-grid.four {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.workflow-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.workflow-item {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.workflow-item small,
+.workflow-item span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-item strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .metric-card {
@@ -989,6 +1022,77 @@ button {
   border: 1px dashed var(--line);
   border-radius: 8px;
   color: var(--muted);
+}
+
+.review-draft {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--amber) 45%, var(--line));
+  border-radius: 8px;
+  background: rgba(212, 155, 65, 0.13);
+}
+
+.review-draft-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.review-draft-head strong {
+  display: block;
+  margin-top: 2px;
+}
+
+.review-draft p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.review-draft textarea {
+  min-height: 58px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--ink);
+  background: var(--surface-solid);
+}
+
+.review-actions {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.mini-kv-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.mini-kv-list div {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.mini-kv-list dt,
+.mini-kv-list dd {
+  margin: 0;
+}
+
+.mini-kv-list dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.mini-kv-list dd {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
 }
 
 .speech-ticker {
@@ -1219,6 +1323,34 @@ button {
   margin: 0;
   color: var(--ink);
   text-align: right;
+}
+
+.compact-list {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+.source-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.source-list span,
+.source-list a {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.source-list span {
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.36);
 }
 
 .section-conclusion {

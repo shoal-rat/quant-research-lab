@@ -442,6 +442,12 @@ async function runClaudeResearch(prompt) {
 async function researchStrategies(backend, topic, existingKeys) {
   const prompt = `You are the research analyst of a quant desk. Search the web — recent academic / working papers, reputable financial news, and institution or sell-side research reports — for systematic CROSS-SECTIONAL equity strategies (factors) computable from DAILY or intraday PRICE/return data ALONE (no fundamentals, no news columns).
 
+Also search messy investor information sources when useful: earnings-call transcripts, company releases, Reddit, X, forums, GitHub repos, industry reports, SEC filings, and regulatory filings.
+
+Your job is not summarization. Convert what you read into tradable hypotheses, then compile each vague idea into a concrete cross-sectional signal. Keep retail / social sources as sentiment evidence only; do not treat them as proof.
+
+The executable signalSpec must be price/return computable so the current kernel can backtest it, but the discoveryCard should still name any richer point-in-time data that would improve the serious version.
+
 ${topic ? `Focus on: ${topic}` : "Find genuinely useful, ideally lesser-known, price-based factors."}
 
 Do NOT repeat families we already have: ${(existingKeys || []).join(", ") || "(none)"}.
@@ -450,7 +456,7 @@ Return 1-3 NEW families. Each needs a "signalSpec": a ONE-LINE cross-sectional s
 ${SIGNAL_SPEC}
 
 Reply with ONLY this JSON object (cite REAL URLs you actually fetched):
-{"families":[{"key":"snake_case_id","name":"...","factorKind":"momentum|mean_reversion|low_volatility|quality_proxy|seasonality|lead_lag|pairs|vol_managed|trend_overlay|event_drift|earnings_revision|news_sentiment","rationaleKind":"risk_premium|behavioral|structural","rationale":"one-sentence economic story","construction":"how the portfolio is built","signalSpec":"<key>: <one-line formula from price/return windows>","holdingPeriods":[5],"netSharpe":[0.2,0.6],"costSensitivity":"low|medium|high","crowdingRisk":"low|medium|high","failureModes":["...","..."],"parameters":[{"name":"...","min":0,"max":0,"default":0,"step":0}],"keyPapers":["Author (Year) Title"],"references":["https://..."]}]}
+{"families":[{"key":"snake_case_id","name":"...","factorKind":"momentum|mean_reversion|low_volatility|quality_proxy|seasonality|lead_lag|pairs|vol_managed|trend_overlay|event_drift|earnings_revision|news_sentiment","rationaleKind":"risk_premium|behavioral|structural","rationale":"one-sentence economic story","construction":"how the portfolio is built","signalSpec":"<key>: <one-line formula from price/return windows>","holdingPeriods":[5],"netSharpe":[0.2,0.6],"costSensitivity":"low|medium|high","crowdingRisk":"low|medium|high","failureModes":["...","..."],"parameters":[{"name":"...","min":0,"max":0,"default":0,"step":0}],"keyPapers":["Author (Year) Title"],"references":["https://..."],"discoveryCard":{"phenomenon":"what is happening in the world","whyAlphaMayExist":"why mispricing or flow pressure may exist","tradableUniverse":"names/industries/ETFs this can trade","requiredData":["point-in-time prices","source timestamps"],"signalConstruction":"concrete signal recipe","timestampLag":"minimum lag before trading","holdingPeriod":"expected holding period","failureRisks":["lookahead risk","crowding risk"],"sourceCitations":[{"title":"...","url":"https://...","sourceType":"sec_filing|earnings_call|regulatory_filing|company_press_release|academic_paper|industry_report|sell_side|news|github|forum|reddit|x|anonymous_rumor|other","publishedAt":"YYYY-MM-DD","note":"why this source matters"}]},"compiledSignal":{"universe":"electrical equipment companies","feature":"frequency of theme mentions or price-derived proxy","rank":"30 day change in theme intensity","lag":"1 trading day","hold":"20 trading days","portfolio":"long_short","formula":"kernel-ready signal formula","rebalance":"rebalance rule"}}]}
 Only include families whose signalSpec is genuinely computable from price/return data.`;
   try {
     const result = backend === "codex" ? await runCodexAgentic(prompt, { cwd: NEUTRAL_CWD, addDir: NEUTRAL_CWD }) : await runClaudeResearch(prompt);

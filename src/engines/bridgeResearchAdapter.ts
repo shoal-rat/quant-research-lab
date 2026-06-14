@@ -13,6 +13,7 @@ import { MockQuantLLMAdapter } from "./llmAdapters";
 import { proposeStrategy } from "./hypothesisEngine";
 import { getAllFamilies } from "./strategyKnowledge";
 import { clamp } from "./random";
+import { compileSignal, defaultDiscoveryCard } from "./researchWorkflow";
 
 // Research brain via the local CLI bridge: the hypothesis (family, horizon,
 // parameters, and the economic pitch) comes from Claude Code / Codex running
@@ -124,7 +125,7 @@ Reply with ONLY a JSON object: {"familyKey": "...", "holdingPeriod": 1|3|5|20, "
         ...local.ideaReasoning.slice(-2)
       ];
 
-      return {
+      const next: StrategySpec = {
         ...local,
         name: `${family.name} ${local.ideaMode === "refine" ? local.name.split(" ").pop() : "Directive"}`.replace("Directive", "Brain"),
         familyKey: family.key,
@@ -136,6 +137,9 @@ Reply with ONLY a JSON object: {"familyKey": "...", "holdingPeriod": 1|3|5|20, "
         parameters,
         ideaReasoning: reasoning
       };
+      next.discoveryCard = family.discoveryCard ?? defaultDiscoveryCard(family, next);
+      next.compiledSignal = family.compiledSignal ?? compileSignal(family, next);
+      return next;
     } catch {
       return local;
     }

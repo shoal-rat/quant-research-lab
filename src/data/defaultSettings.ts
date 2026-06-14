@@ -11,6 +11,7 @@ export const defaultSettings: Settings = {
   experimentsPerLoop: 1,
   newsEnabled: true,
   technicalIndicatorsEnabled: true,
+  humanReviewRequired: false,
   mockLLMEnabled: true,
   catchphrasesShown: true,
   casualOfficeChatter: true,

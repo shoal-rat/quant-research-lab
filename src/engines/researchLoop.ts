@@ -13,6 +13,7 @@ import { RealBacktestExtras } from "./realBacktestEngine";
 import { poolSharpeDelta } from "./poolAnalytics";
 import { decideExperimentStatus, reviewBacktestRisk } from "./riskReviewEngine";
 import { DatasetProvider } from "./dataset/types";
+import { buildResearchWorkflowAudit } from "./researchWorkflow";
 
 export interface IterationInput {
   settings: Settings;
@@ -144,6 +145,17 @@ export async function completeIteration(
   const riskReview = reviewBacktestRisk(strategy, backtest);
   const status = decideExperimentStatus(backtest, riskReview, generatedCode, strictnessBias);
   const createdAt = new Date().toISOString();
+  const workflowAudit = buildResearchWorkflowAudit({
+    strategy,
+    backtest,
+    riskReview,
+    experiments,
+    settings,
+    params,
+    dataUsed: backtest.dataUsed,
+    status,
+    humanReviewRequired: settings.humanReviewRequired
+  });
 
   const baseExperiment = {
     id: `EXP-${String(iteration).padStart(4, "0")}-${strategy.id.split("-").pop()}`,
@@ -173,7 +185,8 @@ export async function completeIteration(
     fullResult: backtest.full,
     equityCurve: backtest.equityCurve,
     riskReview,
-    status
+    status,
+    workflowAudit
   };
 
   const skepticObjection = await adapter.challengeResult(baseExperiment as ExperimentRecord);

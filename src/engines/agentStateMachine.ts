@@ -49,7 +49,7 @@ export function runtimeForPhase(
 ): Record<string, AgentRuntime> {
   const roleTargets: Partial<Record<AgentProfile["role"], { area: OfficeAreaId; state: AgentState; note: string }>> = {
     strategy_researcher:
-      phase === "proposing"
+      phase === "proposing" || phase === "human_review"
         ? { area: "whiteboard", state: "thinking", note: "writing hypothesis" }
         : phase === "debate"
           ? { area: "meeting", state: "debating", note: "defending signal" }
@@ -71,7 +71,9 @@ export function runtimeForPhase(
             ? { area: "workstations", state: "tired", note: "waiting for risk desk" }
             : undefined,
     risk_reviewer:
-      phase === "risk_review"
+      phase === "human_review"
+        ? { area: "meeting", state: "checking_chart", note: "pre-reviewing idea" }
+        : phase === "risk_review"
         ? { area: "meeting", state: "angry", note: "reviewing flaws" }
         : phase === "debate"
           ? { area: "meeting", state: "debating", note: "presenting risk" }

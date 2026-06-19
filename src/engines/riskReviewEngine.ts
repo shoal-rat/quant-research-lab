@@ -183,7 +183,8 @@ export function decideExperimentStatus(
   review: RiskReview,
   generatedCode: string,
   strictnessBias = 0,
-  poolDelta?: number
+  poolDelta?: number,
+  walkForwardPassRate?: number
 ): ExperimentStatus {
   const failCount = review.checks.filter((item) => item.status === "fail").length;
   const warnCount = review.checks.filter((item) => item.status === "warn").length;
@@ -218,7 +219,11 @@ export function decideExperimentStatus(
     // proven and the candidate is sent back, rather than borrowing in-sample IC.
     const factor = backtest.factorAnalyticsOOS;
     const hasOosSkill = factor !== undefined && factor.observations >= 10 && factor.icTStat >= 1.5;
-    if (redundant || !additive || !hasOosSkill) return "retest_needed";
+    // walk-forward robustness: when a purged/embargoed walk-forward is available, a
+    // candidate must hold up across the majority of out-of-sample windows, so a
+    // single-regime fluke that the panel would expose can't clear the gate.
+    const wfWeak = walkForwardPassRate !== undefined && walkForwardPassRate < 0.6;
+    if (redundant || !additive || !hasOosSkill || wfWeak) return "retest_needed";
     return "candidate";
   }
   return "archived";

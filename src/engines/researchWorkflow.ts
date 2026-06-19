@@ -529,19 +529,38 @@ function baselines(backtest: BacktestResult, benchmarkReturns: number[], periods
   const strategySharpe = backtest.outOfSample.sharpeRatio;
   const benchmarkSharpe = sharpe(benchmarkReturns, periodsPerYear);
   const benchmarkReturn = cumulative(benchmarkReturns);
-  const random = backtest.outOfSample.randomBaselineSharpe;
-  const items = [
+  const items: Array<{ baseline: string; sharpe: number; returnDelta: number }> = [
     { baseline: "buy_and_hold_benchmark", sharpe: benchmarkSharpe, returnDelta: backtest.outOfSample.returnAfterCosts - benchmarkReturn },
-    { baseline: "random_rank_portfolio", sharpe: random, returnDelta: backtest.outOfSample.returnAfterCosts },
     { baseline: "zero_edge", sharpe: 0, returnDelta: backtest.outOfSample.returnAfterCosts }
   ];
-  return items.map((item) => ({
+  // Only show the random-rank baseline as a "beaten" comparison when it was
+  // actually MEASURED (the in-browser engine simulated it). On the bridge path it
+  // is the unmeasured sentinel, so we label it and never mark it passed — matching
+  // the risk gate, which abstains there.
+  if (backtest.outOfSample.randomBaselineMeasured) {
+    items.splice(1, 0, {
+      baseline: "random_rank_portfolio",
+      sharpe: backtest.outOfSample.randomBaselineSharpe,
+      returnDelta: backtest.outOfSample.returnAfterCosts
+    });
+  }
+  const measured = items.map((item) => ({
     baseline: item.baseline,
     sharpe: round(item.sharpe, 2),
     excessSharpe: round(strategySharpe - item.sharpe, 2),
     returnDelta: round(item.returnDelta, 4),
     passed: strategySharpe > item.sharpe + 0.1 && item.returnDelta > -0.02
   }));
+  if (!backtest.outOfSample.randomBaselineMeasured) {
+    measured.push({
+      baseline: "random_rank_portfolio (not measured on this path)",
+      sharpe: 0,
+      excessSharpe: 0,
+      returnDelta: 0,
+      passed: false
+    });
+  }
+  return measured;
 }
 
 function libraryCard(strategy: StrategySpec, card: ResearchDiscoveryCard, status: ExperimentStatus, backtest: BacktestResult): StrategyLibraryCard {

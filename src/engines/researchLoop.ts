@@ -14,6 +14,7 @@ import { poolSharpeDelta } from "./poolAnalytics";
 import { decideExperimentStatus, reviewBacktestRisk } from "./riskReviewEngine";
 import { DatasetProvider } from "./dataset/types";
 import { buildResearchWorkflowAudit } from "./researchWorkflow";
+import { computeWalkForward } from "./walkForward";
 
 export interface IterationInput {
   settings: Settings;
@@ -155,9 +156,18 @@ export async function completeIteration(
   // the candidate gate uses the pool-ΔSharpe (does this alpha ADD to the pool?);
   // synthetic results are excluded from any real decision.
   const poolDelta = extras ? poolSharpeDelta(extras, priorCandidates) : undefined;
+  // purged + embargoed walk-forward on the true daily series, fed INTO the gate so
+  // a single-regime fluke can't be promoted (previously this was display-only).
+  const walkForwardPassRate =
+    extras && extras.dailyReturns.length > 0
+      ? computeWalkForward(extras.dailyReturns, extras.dates, {
+          holding: strategy.holdingPeriod,
+          periodsPerYear: extras.periodsPerYear ?? 252
+        })?.passRate
+      : undefined;
   const status: ExperimentRecord["status"] = backtest.synthetic
     ? "not_backtestable"
-    : decideExperimentStatus(backtest, riskReview, generatedCode, strictnessBias, poolDelta);
+    : decideExperimentStatus(backtest, riskReview, generatedCode, strictnessBias, poolDelta, walkForwardPassRate);
   const createdAt = new Date().toISOString();
   const workflowAudit = buildResearchWorkflowAudit({
     strategy,

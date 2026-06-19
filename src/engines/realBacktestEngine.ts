@@ -668,6 +668,11 @@ export function runRealBacktest(
   }
 
   const splitIndex = Math.floor(returns.length * 0.58);
+  // PURGE + EMBARGO the IS/OOS boundary: the strategy's labels are holding-bar
+  // forward returns, so the first `holding` bars after the split share return
+  // windows with the last in-sample rebalance. Skip them so the out-of-sample
+  // metrics + OOS IC the admission gate trusts carry no label leakage from IS.
+  const oosStart = Math.min(returns.length, splitIndex + holding);
   const trials = context.totalTrials;
 
   const extras: RealBacktestExtras = {
@@ -701,10 +706,10 @@ export function runRealBacktest(
     randomBaseline
   );
   const outOfSample = computeRealMetrics(
-    returns.slice(splitIndex),
-    turnoverSeries.slice(Math.ceil(splitIndex / holding)),
-    weightsHistory.slice(Math.ceil(splitIndex / holding)),
-    splitYears(splitIndex, returns.length),
+    returns.slice(oosStart),
+    turnoverSeries.slice(Math.ceil(oosStart / holding)),
+    weightsHistory.slice(Math.ceil(oosStart / holding)),
+    splitYears(oosStart, returns.length),
     trials,
     poolCorrelation,
     undefined,
@@ -734,10 +739,11 @@ export function runRealBacktest(
     }
   }
 
-  // OUT-OF-SAMPLE factor analytics: only the cross-sections captured at/after the
-  // in-sample split, so the admission gate's "predictive skill" check cannot be
-  // satisfied by in-sample IC. Full-sample analytics are kept for display.
-  const oosCrossSections = crossSections.filter((_, index) => crossSectionReturnIndex[index] >= splitIndex);
+  // OUT-OF-SAMPLE factor analytics: only cross-sections captured at/after the
+  // PURGED+EMBARGOED OOS start (splitIndex + holding), so the admission gate's
+  // "predictive skill" check cannot be satisfied by in-sample IC and carries no
+  // label-window overlap with the last in-sample rebalance. Full-sample kept for display.
+  const oosCrossSections = crossSections.filter((_, index) => crossSectionReturnIndex[index] >= oosStart);
 
   const result: BacktestResult = {
     inSample,

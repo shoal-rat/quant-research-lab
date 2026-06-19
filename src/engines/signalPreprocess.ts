@@ -2,7 +2,8 @@
 // drop non-finite -> winsorize -> standardize -> (optional) neutralize. Every
 // step is per-date (cross-sectional), never pooled across history, so it can be
 // applied inside one rebalance. Validated against numpy/scipy/statsmodels in
-// scripts/quant_reference/reference.py (golden test in signalPreprocess.test.ts).
+// scripts/quant_reference/reference.py — the winsorize / zscore / rankNormalize /
+// demeanByGroup / betaResidualize golden cases live in src/engines/quantGolden.test.ts.
 
 export type StandardizeMethod = "none" | "zscore" | "robust" | "rank";
 

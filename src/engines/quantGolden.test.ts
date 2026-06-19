@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { calmarRatio, probabilisticSharpe, sortinoRatio } from "./perfMetrics";
+import { annualizedReturn, annualizedSharpe, calmarRatio, maxDrawdown, probabilisticSharpe, sortinoRatio } from "./perfMetrics";
 import { spearmanIC } from "./factorAnalytics";
 import { normCdf } from "./backtestEngine";
 import { betaResidualize, demeanByGroup, rankNormalize, winsorize, zscore } from "./signalPreprocess";
@@ -40,30 +40,33 @@ const golden = JSON.parse(readFileSync(join(here, "__fixtures__", "quant_golden.
 const ppy = golden.annualization;
 const e = golden.expected;
 
-function mean(values: number[]): number {
-  return values.reduce((s, v) => s + v, 0) / values.length;
-}
-function sampleStd(values: number[]): number {
-  const m = mean(values);
-  return Math.sqrt(values.reduce((s, v) => s + (v - m) ** 2, 0) / (values.length - 1));
-}
 function expectClose(actual: number[], want: number[], tol: number) {
   expect(actual.length).toBe(want.length);
   actual.forEach((v, i) => expect(Math.abs(v - want[i])).toBeLessThan(tol));
 }
 
 describe("quant engines vs Python reference libraries", () => {
-  it("Sharpe matches empyrical convention (mean/std_ddof1 * sqrt(ppy))", () => {
-    const sharpe = (mean(golden.returns) / sampleStd(golden.returns)) * Math.sqrt(ppy);
-    expect(Math.abs(sharpe - e.sharpe)).toBeLessThan(1e-6);
+  it("annualizedSharpe (production fn) matches empyrical.sharpe_ratio", () => {
+    expect(Math.abs(annualizedSharpe(golden.returns, ppy) - e.sharpe)).toBeLessThan(1e-6);
   });
 
   it("Sortino matches empyrical.sortino_ratio", () => {
     expect(Math.abs(sortinoRatio(golden.returns, ppy) - e.sortino)).toBeLessThan(1e-6);
   });
 
-  it("Calmar matches empyrical.calmar_ratio (annualReturn / |maxDD|)", () => {
-    expect(Math.abs(calmarRatio(e.annualReturn, e.maxDrawdown) - e.calmar)).toBeLessThan(1e-6);
+  it("annualizedReturn (production fn) matches empyrical.annual_return", () => {
+    expect(Math.abs(annualizedReturn(golden.returns, ppy) - e.annualReturn)).toBeLessThan(1e-6);
+  });
+
+  it("maxDrawdown (production fn) matches empyrical.max_drawdown", () => {
+    expect(Math.abs(maxDrawdown(golden.returns) - e.maxDrawdown)).toBeLessThan(1e-9);
+  });
+
+  it("Calmar matches empyrical.calmar_ratio — fully through production fns", () => {
+    // route Calmar through the production annualizedReturn + maxDrawdown (not the
+    // empyrical golden inputs), so the whole chain is exercised end-to-end
+    const calmar = calmarRatio(annualizedReturn(golden.returns, ppy), maxDrawdown(golden.returns));
+    expect(Math.abs(calmar - e.calmar)).toBeLessThan(1e-6);
   });
 
   it("Spearman IC matches scipy.stats.spearmanr", () => {
@@ -78,7 +81,12 @@ describe("quant engines vs Python reference libraries", () => {
     });
   });
 
-  it("Probabilistic Sharpe matches the Bailey/LdP scipy reference", () => {
+  // NOTE: PSR is validated against an in-house Bailey/López de Prado reference in
+  // reference.py (scipy norm.cdf + skew/kurtosis), not an off-the-shelf library
+  // function (empyrical/quantstats have no PSR). The other metrics above ARE
+  // matched to library functions (empyrical.sharpe/sortino/calmar/annual_return/
+  // max_drawdown, scipy.spearmanr/norm.cdf, numpy/statsmodels).
+  it("Probabilistic Sharpe matches the in-house Bailey/LdP scipy reference", () => {
     expect(Math.abs(probabilisticSharpe(e.sharpe, golden.returns, ppy, 0) - e.psr)).toBeLessThan(2e-3);
   });
 

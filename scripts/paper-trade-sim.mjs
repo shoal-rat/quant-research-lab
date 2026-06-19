@@ -1,8 +1,10 @@
 // Local simulated stock market: replays the bundled real OHLCV data bar-by-bar
 // against a virtual cash account and trades the lab's cross-sectional momentum
 // strategy with NO lookahead (signal at day i uses data <= i, fills at close[i],
-// P&L accrues i -> i+1) and real transaction costs. Reports final equity, return,
-// Sharpe, max drawdown, and a buy-and-hold SPY benchmark over the same window.
+// P&L accrues i -> i+1) and a FLAT per-side commission (default 5 bps) — NO
+// slippage, market impact, or short-borrow modelled, so it is optimistic for a
+// concentrated book. Reports final equity, return, Sharpe (full-period, in-sample
+// — not the gated out-of-sample edge), max drawdown, and a buy-and-hold SPY bench.
 //
 //   node scripts/paper-trade-sim.mjs                       # 2y, long-only top-6 momentum
 //   node scripts/paper-trade-sim.mjs --window=504 --top=6 --hold=5 --cost=5 --ls
@@ -156,9 +158,10 @@ const pct = (x) => `${(x * 100).toFixed(1)}%`;
 
 console.log("\n=== Local simulated market: cross-sectional momentum ===");
 console.log(`window         ${dates[start]} -> ${dates[end]} (${equityCurve.length} bars)`);
-console.log(`strategy       ${LONG_SHORT ? "long/short" : "long-only"} top-${TOP} positive-momentum (${LOOKBACK}d, skip ${SKIP}), rebalance ${HOLD}d, ${COST_BPS}bps/side`);
+console.log(`strategy       ${LONG_SHORT ? "long/short" : "long-only"} top-${TOP} positive-momentum (${LOOKBACK}d, skip ${SKIP}), rebalance ${HOLD}d`);
+console.log(`costs          ${COST_BPS} bps/side flat commission only (no slippage / impact / borrow — optimistic)`);
 console.log(`trend filter   ${REGIME ? `ON — only invest when SPY >= ${MA_WINDOW}d MA, else cash` : "OFF"}`);
-console.log(`universe       ${symbols.length} names`);
+console.log(`universe       ${symbols.length} names   (Sharpe below is full-period in-sample, not the gated OOS edge)`);
 console.log("---------------------------------------------------------");
 console.log(`start cash     ${fmt(START_CASH)}`);
 console.log(`final equity   ${fmt(finalEquity)}`);

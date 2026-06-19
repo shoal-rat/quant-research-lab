@@ -21,7 +21,6 @@ import { fileURLToPath } from "node:url";
 import { loadValidator } from "./_engine-bridge.mjs";
 
 const PAPER_BASE = "https://paper-api.alpaca.markets"; // paper ONLY — never the live endpoint
-const DATA_BASE = "https://data.alpaca.markets";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const bundlePath = path.join(root, "public", "assets", "data", "market-real.json");
 const largePath = path.join(root, "data", "universe-large.json");
@@ -56,14 +55,16 @@ function loadKeysFromFile(file) {
   }
   let id = map.APCA_API_KEY_ID || map.API_KEY_ID || map.KEY_ID || map.API_KEY || map.ALPACA_API_KEY || map.KEY;
   let secret = map.APCA_API_SECRET_KEY || map.API_SECRET_KEY || map.SECRET_KEY || map.API_SECRET || map.ALPACA_SECRET_KEY || map.SECRET;
-  // 3) bare tokens: Alpaca paper key ids start with "PK"; secrets are long alnum
+  // 3) bare tokens — only when UNAMBIGUOUS: exactly one Alpaca-style key id ("PK…")
+  // and exactly one plausible secret token. Otherwise refuse, so a malformed file
+  // errors loudly instead of silently yielding wrong credentials.
   if (!id || !secret) {
     const tokens = raw.split(/\s+/).filter(Boolean);
-    const pk = tokens.find((t) => /^PK[A-Za-z0-9]{8,}$/.test(t));
-    const sec = tokens.find((t) => t !== pk && /^[A-Za-z0-9/+]{30,}$/.test(t));
-    if (pk && sec) {
-      id = pk;
-      secret = sec;
+    const pks = tokens.filter((t) => /^PK[A-Za-z0-9]{8,}$/.test(t));
+    const secs = tokens.filter((t) => !pks.includes(t) && /^[A-Za-z0-9/+]{30,}$/.test(t));
+    if (pks.length === 1 && secs.length === 1) {
+      id = pks[0];
+      secret = secs[0];
     }
   }
   return id && secret ? { id, secret } : null;

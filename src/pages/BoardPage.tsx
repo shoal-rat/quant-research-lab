@@ -182,8 +182,8 @@ export function BoardPage(): JSX.Element {
           <h2>{zh ? "信号质量（Alphalens 风格）" : "Signal quality (Alphalens-style)"}</h2>
           <p className="board-hint">
             {zh
-              ? `评估的是原始信号本身（不只是组合）：信息系数 IC = 每期信号排名与未来收益排名的相关性。最近：${latestFactor.name}`
-              : `Grades the raw signal itself, not just the portfolio: Information Coefficient (IC) = per-period rank correlation of the signal with forward returns. Latest: ${latestFactor.name}`}
+              ? `评估的是原始信号本身（不只是组合）：信息系数 IC = 每期信号排名与未来收益排名的相关性。这里展示的是全样本 IC（用于显示）；准入门槛用的是更严格的样本外 OOS IC。最近：${latestFactor.name}`
+              : `Grades the raw signal itself, not just the portfolio: Information Coefficient (IC) = per-period rank correlation of the signal with forward returns. Shown here is FULL-SAMPLE IC (for display); the admission gate uses the stricter out-of-sample (OOS) IC. Latest: ${latestFactor.name}`}
           </p>
           <div className="factor-grid">
             <div className="factor-stat">
@@ -197,7 +197,7 @@ export function BoardPage(): JSX.Element {
               <strong className={latestFactor.fa.icIR > 0.3 ? "good" : ""}>{latestFactor.fa.icIR.toFixed(2)}</strong>
             </div>
             <div className="factor-stat">
-              <small>IC t-stat</small>
+              <small>{zh ? "IC t（全样本）" : "IC t (full-sample)"}</small>
               <strong className={Math.abs(latestFactor.fa.icTStat) > 2 ? "good" : ""}>{latestFactor.fa.icTStat.toFixed(1)}</strong>
             </div>
             <div className="factor-stat">

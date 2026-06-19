@@ -30,13 +30,23 @@ describe("computeWalkForward", () => {
     expect(report!.worstSharpe).toBeLessThan(0);
   });
 
-  it("purges the label horizon + embargo between train and test", () => {
+  it("purges the label horizon + embargo: each test window starts a real gap after train end", () => {
     const r = series(600, 0.001, 0.0005);
-    const dates = Array.from({ length: 600 }, (_, i) => `2020-01-${String((i % 28) + 1).padStart(2, "0")}`);
-    const report = computeWalkForward(r, dates, { holding: 10, folds: 4, embargoFraction: 0.02, periodsPerYear: 252 });
+    const holding = 10;
+    const embargoFraction = 0.02;
+    // unique, strictly-increasing daily calendar so date arithmetic is meaningful
+    const base = Date.UTC(2020, 0, 1);
+    const dates = Array.from({ length: 600 }, (_, i) => new Date(base + i * 86_400_000).toISOString().slice(0, 10));
+    const report = computeWalkForward(r, dates, { holding, folds: 4, embargoFraction, periodsPerYear: 252 });
     expect(report).not.toBeNull();
-    // summary should mention the purge + embargo it actually applied
     expect(report!.summary).toMatch(/purge 10/);
+    const minGapDays = holding + Math.round(600 * embargoFraction) - 1; // purge + embargo bars, minus slack
+    for (const w of report!.windows) {
+      const trainEnd = Date.parse(w.trainRange.split("..")[1]);
+      const testStart = Date.parse(w.testRange.split("..")[0]);
+      const gapDays = (testStart - trainEnd) / 86_400_000;
+      expect(gapDays).toBeGreaterThanOrEqual(minGapDays); // a genuine purge+embargo gap, not just a label
+    }
   });
 });
 

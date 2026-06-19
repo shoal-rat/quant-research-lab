@@ -9,7 +9,7 @@ import {
 import { deflatedSharpeProbability } from "./backtestEngine";
 import { dateIndex, RealMarketData, realUniverse } from "./realMarket";
 import { clamp, round, seededRandom } from "./random";
-import { calmarRatio, probabilisticSharpe, sortinoRatio } from "./perfMetrics";
+import { annualizedReturn, annualizedSharpe, calmarRatio, maxDrawdown as maxDrawdownOf, probabilisticSharpe, sortinoRatio } from "./perfMetrics";
 import { computeFactorAnalytics, FactorCrossSection } from "./factorAnalytics";
 import { preprocessSignal } from "./signalPreprocess";
 
@@ -336,22 +336,12 @@ function computeRealMetrics(
 ): PerformanceMetrics {
   const count = Math.max(1, returns.length);
   const cumulative = returns.reduce((value, next) => value * (1 + next), 1) - 1;
-  const mean = returns.reduce((value, next) => value + next, 0) / count;
-  const variance = returns.reduce((value, next) => value + (next - mean) ** 2, 0) / Math.max(1, count - 1);
-  const volatility = Math.sqrt(Math.max(variance, 1e-9));
-  const sharpe = (mean / volatility) * Math.sqrt(periodsPerYear);
-  const annualized = (1 + cumulative) ** (periodsPerYear / count) - 1;
   const winRate = returns.filter((value) => value > 0).length / count;
   const turnover = turnoverSeries.reduce((value, next) => value + next, 0) / Math.max(1, turnoverSeries.length);
-
-  let equity = 1;
-  let peak = 1;
-  let maxDrawdown = 0;
-  returns.forEach((ret) => {
-    equity *= 1 + ret;
-    peak = Math.max(peak, equity);
-    maxDrawdown = Math.min(maxDrawdown, equity / peak - 1);
-  });
+  // shared production metric functions (same code the golden test validates vs empyrical)
+  const sharpe = annualizedSharpe(returns, periodsPerYear);
+  const annualized = annualizedReturn(returns, periodsPerYear);
+  const maxDrawdown = maxDrawdownOf(returns);
 
   // concentration: average HHI of absolute weights, scaled by universe size
   let hhiSum = 0;
@@ -745,11 +735,13 @@ export function runRealBacktest(
   }
 
   const splitIndex = Math.floor(returns.length * 0.58);
-  // PURGE + EMBARGO the IS/OOS boundary: the strategy's labels are holding-bar
-  // forward returns, so the first `holding` bars after the split share return
-  // windows with the last in-sample rebalance. Skip them so the out-of-sample
-  // metrics + OOS IC the admission gate trusts carry no label leakage from IS.
-  const oosStart = Math.min(returns.length, splitIndex + holding);
+  // PURGE + EMBARGO the IS/OOS boundary (López de Prado): the strategy's labels are
+  // holding-bar forward returns, so the first `holding` bars after the split share
+  // return windows with the last in-sample rebalance — PURGE them. Then add a small
+  // EMBARGO gap (serial-correlation buffer) before out-of-sample begins, so the OOS
+  // metrics + OOS IC the admission gate trusts carry no leakage from in-sample.
+  const embargo = Math.max(1, Math.round(returns.length * 0.01));
+  const oosStart = Math.min(returns.length, splitIndex + holding + embargo);
   const trials = context.totalTrials;
 
   const extras: RealBacktestExtras = {

@@ -6,19 +6,29 @@
 // are read from the environment and never written anywhere.
 //
 //   set APCA_API_KEY_ID / APCA_API_SECRET_KEY in your environment, then:
-//   node scripts/alpaca-paper.mjs status        # account equity + open positions
-//   node scripts/alpaca-paper.mjs targets       # momentum targets from the bundle (no orders)
-//   node scripts/alpaca-paper.mjs rebalance --yes   # submit PAPER orders to the momentum book
+//   node scripts/alpaca-paper.mjs status              # account equity + positions + open orders
+//   node scripts/alpaca-paper.mjs validate            # backtest the strategy on history (the gate)
+//   node scripts/alpaca-paper.mjs targets             # validate + show targets (no orders)
+//   node scripts/alpaca-paper.mjs rebalance --yes     # validate, then if it PASSES submit PAPER orders
 //
-// The strategy mirrors the lab's cross-sectional momentum (top-N, equal weight).
+// IMPORTANT: rebalance refuses to trade unless the strategy PASSES a real
+// historical backtest through the lab engine (no-lookahead, walk-forward,
+// deflated Sharpe, out-of-sample IC). Use --force to override the gate, and
+// --universe=large (or QRL_UNIVERSE_FILE) for the S&P500+NASDAQ-100 universe.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadValidator } from "./_engine-bridge.mjs";
 
 const PAPER_BASE = "https://paper-api.alpaca.markets"; // paper ONLY — never the live endpoint
 const DATA_BASE = "https://data.alpaca.markets";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const dataPath = path.join(root, "public", "assets", "data", "market-real.json");
+const bundlePath = path.join(root, "public", "assets", "data", "market-real.json");
+const largePath = path.join(root, "data", "universe-large.json");
+// universe selection: QRL_UNIVERSE_FILE > --universe=large > bundled 60-name set
+const universeFile =
+  process.env.QRL_UNIVERSE_FILE ||
+  (process.argv.includes("--universe=large") ? largePath : bundlePath);
 
 // Resolve paper keys from env, else from a local key file (QRL_ALPACA_KEY_FILE).
 // The file is read by THIS script only; keys are never printed or written anywhere.
@@ -95,40 +105,27 @@ async function api(base, route, init = {}) {
   return body;
 }
 
-// momentum targets from the bundled closes (same signal + trend filter the lab/sim
-// uses): only positive-momentum top-N names, and only when SPY is above its 200d
-// MA (else cash). Returns { targets, riskOn } so callers can report the regime.
-function momentumTargets() {
-  const bundle = JSON.parse(fs.readFileSync(dataPath, "utf-8"));
-  const benchmark = bundle.benchmark;
-  const symbols = Object.keys(bundle.tickers).filter((s) => s !== benchmark);
-  const last = bundle.dates.length - 1;
-
-  // market regime: SPY vs its 200d moving average
-  const spy = bundle.tickers[benchmark].closes;
-  let sum = 0;
-  let count = 0;
-  for (let k = Math.max(0, last - 199); k <= last; k += 1) {
-    if (spy[k]) {
-      sum += spy[k];
-      count += 1;
-    }
+// Validate the strategy on HISTORY through the real lab engine (no-lookahead
+// backtest + walk-forward + deflated Sharpe + out-of-sample IC) before any trade.
+async function validateOnHistory() {
+  if (!fs.existsSync(universeFile)) {
+    throw new Error(`universe file not found: ${universeFile} (run scripts/fetch-universe.mjs for --universe=large)`);
   }
-  const ma200 = count > 0 ? sum / count : 0;
-  const riskOn = spy[last] && ma200 ? spy[last] >= ma200 : true;
+  const { validateMomentum } = await loadValidator();
+  return validateMomentum(universeFile, { top: TOP });
+}
 
-  const scored = symbols
-    .map((sym) => {
-      const closes = bundle.tickers[sym].closes;
-      const recent = closes[last - 5];
-      const past = closes[last - 125];
-      return { sym, m: recent && past ? recent / past - 1 : null };
-    })
-    .filter((x) => x.m !== null && x.m > 0)
-    .sort((a, b) => b.m - a.m);
-
-  const targets = riskOn ? scored.slice(0, TOP).map((x) => x.sym) : [];
-  return { targets, riskOn, asOf: bundle.dates[last] };
+function printValidation(v) {
+  const m = v.metrics;
+  console.log(`\nHistorical validation via the lab engine — ${v.universeSize} names, ${v.dataRange}`);
+  console.log(`  OOS Sharpe         ${m.oosSharpe.toFixed(2)}   (full-sample ${m.fullSharpe.toFixed(2)})`);
+  console.log(`  OOS return/costs   ${(m.returnAfterCosts * 100).toFixed(1)}%`);
+  console.log(`  deflated Sharpe    ${(m.deflatedSharpe * 100).toFixed(0)}%`);
+  console.log(`  OOS IC t-stat      ${m.oosICt === null ? "n/a" : m.oosICt.toFixed(2)}  (${m.oosICobs ?? 0} rebalances)`);
+  console.log(`  walk-forward pass  ${m.walkForwardPassRate === null ? "n/a" : (m.walkForwardPassRate * 100).toFixed(0) + "%"}`);
+  console.log(`  vs random baseline ${m.randomBaselineSharpe.toFixed(2)}   max drawdown ${(m.maxDrawdown * 100).toFixed(1)}%`);
+  console.log(`  lab pool gate      ${v.labStatus} (strictest tier; deploy uses the robust-edge bar + trend overlay)`);
+  console.log(`  VERDICT            ${v.passed ? "PASSED the historical gate ✅ — cleared to paper-trade" : "FAILED ❌ — " + v.reasons.join("; ")}`);
 }
 
 async function status() {
@@ -155,9 +152,19 @@ async function status() {
 }
 
 async function rebalance(dryRun) {
-  const { targets, riskOn, asOf } = momentumTargets();
-  console.log(`\nRegime (as of ${asOf}): ${riskOn ? "RISK-ON — SPY above 200d MA" : "RISK-OFF — SPY below 200d MA → hold cash"}`);
-  console.log(`Momentum targets (top-${TOP}, positive only): ${targets.length ? targets.join(", ") : "(cash — no positions)"}`);
+  // GATE: backtest on history first; only trade if it passes (unless --force)
+  const v = await validateOnHistory();
+  printValidation(v);
+  const force = args.has("--force");
+  if (!v.passed && !force) {
+    console.log(`\nNOT TRADING — the strategy did not pass the historical backtest. (override with --force)\n`);
+    return;
+  }
+  if (!v.passed && force) console.log(`\n--force: overriding the failed historical gate.`);
+
+  const { targets, regime } = v;
+  console.log(`\nRegime (as of ${regime.asOf}): ${regime.riskOn ? "RISK-ON — SPY above 200d MA" : "RISK-OFF — SPY below 200d MA → hold cash"}`);
+  console.log(`Targets (top-${TOP}, positive momentum): ${targets.length ? targets.join(", ") : "(cash — no positions)"}`);
   if (dryRun) {
     console.log("(dry run — pass --yes to submit PAPER orders)\n");
     return;
@@ -167,6 +174,12 @@ async function rebalance(dryRun) {
     console.log(`Market is closed (next open ${clock.next_open}). Day orders will queue for the next open.`);
   }
   const account = await api(PAPER_BASE, "/v2/account");
+  // 0) cancel any stale queued orders so re-running rebalance is idempotent
+  const stale = await api(PAPER_BASE, "/v2/orders?status=open&limit=100");
+  if (stale.length > 0) {
+    console.log(`  cancel ${stale.length} stale open order(s)`);
+    await api(PAPER_BASE, "/v2/orders", { method: "DELETE" });
+  }
   const positions = await api(PAPER_BASE, "/v2/positions");
   const targetSet = new Set(targets);
 
@@ -192,12 +205,21 @@ async function rebalance(dryRun) {
 }
 
 async function main() {
-  if (!requireKeys()) return;
   try {
+    // validate + targets are pure backtests (no account) — no keys needed
+    if (cmd === "validate") {
+      printValidation(await validateOnHistory());
+      console.log("");
+      return;
+    }
+    if (cmd === "targets") {
+      await rebalance(true);
+      return;
+    }
+    if (!requireKeys()) return;
     if (cmd === "status") await status();
-    else if (cmd === "targets") await rebalance(true);
     else if (cmd === "rebalance") await rebalance(!args.has("--yes"));
-    else console.log(`unknown command "${cmd}" (use: status | targets | rebalance --yes)`);
+    else console.log(`unknown command "${cmd}" (use: status | validate | targets | rebalance --yes [--force] [--universe=large])`);
   } catch (error) {
     console.error(`Alpaca paper error: ${error.message}`);
     process.exitCode = 1;

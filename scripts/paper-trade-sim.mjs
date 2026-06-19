@@ -14,7 +14,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const dataPath = path.join(root, "public", "assets", "data", "market-real.json");
+// universe: QRL_UNIVERSE_FILE > --universe=large (data/universe-large.json) > bundled 60
+const dataPath =
+  process.env.QRL_UNIVERSE_FILE ||
+  (process.argv.includes("--universe=large")
+    ? path.join(root, "data", "universe-large.json")
+    : path.join(root, "public", "assets", "data", "market-real.json"));
 
 const args = Object.fromEntries(
   process.argv.slice(2).map((a) => {

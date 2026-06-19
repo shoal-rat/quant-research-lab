@@ -240,25 +240,37 @@ Current suite: 28 tests covering real-data span, no-lookahead behavior, cost mon
 Two ways to take the lab's strategies from backtest to a live-ish run — both
 simulated, no real money:
 
-Both trade a **60-name universe** (large + small/mid-cap, 20y history) of
+The flow is **backtest on history → only trade if it passes**. Both tools run
 cross-sectional momentum, **positive-momentum only**, with a **trend filter**
-(invest only when SPY is above its 200d moving average, else hold cash) so it
-sidesteps bear-market drawdowns.
+(invest only when SPY is above its 200d moving average, else hold cash). The paper
+connector first **validates the strategy on history through the real lab engine**
+(no-lookahead backtest + walk-forward + deflated Sharpe + out-of-sample IC) and
+**refuses to trade unless it passes**.
+
+Universe: the bundled set is 60 names (20y); pass `--universe=large` (after
+`node scripts/fetch-universe.mjs`) for a **~513-name S&P 500 + NASDAQ-100** set.
+The wider universe is materially stronger out-of-sample:
+
+| Universe | OOS Sharpe | OOS IC t-stat | Max drawdown |
+|---|---|---|---|
+| 60 names | 0.92 | 0.88 | −39% |
+| 513 names | **1.55** | **2.08** | **−18%** |
 
 **1. Local simulator (offline, runs instantly):** replays the bundled real OHLCV
 data bar-by-bar against a virtual $100k account, no lookahead, real costs, and
 reports P&L vs SPY buy-and-hold.
 
 ```
-node scripts/paper-trade-sim.mjs --top=8             # trend-filtered (default)
-node scripts/paper-trade-sim.mjs --top=8 --noregime  # always invested
-node scripts/paper-trade-sim.mjs --ls                # long/short variant
+node scripts/fetch-universe.mjs                              # build the 513-name universe (local, ~21MB, gitignored)
+node scripts/paper-trade-sim.mjs --universe=large --top=12   # trend-filtered, wide universe
+node scripts/paper-trade-sim.mjs --top=8 --noregime          # always-invested, bundled 60
 ```
 
-Example (2024-06 → 2026-06): trend-filtered $100k → **$140,643 (+40.6%)** at a
--22.8% max drawdown; always-invested $100k → **$166,265 (+66.3%)**, beating SPY
-buy-and-hold (+41.3%) by 25 points at Sharpe 1.0 (with a deeper -29.7% drawdown).
-The filter trades upside in a pure bull for smaller drawdowns across a full cycle.
+Example (513 names, 2024-06 → 2026-06): trend-filtered top-12 $100k →
+**$313,065 (+213%)** at Sharpe 1.70. (Caveat: that window was an exceptional
+momentum/semis bull and the list is *current* constituents, so it carries
+survivorship lift — the 5y **out-of-sample** validation, Sharpe 1.55 / IC t 2.08,
+is the more trustworthy "does it generalize" figure.)
 
 **2. Alpaca paper trading (a real simulated market with virtual money):** free —
 sign up at [alpaca.markets](https://alpaca.markets) (email only), open the Paper

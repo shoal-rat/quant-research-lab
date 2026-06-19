@@ -1,5 +1,8 @@
 node_modules/
 dist/
+# large locally-fetched trading universe (S&P 500 + NASDAQ-100); not shipped/committed
+data/
+scripts/.engine-*.mjs
 wallpaper-package/
 *.zip
 *.tsbuildinfo

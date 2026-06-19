@@ -240,29 +240,41 @@ Current suite: 28 tests covering real-data span, no-lookahead behavior, cost mon
 Two ways to take the lab's strategies from backtest to a live-ish run — both
 simulated, no real money:
 
+Both trade a **60-name universe** (large + small/mid-cap, 20y history) of
+cross-sectional momentum, **positive-momentum only**, with a **trend filter**
+(invest only when SPY is above its 200d moving average, else hold cash) so it
+sidesteps bear-market drawdowns.
+
 **1. Local simulator (offline, runs instantly):** replays the bundled real OHLCV
-data bar-by-bar against a virtual $100k account, trades cross-sectional momentum
-with no lookahead and real costs, and reports P&L vs SPY buy-and-hold.
+data bar-by-bar against a virtual $100k account, no lookahead, real costs, and
+reports P&L vs SPY buy-and-hold.
 
 ```
-node scripts/paper-trade-sim.mjs            # 2y, long-only top-6 momentum
-node scripts/paper-trade-sim.mjs --ls       # long/short variant
+node scripts/paper-trade-sim.mjs --top=8             # trend-filtered (default)
+node scripts/paper-trade-sim.mjs --top=8 --noregime  # always invested
+node scripts/paper-trade-sim.mjs --ls                # long/short variant
 ```
 
-Example run (2024-06 → 2026-06): $100,000 → **$172,555 (+72.6%)**, beating SPY
-buy-and-hold (+41.3%) by 31 points at Sharpe 1.21 — net of transaction costs.
+Example (2024-06 → 2026-06): trend-filtered $100k → **$140,643 (+40.6%)** at a
+-22.8% max drawdown; always-invested $100k → **$166,265 (+66.3%)**, beating SPY
+buy-and-hold (+41.3%) by 25 points at Sharpe 1.0 (with a deeper -29.7% drawdown).
+The filter trades upside in a pure bull for smaller drawdowns across a full cycle.
 
 **2. Alpaca paper trading (a real simulated market with virtual money):** free —
 sign up at [alpaca.markets](https://alpaca.markets) (email only), open the Paper
-Trading dashboard, and create paper API keys. The connector reads them from your
-environment and **only ever uses the paper endpoint** (`paper-api.alpaca.markets`)
-— it has no live-trading code path.
+Trading dashboard, and create paper API keys. The connector **only ever uses the
+paper endpoint** (`paper-api.alpaca.markets`) — it has no live-trading code path —
+and reads your keys from the environment or a local key file (never printed).
 
 ```
-$env:APCA_API_KEY_ID="..."; $env:APCA_API_SECRET_KEY="..."   # your paper keys
-node scripts/alpaca-paper.mjs status            # account equity + positions
-node scripts/alpaca-paper.mjs targets           # momentum targets (no orders)
-node scripts/alpaca-paper.mjs rebalance --yes   # submit PAPER orders
+# keys from env:
+$env:APCA_API_KEY_ID="..."; $env:APCA_API_SECRET_KEY="..."
+# or from a file (KEY=VALUE / JSON / two tokens), kept outside the repo:
+$env:QRL_ALPACA_KEY_FILE="C:\path\to\keys.txt"
+
+node scripts/alpaca-paper.mjs status            # account equity, positions, open orders
+node scripts/alpaca-paper.mjs targets           # regime + momentum targets (no orders)
+node scripts/alpaca-paper.mjs rebalance --yes   # submit PAPER orders to the book
 ```
 
 Not investment advice. Paper/simulated trading only.

@@ -29,6 +29,8 @@ const COST_BPS = Number(args.cost ?? 5); // per-side bps
 const LOOKBACK = Number(args.lookback ?? 120);
 const SKIP = Number(args.skip ?? 5);
 const LONG_SHORT = Boolean(args.ls ?? false);
+const REGIME = args.noregime ? false : true; // SPY-above-200d-MA trend filter (default on)
+const MA_WINDOW = Number(args.ma ?? 200);
 const START_CASH = 100_000;
 
 const bundle = JSON.parse(fs.readFileSync(dataPath, "utf-8"));
@@ -48,6 +50,24 @@ function momentum(sym, i) {
   return recent / past - 1;
 }
 
+// market regime: is SPY at/above its MA_WINDOW-day moving average at day i?
+// (a trend filter — stay invested only in uptrends, go to cash in downtrends)
+function marketRiskOn(i) {
+  if (!REGIME) return true;
+  let sum = 0;
+  let count = 0;
+  for (let k = Math.max(0, i - MA_WINDOW + 1); k <= i; k += 1) {
+    const c = closeOf(benchmark, k);
+    if (c) {
+      sum += c;
+      count += 1;
+    }
+  }
+  const ma = count > 0 ? sum / count : 0;
+  const px = closeOf(benchmark, i);
+  return px && ma ? px >= ma : true;
+}
+
 // virtual account
 let cash = START_CASH;
 const shares = new Map(); // sym -> shares (can be negative for shorts)
@@ -65,12 +85,15 @@ const markToMarket = (i) => {
 for (let i = start; i <= end; i += 1) {
   // rebalance on schedule using data through day i, filling at close[i]
   if ((i - start) % HOLD === 0 && i < end) {
+    const riskOn = marketRiskOn(i);
     const scored = symbols
       .map((sym) => ({ sym, m: momentum(sym, i), px: closeOf(sym, i) }))
       .filter((x) => x.m !== null && x.px);
     scored.sort((a, b) => b.m - a.m);
-    const longs = scored.slice(0, TOP);
-    const shorts = LONG_SHORT ? scored.slice(-TOP) : [];
+    // only hold POSITIVE-momentum names, and only when the market trend is up;
+    // otherwise step aside to cash (the trend filter that cuts bear drawdowns)
+    const longs = riskOn ? scored.slice(0, TOP).filter((x) => x.m > 0) : [];
+    const shorts = LONG_SHORT && riskOn ? scored.slice(-TOP).filter((x) => x.m < 0) : [];
     const equity = markToMarket(i);
     const target = new Map();
     const legDollar = equity / (longs.length + shorts.length || 1);
@@ -128,7 +151,8 @@ const pct = (x) => `${(x * 100).toFixed(1)}%`;
 
 console.log("\n=== Local simulated market: cross-sectional momentum ===");
 console.log(`window         ${dates[start]} -> ${dates[end]} (${equityCurve.length} bars)`);
-console.log(`strategy       ${LONG_SHORT ? "long/short" : "long-only"} top-${TOP} momentum (${LOOKBACK}d, skip ${SKIP}), rebalance ${HOLD}d, ${COST_BPS}bps/side`);
+console.log(`strategy       ${LONG_SHORT ? "long/short" : "long-only"} top-${TOP} positive-momentum (${LOOKBACK}d, skip ${SKIP}), rebalance ${HOLD}d, ${COST_BPS}bps/side`);
+console.log(`trend filter   ${REGIME ? `ON — only invest when SPY >= ${MA_WINDOW}d MA, else cash` : "OFF"}`);
 console.log(`universe       ${symbols.length} names`);
 console.log("---------------------------------------------------------");
 console.log(`start cash     ${fmt(START_CASH)}`);

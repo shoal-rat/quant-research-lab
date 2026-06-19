@@ -98,9 +98,11 @@ function parseResetTime(s) {
 
 function runClaude(prompt, model) {
   return new Promise((resolve) => {
+    // Pass the prompt on STDIN, not argv: a long multi-line prompt as a shell arg
+    // gets split/truncated by the Windows shell (claude then sees only "You ...").
     const cp = spawn(
       "claude",
-      ["-p", prompt, "--model", model, "--output-format", "json", "--allowedTools", "WebSearch,WebFetch", "--permission-mode", "bypassPermissions"],
+      ["-p", "--model", model, "--output-format", "json", "--allowedTools", "WebSearch,WebFetch", "--permission-mode", "bypassPermissions"],
       { cwd: ROOT, shell: process.platform === "win32" }
     );
     let out = "";
@@ -108,6 +110,12 @@ function runClaude(prompt, model) {
     cp.stdout.on("data", (d) => (out += d));
     cp.stderr.on("data", (d) => (err += d));
     cp.on("error", (e) => resolve({ ok: false, error: String(e), rateLimited: false }));
+    try {
+      cp.stdin.write(prompt);
+      cp.stdin.end();
+    } catch {
+      /* stdin may already be closed on spawn error */
+    }
     cp.on("close", () => {
       const blob = `${out}\n${err}`;
       const rateLimited = /usage limit|rate.?limit|too many requests|\b429\b|limit reached|overloaded/i.test(blob);

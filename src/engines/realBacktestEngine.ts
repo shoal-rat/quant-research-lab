@@ -301,7 +301,10 @@ function computeRealMetrics(
 
   const deflated = deflatedSharpeProbability(sharpe, returns, trials, periodsPerYear);
   // measured random-rank baseline (negative after costs) when provided; the old
-  // hardcoded 0 made the "beat random" gate too easy and was not a real comparison
+  // hardcoded 0 made the "beat random" gate too easy and was not a real comparison.
+  // When no measured baseline is available (e.g. the bridge return-series path),
+  // it stays the sentinel 0 and is flagged unmeasured so the gate abstains.
+  const randomBaselineMeasured = randomBaselineOverride !== undefined;
   const randomBaselineSharpe = randomBaselineOverride ?? 0;
   const robustnessScore = clamp(
     58 + sharpe * 11 + deflated * 14 + cumulative * 40 - Math.abs(maxDrawdown) * 90 - turnover * 12 - yearDependency * 25,
@@ -330,6 +333,7 @@ function computeRealMetrics(
     deflatedSharpe: round(deflated, 3),
     trialsAtDiscovery: trials,
     alphaPoolCorrelation: poolCorrelation,
+    randomBaselineMeasured,
     sortino: round(sortinoRatio(returns, periodsPerYear), 2),
     calmar: round(calmarRatio(annualized, maxDrawdown), 2),
     probabilisticSharpe: round(probabilisticSharpe(sharpe, returns, periodsPerYear), 3)

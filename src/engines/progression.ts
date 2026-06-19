@@ -32,14 +32,16 @@ export interface ProgressionInput {
 
 export function computeXp(input: ProgressionInput): number {
   const { experiments, bossEvents, mood } = input;
-  const candidates = experiments.filter((experiment) => experiment.status === "candidate").length;
-  const retests = experiments.filter((experiment) => experiment.status === "retest_needed").length;
-  const familiesTried = new Set(experiments.map((experiment) => experiment.familyKey)).size;
+  // synthetic / not-backtestable runs are illustrative only — they must not farm XP
+  const scored = experiments.filter((experiment) => !experiment.synthetic && experiment.status !== "not_backtestable");
+  const candidates = scored.filter((experiment) => experiment.status === "candidate").length;
+  const retests = scored.filter((experiment) => experiment.status === "retest_needed").length;
+  const familiesTried = new Set(scored.map((experiment) => experiment.familyKey)).size;
   const directives = bossEvents.filter((event) => event.kind === "directive").length;
   const interactions = Object.values(mood).reduce((sum, entry) => sum + entry.praises + entry.scolds, 0);
-  const realRuns = experiments.filter((experiment) => experiment.dataSource === "real").length;
+  const realRuns = scored.filter((experiment) => experiment.dataSource === "real").length;
   return (
-    experiments.length * 8 +
+    scored.length * 8 +
     candidates * 60 +
     retests * 15 +
     familiesTried * 12 +
@@ -130,14 +132,15 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     icon: "🏃",
     name: { en: "Research Marathon", zh: "研究马拉松" },
     detail: { en: "Run 50 experiments", zh: "跑完 50 个实验" },
-    earned: ({ experiments }) => experiments.length >= 50
+    earned: ({ experiments }) => experiments.filter((experiment) => !experiment.synthetic).length >= 50
   },
   {
     id: "factor-tourist",
     icon: "🗺️",
     name: { en: "Factor Zoo Tourist", zh: "因子动物园游客" },
     detail: { en: "Try 8 different strategy families", zh: "尝试 8 个不同的策略家族" },
-    earned: ({ experiments }) => new Set(experiments.map((experiment) => experiment.familyKey)).size >= 8
+    earned: ({ experiments }) =>
+      new Set(experiments.filter((experiment) => !experiment.synthetic).map((experiment) => experiment.familyKey)).size >= 8
   },
   {
     id: "commander",

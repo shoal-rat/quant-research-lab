@@ -503,6 +503,10 @@ export interface PerformanceMetrics {
   robustnessScore: number;
   overfittingRiskScore: number;
   randomBaselineSharpe: number;
+  // true only when randomBaselineSharpe is an actually-simulated random-rank Sharpe
+  // (not the sentinel 0). The "beat random" gate abstains when this is not true so a
+  // hardcoded 0 can never silently satisfy it on the bridge/agent path.
+  randomBaselineMeasured?: boolean;
   concentrationScore: number;
   yearDependencyScore: number;
   deflatedSharpe: number;

@@ -80,8 +80,18 @@ export function reviewBacktestRisk(strategy: StrategySpec, backtest: BacktestRes
     check(
       "random_baseline",
       "Comparison against random baseline",
-      oos.sharpeRatio < oos.randomBaselineSharpe + 0.2 ? "fail" : oos.sharpeRatio < oos.randomBaselineSharpe + 0.55 ? "warn" : "pass",
-      `Random baseline Sharpe is ${oos.randomBaselineSharpe.toFixed(2)}.`
+      // abstain (warn) when the baseline was not actually simulated, so a sentinel 0
+      // can never silently satisfy "beat random" on the bridge/agent path
+      oos.randomBaselineMeasured === false
+        ? "warn"
+        : oos.sharpeRatio < oos.randomBaselineSharpe + 0.2
+          ? "fail"
+          : oos.sharpeRatio < oos.randomBaselineSharpe + 0.55
+            ? "warn"
+            : "pass",
+      oos.randomBaselineMeasured === false
+        ? "Random-rank baseline not measurable on this path (return series only); check abstains rather than passing on an assumed 0."
+        : `Measured random-rank baseline Sharpe is ${oos.randomBaselineSharpe.toFixed(2)}.`
     )
   );
 
@@ -203,7 +213,10 @@ export function decideExperimentStatus(
     //     not merely "absence of disproof". In-sample IC is not accepted here.
     const redundant = oos.alphaPoolCorrelation > 0.9;
     const additive = poolDelta !== undefined && poolDelta > 0;
-    const factor = backtest.factorAnalyticsOOS ?? backtest.factorAnalytics;
+    // OUT-OF-SAMPLE IC only — NO fallback to full-sample analytics. If OOS
+    // cross-sections are too sparse to compute (null), the skill claim is not
+    // proven and the candidate is sent back, rather than borrowing in-sample IC.
+    const factor = backtest.factorAnalyticsOOS;
     const hasOosSkill = factor !== undefined && factor.observations >= 10 && factor.icTStat >= 1.5;
     if (redundant || !additive || !hasOosSkill) return "retest_needed";
     return "candidate";

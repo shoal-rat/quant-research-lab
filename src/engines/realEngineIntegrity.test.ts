@@ -89,12 +89,16 @@ describe("real backtest engine integrity", () => {
     }
   });
 
-  it("returns finite, bounded metrics and a measured (non-positive-by-default) random baseline", () => {
-    const out = runRealBacktest(momentumStrategy(), PARAMS, data, ctx);
-    expect(Number.isFinite(out.result.outOfSample.sharpeRatio)).toBe(true);
-    expect(out.extras.dailyReturns.every((v) => Number.isFinite(v))).toBe(true);
-    // the random-rank baseline is now measured, not a hardcoded 0
-    expect(Number.isFinite(out.result.outOfSample.randomBaselineSharpe)).toBe(true);
+  it("uses a MEASURED random baseline (flagged measured + cost-sensitive) — not the sentinel 0", () => {
+    const cheap = runRealBacktest(momentumStrategy(), { ...PARAMS, transactionCostBps: 1 }, data, ctx);
+    const dear = runRealBacktest(momentumStrategy(), { ...PARAMS, transactionCostBps: 80 }, data, ctx);
+    // primary lock: reverting the override (back to the hardcoded 0) flips this to false/undefined
+    expect(cheap.result.outOfSample.randomBaselineMeasured).toBe(true);
+    expect(Number.isFinite(cheap.result.outOfSample.randomBaselineSharpe)).toBe(true);
+    // secondary: a real simulated baseline is non-zero OR responds to cost; the
+    // sentinel 0 would be exactly 0 in both, failing this OR
+    const reactsToCost = dear.result.outOfSample.randomBaselineSharpe !== cheap.result.outOfSample.randomBaselineSharpe;
+    expect(reactsToCost || cheap.result.outOfSample.randomBaselineSharpe !== 0).toBe(true);
   });
 
   it("exposes aligned benchmark + dates on extras for the validation panel", () => {

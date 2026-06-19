@@ -192,7 +192,8 @@ function computeMetrics(
     yearDependencyScore: round(yearDependency, 3),
     deflatedSharpe: round(deflated, 3),
     trialsAtDiscovery: trials,
-    alphaPoolCorrelation: poolCorrelation
+    alphaPoolCorrelation: poolCorrelation,
+    randomBaselineMeasured: false // mock simulator: circular/illustrative, never a measured baseline
   };
 }
 

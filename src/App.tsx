@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BarChart3, Bot, FlaskConical, History, Images, Languages, LayoutGrid, Settings } from "lucide-react";
+import { BarChart3, Bot, FlaskConical, History, Images, Languages, LayoutGrid, LineChart, Microscope, Settings } from "lucide-react";
 import { OfficePage } from "./pages/OfficePage";
 import { ExperimentDetailPage } from "./pages/ExperimentDetailPage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
@@ -8,6 +8,8 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { AssetPreviewPage } from "./pages/AssetPreviewPage";
 import { BoardPage } from "./pages/BoardPage";
+import { StrategyLabPage } from "./pages/StrategyLabPage";
+import { PaperTradingPage } from "./pages/PaperTradingPage";
 import { ToastStack } from "./components/ToastStack";
 import { GameModal } from "./components/GameModal";
 import { LoopControls } from "./components/LoopControls";
@@ -22,6 +24,8 @@ type Route =
   | { name: "settings" }
   | { name: "history" }
   | { name: "board" }
+  | { name: "strategy" }
+  | { name: "paper" }
   | { name: "current" }
   | { name: "experiment"; id: string };
 
@@ -36,6 +40,8 @@ function parseRoute(hash: string): Route {
   if (clean === "settings") return { name: "settings" };
   if (clean === "history") return { name: "history" };
   if (clean === "board") return { name: "board" };
+  if (clean === "strategy") return { name: "strategy" };
+  if (clean === "paper") return { name: "paper" };
   if (clean === "current") return { name: "current" };
   return { name: "office" };
 }
@@ -61,6 +67,8 @@ export function App(): JSX.Element {
 
   const navItems = [
     { label: t(lang, "navBoard"), path: "/board", icon: LayoutGrid },
+    { label: lang === "zh" ? "策略库" : "Strategy Lab", path: "/strategy", icon: Microscope },
+    { label: lang === "zh" ? "模拟交易" : "Paper Trading", path: "/paper", icon: LineChart },
     { label: t(lang, "navHistory"), path: "/history", icon: History },
     { label: t(lang, "navLeaderboard"), path: "/leaderboard", icon: BarChart3 },
     { label: t(lang, "navAgents"), path: "/agents", icon: Bot },
@@ -128,6 +136,16 @@ export function App(): JSX.Element {
       {!wallpaperMode && route.name === "board" && (
         <GameModal title={t(lang, "boardTitle")} onClose={close} wide>
           <BoardPage />
+        </GameModal>
+      )}
+      {!wallpaperMode && route.name === "strategy" && (
+        <GameModal title={lang === "zh" ? "策略库" : "Strategy Lab"} onClose={close} wide>
+          <StrategyLabPage />
+        </GameModal>
+      )}
+      {!wallpaperMode && route.name === "paper" && (
+        <GameModal title={lang === "zh" ? "模拟交易" : "Paper Trading"} onClose={close} wide>
+          <PaperTradingPage />
         </GameModal>
       )}
       {!wallpaperMode && route.name === "history" && (

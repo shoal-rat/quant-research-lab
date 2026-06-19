@@ -29,6 +29,51 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { loadValidator } from "./_engine-bridge.mjs";
+import {
+  cancelAllOrders,
+  closePosition,
+  getAccount,
+  getClock,
+  getOpenOrders,
+  getPortfolioHistory,
+  getPositions,
+  loadKeysFromFile,
+  submitNotional,
+  windowReturns
+} from "./alpaca-lib.mjs";
+
+const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const UNIVERSE_BUNDLED = path.join(PROJECT_ROOT, "public", "assets", "data", "market-real.json");
+const UNIVERSE_LARGE = path.join(PROJECT_ROOT, "data", "universe-large.json");
+
+// Resolve paper keys: request body wins, else the bridge's QRL_ALPACA_KEY_FILE.
+function resolvePaperKeys(payload) {
+  if (payload && payload.key && payload.secret) return { id: payload.key, secret: payload.secret };
+  if (process.env.QRL_ALPACA_KEY_FILE) return loadKeysFromFile(process.env.QRL_ALPACA_KEY_FILE);
+  return null;
+}
+function universePath(payload) {
+  return payload && payload.universe === "large" ? UNIVERSE_LARGE : UNIVERSE_BUNDLED;
+}
+function readJson(req) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+      if (body.length > 200_000) req.destroy();
+    });
+    req.on("end", () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch (error) {
+        reject(error);
+      }
+    });
+    req.on("error", reject);
+  });
+}
 
 const PORT = Number(process.env.QRL_BRIDGE_PORT ?? 8787);
 const CLAUDE_MODEL = process.env.QRL_CLAUDE_MODEL ?? "claude-haiku-4-5";
@@ -612,6 +657,105 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ---- Paper trading (Alpaca PAPER endpoint only) ---------------------------
+  // Validate a strategy on history through the REAL engine (no keys needed).
+  if (req.method === "POST" && req.url === "/paper/validate") {
+    try {
+      const payload = await readJson(req);
+      const file = universePath(payload);
+      if (!fs.existsSync(file)) {
+        send(res, 400, { error: `universe file not found: ${path.basename(file)} (run scripts/fetch-universe.mjs for the large set)` });
+        return;
+      }
+      const { validateMomentum } = await loadValidator();
+      send(res, 200, validateMomentum(file, { top: Number(payload.top) || 8 }));
+    } catch (error) {
+      send(res, 500, { error: String(error) });
+    }
+    return;
+  }
+
+  // Account status + positions + open orders + trailing 1/5/10-day performance.
+  if (req.method === "POST" && req.url === "/paper/status") {
+    try {
+      const payload = await readJson(req);
+      const keys = resolvePaperKeys(payload);
+      if (!keys) {
+        send(res, 400, { error: "no paper keys — enter them in Settings or set QRL_ALPACA_KEY_FILE on the bridge" });
+        return;
+      }
+      const [account, positions, openOrders, history] = await Promise.all([
+        getAccount(keys.id, keys.secret),
+        getPositions(keys.id, keys.secret),
+        getOpenOrders(keys.id, keys.secret),
+        getPortfolioHistory(keys.id, keys.secret, "1M", "1D").catch(() => null)
+      ]);
+      send(res, 200, {
+        account: {
+          status: account.status,
+          equity: Number(account.equity),
+          cash: Number(account.cash),
+          buyingPower: Number(account.buying_power)
+        },
+        positions: positions.map((p) => ({
+          symbol: p.symbol,
+          qty: Number(p.qty),
+          marketValue: Number(p.market_value),
+          unrealizedPl: Number(p.unrealized_pl),
+          unrealizedPlpc: Number(p.unrealized_plpc)
+        })),
+        openOrders: openOrders.map((o) => ({ symbol: o.symbol, side: o.side, notional: o.notional, qty: o.qty, status: o.status })),
+        performance: windowReturns(history)
+      });
+    } catch (error) {
+      send(res, 502, { error: String(error) });
+    }
+    return;
+  }
+
+  // Validate on history, and ONLY if it passes (or force), rebalance the paper book.
+  if (req.method === "POST" && req.url === "/paper/deploy") {
+    try {
+      const payload = await readJson(req);
+      const keys = resolvePaperKeys(payload);
+      if (!keys) {
+        send(res, 400, { error: "no paper keys — enter them in Settings or set QRL_ALPACA_KEY_FILE on the bridge" });
+        return;
+      }
+      const file = universePath(payload);
+      if (!fs.existsSync(file)) {
+        send(res, 400, { error: `universe file not found: ${path.basename(file)}` });
+        return;
+      }
+      const top = Number(payload.top) || 8;
+      const { validateMomentum } = await loadValidator();
+      const validation = validateMomentum(file, { top });
+      if (!validation.passed && !payload.force) {
+        send(res, 200, { traded: false, blocked: true, validation });
+        return;
+      }
+      const { targets, regime } = validation;
+      const account = await getAccount(keys.id, keys.secret);
+      const stale = await getOpenOrders(keys.id, keys.secret);
+      if (stale.length) await cancelAllOrders(keys.id, keys.secret);
+      const positions = await getPositions(keys.id, keys.secret);
+      const targetSet = new Set(targets);
+      for (const p of positions) if (!targetSet.has(p.symbol)) await closePosition(keys.id, keys.secret, p.symbol).catch(() => {});
+      const orders = [];
+      if (targets.length > 0) {
+        const notional = Math.floor(Number(account.equity) / targets.length);
+        for (const sym of targets) {
+          await submitNotional(keys.id, keys.secret, sym, notional, "buy");
+          orders.push({ symbol: sym, notional });
+        }
+      }
+      send(res, 200, { traded: true, blocked: false, validation, regime, orders });
+    } catch (error) {
+      send(res, 502, { error: String(error) });
+    }
+    return;
+  }
+
   send(res, 404, { error: "not found" });
 });
 
@@ -620,6 +764,7 @@ server.listen(PORT, "127.0.0.1", () => {
   console.log(`  claude model: ${CLAUDE_MODEL} | codex model: ${CODEX_MODEL}`);
   console.log(`  dialogue + research brain: POST /condense`);
   console.log(`  discover strategies (web search): POST /research/strategies`);
+  console.log(`  paper trading (Alpaca PAPER only): POST /paper/validate · /paper/status · /paper/deploy`);
   if (ALLOW_DATA_TOOLS) {
     console.log(`  BIG-DATA MODE ON: the agent writes a reusable backtest kernel ONCE per source, then it runs free`);
     console.log(`    data model: claude=${DATA_CLAUDE_MODEL} | codex reasoning=${DATA_REASONING} | kernel cache: ${KERNEL_DIR}`);

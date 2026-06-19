@@ -426,6 +426,11 @@ export interface Settings {
   dialogueBackend: DialogueBackend;
   anthropicApiKey: string;
   openaiApiKey: string;
+  // Alpaca PAPER trading keys (optional). Sent only to the local bridge, which
+  // calls the paper endpoint; never to any other host. Empty = the bridge uses its
+  // own QRL_ALPACA_KEY_FILE instead.
+  paperApiKey?: string;
+  paperApiSecret?: string;
   bridgeUrl: string;
   language: Language;
   dataset: DatasetConfig;

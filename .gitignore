@@ -1,5 +1,8 @@
 node_modules/
 dist/
+# tsc-emitted artifacts from the vite config (source of truth is vite.config.ts)
+vite.config.js
+vite.config.d.ts
 # large locally-fetched trading universe (S&P 500 + NASDAQ-100); not shipped/committed
 data/
 scripts/.engine-*.mjs

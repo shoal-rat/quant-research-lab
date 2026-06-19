@@ -351,6 +351,40 @@ export function SettingsPage(): JSX.Element {
       </section>
 
       <section className="page-card settings-card">
+        <h2>{lang === "zh" ? "模拟交易（Alpaca Paper）" : "Paper trading (Alpaca Paper)"}</h2>
+        <p>
+          {lang === "zh"
+            ? "免费在 alpaca.markets 注册并创建 Paper（模拟）密钥。密钥只发送到本地桥接器（再由它调用 paper 端点），不会发给其他主机；留空则桥接器使用自己的 QRL_ALPACA_KEY_FILE。仅限模拟盘，永不真金白银。"
+            : "Sign up free at alpaca.markets and create Paper API keys. Keys are sent only to your local bridge (which calls the paper endpoint) — never to any other host. Leave blank to let the bridge use its own QRL_ALPACA_KEY_FILE. Paper/simulated only, never real money."}
+        </p>
+        <div className="form-grid">
+          <label className="field">
+            <span>{lang === "zh" ? "Paper API Key（PK…）" : "Paper API Key (PK…)"}</span>
+            <input
+              type="password"
+              placeholder="PK…"
+              value={settings.paperApiKey ?? ""}
+              onChange={(event) => set("paperApiKey", event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>{lang === "zh" ? "Paper API Secret" : "Paper API Secret"}</span>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={settings.paperApiSecret ?? ""}
+              onChange={(event) => set("paperApiSecret", event.target.value)}
+            />
+          </label>
+          <p className="field full settings-note">
+            {lang === "zh"
+              ? "需要先运行 npm run dialogue-bridge（上面的桥接器地址）。然后在“模拟交易”面板里：先用历史回测验证策略，通过后才能下单到你的模拟账户。"
+              : "Requires the bridge running (URL above). Then in the Paper Trading panel: validate a strategy on history first; only a strategy that passes can be deployed to your paper account."}
+          </p>
+        </div>
+      </section>
+
+      <section className="page-card settings-card">
         <h2>Desktop wallpaper mode</h2>
         <p>
           Open <code>{`${window.location.origin}${window.location.pathname}?wallpaper=1`}</code> for a chrome-free,

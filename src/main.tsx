@@ -4,6 +4,7 @@ import { AppStoreProvider } from "./store/AppStore";
 import { App } from "./App";
 import "./styles.css";
 import "./gameStyles.css";
+import "./strategyPaper.css";
 
 // Desktop-wallpaper host hooks. Lively Wallpaper and Wallpaper Engine call
 // these to pause the wallpaper when a fullscreen app is in front; registered

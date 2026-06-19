@@ -306,6 +306,9 @@ export function runBacktest(
     full,
     equityCurve: makeEquityCurve(returns, benchmarkReturns),
     generatedCode,
-    dataUsed: `${params.universe.length} equities, daily OHLCV returns, timestamped mock news headlines, related-ticker sentiment, benchmark ${params.benchmark}`
+    // honest provenance: this path does NOT read any real prices/news — it is a
+    // deterministic synthetic series for illustration only, never a real backtest.
+    dataUsed: `SYNTHETIC illustrative series — deterministic mock simulator, no real prices/news read (${params.universe.length} ${strategy.factorKind.replaceAll("_", " ")} names, benchmark ${params.benchmark})`,
+    synthetic: true
   };
 }

@@ -31,6 +31,8 @@ function managerDecision(status: ExperimentRecord["status"]): string {
   if (status === "retest_needed") return "Send it back for retest. The edge is not clean yet.";
   if (status === "rejected") return "Reject this version. Preserve the lesson and move on.";
   if (status === "failed_to_run") return "Archive the run log and simplify the implementation.";
+  if (status === "not_backtestable")
+    return "Illustrative only — the dataset can't backtest this family, so it can't be scored or promoted.";
   return "Archive it as informative but not worth current desk attention.";
 }
 
@@ -126,6 +128,7 @@ export async function completeIteration(
   if (output) {
     backtest = output.result;
     backtest.generatedCode = generatedCode;
+    backtest.synthetic = false;
     extras = output.extras;
     datasetLabel = datasetProvider?.meta().label;
     // keep stored series bounded for localStorage (last ~6 years)
@@ -134,18 +137,27 @@ export async function completeIteration(
       extras.dailyReturns = extras.dailyReturns.slice(-1500);
     }
   } else {
+    // No real backtest is possible for this family on the active dataset (e.g. a
+    // news/earnings factor on a close-only price panel). The mock simulator
+    // produces an ILLUSTRATIVE curve so the office has something to narrate, but
+    // the result is flagged synthetic and hard-locked to "not_backtestable" — it
+    // never reaches the admission gate, the pool, the leaderboard, or NAV.
     const marketRows = makeMockMarketData(settings.startDate, 430);
     backtest = runBacktest(strategy, params, marketRows, generatedCode, {
       familyAttempts,
       totalTrials: experiments.length + 1,
       priorCandidates
     });
-    datasetLabel = "Deterministic mock simulator";
+    backtest.synthetic = true;
+    datasetLabel = "Illustrative mock simulator (no real data for this family)";
   }
   const riskReview = reviewBacktestRisk(strategy, backtest);
-  // the candidate gate now uses the pool-ΔSharpe (does this alpha ADD to the pool?)
+  // the candidate gate uses the pool-ΔSharpe (does this alpha ADD to the pool?);
+  // synthetic results are excluded from any real decision.
   const poolDelta = extras ? poolSharpeDelta(extras, priorCandidates) : undefined;
-  const status = decideExperimentStatus(backtest, riskReview, generatedCode, strictnessBias, poolDelta);
+  const status: ExperimentRecord["status"] = backtest.synthetic
+    ? "not_backtestable"
+    : decideExperimentStatus(backtest, riskReview, generatedCode, strictnessBias, poolDelta);
   const createdAt = new Date().toISOString();
   const workflowAudit = buildResearchWorkflowAudit({
     strategy,
@@ -156,7 +168,13 @@ export async function completeIteration(
     params,
     dataUsed: backtest.dataUsed,
     status,
-    humanReviewRequired: settings.humanReviewRequired
+    humanReviewRequired: settings.humanReviewRequired,
+    // feed the validation panel the FULL per-bar daily series + true annualization
+    // (not the decimated equity curve), so walk-forward/regime/decay Sharpes are right
+    dailyReturns: extras?.dailyReturns,
+    benchmarkReturns: extras?.benchmarkReturns,
+    returnDates: extras?.dates,
+    periodsPerYear: extras?.periodsPerYear
   });
 
   const baseExperiment = {
@@ -178,6 +196,8 @@ export async function completeIteration(
     returnsStartIndex: extras?.returnsStartIndex,
     poolSharpeDelta: poolDelta,
     factorAnalytics: backtest.factorAnalytics,
+    factorAnalyticsOOS: backtest.factorAnalyticsOOS,
+    synthetic: backtest.synthetic,
     dataRange: `${settings.startDate} to ${settings.endDate}`,
     dataUsed: backtest.dataUsed,
     factorLogic: strategy.factorLogic,

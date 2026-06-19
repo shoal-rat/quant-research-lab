@@ -144,13 +144,23 @@ export function ExperimentDetailPage({ id }: { id: string }): JSX.Element {
               <p>{audit.regimes.summary}</p>
             </article>
             <article className="page-card">
-              <h2>Operations</h2>
+              <h2>Operations {audit.capacity.illustrative ? <span className="scaffold-tag">illustrative scaffold</span> : null}</h2>
               <dl className="kv-list">
-                <div><dt>Capacity</dt><dd>${(audit.capacity.maxDeployableCapitalUsd / 1_000_000).toFixed(0)}M / {audit.capacity.bottleneck}</dd></div>
+                <div>
+                  <dt>Capacity</dt>
+                  <dd>
+                    {audit.capacity.maxDeployableCapitalUsd === null
+                      ? `n/a (${audit.capacity.bottleneck})`
+                      : `$${(audit.capacity.maxDeployableCapitalUsd / 1_000_000).toFixed(0)}M / ${audit.capacity.bottleneck}`}
+                  </dd>
+                </div>
                 <div><dt>Impact</dt><dd>{number(audit.capacity.marketImpactBps, 1)} bps</dd></div>
                 <div><dt>Slippage</dt><dd>{number(audit.execution.slippageBps, 1)} bps</dd></div>
                 <div><dt>Partial fills</dt><dd>{percent(audit.execution.partialFillRate, 0)}</dd></div>
                 <div><dt>Decay</dt><dd>{audit.alphaDecay.summary}</dd></div>
+                {audit.capacity.illustrative ? (
+                  <div><dt>Basis</dt><dd className="muted">{audit.capacity.basis}</dd></div>
+                ) : null}
               </dl>
             </article>
           </section>

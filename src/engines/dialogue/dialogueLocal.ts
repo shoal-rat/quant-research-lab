@@ -329,7 +329,8 @@ export function phaseConversation(context: DialogueContext): ConversationScript 
         retest_needed: "打回复测，这条边还不够干净。",
         rejected: "这个版本拒掉，留下教训，继续前进。",
         failed_to_run: "归档运行日志，简化实现再来。",
-        archived: "归档：有信息量，但不值得占用桌面注意力。"
+        archived: "归档：有信息量，但不值得占用桌面注意力。",
+        not_backtestable: "仅作示意：当前数据没法回测这个家族，不能打分也不能晋升。"
       };
       return script(
         "debate",
@@ -380,7 +381,8 @@ export function phaseConversation(context: DialogueContext): ConversationScript 
         retest_needed: `${experiment.strategyName} 打回复测，边还不干净。`,
         rejected: `${experiment.strategyName} 拒绝。教训写进记忆，往前走。`,
         failed_to_run: "这次跑挂了。归档日志，简化重跑。",
-        archived: `${experiment.strategyName} 归档：有信息量，不占桌面。`
+        archived: `${experiment.strategyName} 归档：有信息量，不占桌面。`,
+        not_backtestable: `${experiment.strategyName} 仅作示意：数据无法回测，不计入打分或晋升。`
       };
       return script(
         "decision",

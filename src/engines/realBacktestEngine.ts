@@ -11,6 +11,7 @@ import { dateIndex, RealMarketData, realUniverse } from "./realMarket";
 import { clamp, round, seededRandom } from "./random";
 import { calmarRatio, probabilisticSharpe, sortinoRatio } from "./perfMetrics";
 import { computeFactorAnalytics, FactorCrossSection } from "./factorAnalytics";
+import { preprocessSignal } from "./signalPreprocess";
 
 // Real-data backtester: computes family signals from actual adjusted closes at
 // whatever frequency the dataset carries (hourly, daily, weekly, monthly...),
@@ -24,6 +25,12 @@ const DEFAULT_PERIODS_PER_YEAR = 252;
 export interface RealBacktestExtras {
   dailyReturns: number[];
   returnsStartIndex: number;
+  // transient (NOT persisted to the record): the aligned benchmark series, dates,
+  // and annualization factor, so the validation panel can run walk-forward /
+  // regime / decay on the true per-bar daily series instead of the decimated curve.
+  benchmarkReturns?: number[];
+  dates?: string[];
+  periodsPerYear?: number;
 }
 
 export interface RealBacktestOutput {
@@ -76,6 +83,37 @@ function trailingMax(closes: (number | null)[], at: number, window: number): num
     if (value !== null && value > max) max = value;
   }
   return Number.isFinite(max) ? max : null;
+}
+
+// Rolling market beta of a name vs the benchmark over `window` bars ending at `at`
+// (using only data up to `at`), for cross-sectional beta neutralization. Returns
+// 1 (market beta) when there is not enough clean overlap.
+function rollingBeta(
+  nameReturns: (number | null)[],
+  benchReturns: (number | null)[],
+  at: number,
+  window: number
+): number {
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (let index = at - window + 1; index <= at; index += 1) {
+    const x = benchReturns[index];
+    const y = nameReturns[index];
+    if (index >= 0 && x !== null && y !== null) {
+      xs.push(x);
+      ys.push(y);
+    }
+  }
+  if (xs.length < Math.max(10, window * 0.5)) return 1;
+  const mx = xs.reduce((s, v) => s + v, 0) / xs.length;
+  const my = ys.reduce((s, v) => s + v, 0) / ys.length;
+  let cov = 0;
+  let varx = 0;
+  for (let i = 0; i < xs.length; i += 1) {
+    cov += (xs[i] - mx) * (ys[i] - my);
+    varx += (xs[i] - mx) ** 2;
+  }
+  return varx > 1e-12 ? cov / varx : 1;
 }
 
 // signal per family for ticker `symbol` at day index `at` (data up to `at` only)
@@ -199,8 +237,11 @@ function computeSignal(
       return close / high;
     }
     default: {
-      // unknown family on real data: generic 60d momentum so the loop never dies
-      return trailingReturn(closes, at, 60, 2);
+      // Unknown / non-price family on real data: do NOT silently impersonate
+      // momentum. Returning null means no signal -> no position; the family is
+      // reported as not backtestable on this dataset rather than promoted under a
+      // false name.
+      return null;
     }
   }
 }
@@ -213,7 +254,8 @@ function computeRealMetrics(
   trials: number,
   poolCorrelation: number,
   concentrationOverride?: number,
-  periodsPerYear: number = DEFAULT_PERIODS_PER_YEAR
+  periodsPerYear: number = DEFAULT_PERIODS_PER_YEAR,
+  randomBaselineOverride?: number
 ): PerformanceMetrics {
   const count = Math.max(1, returns.length);
   const cumulative = returns.reduce((value, next) => value * (1 + next), 1) - 1;
@@ -258,7 +300,9 @@ function computeRealMetrics(
   const yearDependency = totalAbs > 0 ? clamp(bestAbs / totalAbs, 0, 1) : 0.5;
 
   const deflated = deflatedSharpeProbability(sharpe, returns, trials, periodsPerYear);
-  const randomBaselineSharpe = 0; // a random rank portfolio nets ~0 before costs
+  // measured random-rank baseline (negative after costs) when provided; the old
+  // hardcoded 0 made the "beat random" gate too easy and was not a real comparison
+  const randomBaselineSharpe = randomBaselineOverride ?? 0;
   const robustnessScore = clamp(
     58 + sharpe * 11 + deflated * 14 + cumulative * 40 - Math.abs(maxDrawdown) * 90 - turnover * 12 - yearDependency * 25,
     0,
@@ -432,6 +476,66 @@ export function metricsFromReturnSeries(input: {
   return { result, extras };
 }
 
+// Measured random-rank baseline: run the SAME rebalance schedule, universe,
+// bucket size, and cost model but assign long/short buckets at random, averaged
+// over a few seeds, and return the realized out-of-sample Sharpe. After costs a
+// random L/S portfolio nets slightly negative — a real, non-trivial bar that the
+// strategy must beat (the old hardcoded 0 made the "beat random" check too easy).
+function randomRankBaselineOosSharpe(
+  data: RealMarketData,
+  universe: string[],
+  slice: Slice,
+  holding: number,
+  costRate: number,
+  longOnly: boolean,
+  periodsPerYear: number,
+  splitFraction: number,
+  seeds = 4
+): number {
+  const sharpes: number[] = [];
+  for (let s = 0; s < seeds; s += 1) {
+    const rng = seededRandom(`randrank-${s}-${universe.length}-${slice.start}-${holding}`);
+    const rets: number[] = [];
+    let weights = new Map<string, number>();
+    let pending = 0;
+    for (let day = slice.start; day < slice.end - 1; day += 1) {
+      if ((day - slice.start) % holding === 0) {
+        const order = universe.map((symbol) => [symbol, rng()] as [string, number]).sort((a, b) => b[1] - a[1]);
+        const next = new Map<string, number>();
+        const bucket = Math.max(2, Math.floor(order.length * 0.3));
+        const longWeight = 1 / bucket;
+        for (let index = 0; index < bucket; index += 1) next.set(order[index][0], longWeight);
+        if (!longOnly) {
+          for (let index = order.length - bucket; index < order.length; index += 1) {
+            next.set(order[index][0], (next.get(order[index][0]) ?? 0) - 1 / bucket);
+          }
+        }
+        let turnover = 0;
+        new Set([...weights.keys(), ...next.keys()]).forEach((symbol) => {
+          turnover += Math.abs((next.get(symbol) ?? 0) - (weights.get(symbol) ?? 0));
+        });
+        pending += turnover * 0.5 * 2 * costRate;
+        weights = next;
+      }
+      let dayReturn = -pending;
+      pending = 0;
+      weights.forEach((weight, symbol) => {
+        const ret = data.returns[symbol][day + 1];
+        if (ret !== null) dayReturn += weight * ret;
+      });
+      rets.push(dayReturn);
+    }
+    const split = Math.floor(rets.length * splitFraction);
+    const oos = rets.slice(split);
+    if (oos.length < 5) continue;
+    const mean = oos.reduce((sum, value) => sum + value, 0) / oos.length;
+    const variance = oos.reduce((sum, value) => sum + (value - mean) ** 2, 0) / Math.max(1, oos.length - 1);
+    sharpes.push((mean / Math.sqrt(Math.max(variance, 1e-12))) * Math.sqrt(periodsPerYear));
+  }
+  if (sharpes.length === 0) return 0;
+  return round(sharpes.reduce((sum, value) => sum + value, 0) / sharpes.length, 2);
+}
+
 export function runRealBacktest(
   strategy: StrategySpec,
   params: BacktestParameters,
@@ -468,18 +572,38 @@ export function runRealBacktest(
   const weightsHistory: Map<string, number>[] = [];
   const yearsPnl = new Map<string, number>();
   const crossSections: FactorCrossSection[] = [];
+  const crossSectionReturnIndex: number[] = []; // returns-index at each capture (for IS/OOS split)
   let weights = new Map<string, number>();
+  // rebalance cost is charged to the bar the NEW weights first earn (the executing
+  // bar), accrued here and subtracted from the next earned return.
+  let pendingCost = 0;
 
   for (let day = slice.start; day < slice.end - 1; day += 1) {
     // rebalance on schedule
     if ((day - slice.start) % holding === 0) {
-      const signals: Array<[string, number]> = [];
+      const raw: Array<[string, number]> = [];
       for (const symbol of universe) {
         const signal = computeSignal(strategy, data, symbol, day, industryPeers, periodsPerYear);
-        if (signal !== null && Number.isFinite(signal)) signals.push([symbol, signal]);
+        if (signal !== null && Number.isFinite(signal)) raw.push([symbol, signal]);
       }
-      // capture the (signal, forward-return) cross-section for Alphalens-style
-      // factor analytics — signal uses data <= day, forward return is after day
+      // Cross-sectional neutralization (Alphalens/Qlib): winsorize then strip the
+      // sector tilt and market-beta component, so the traded long/short book and
+      // the IC we report are sector- & beta-neutral, not an uncontrolled tilt.
+      // Time-series families (seasonality/trend overlay) are market-timing signals,
+      // not cross-sectional ranks, so they are left untouched.
+      let signals: Array<[string, number]> = raw;
+      if (!isTimeSeriesFamily && raw.length >= 6) {
+        const groups = raw.map(([symbol]) => data.tickers[symbol].industry);
+        const betas = raw.map(([symbol]) => rollingBeta(data.returns[symbol], data.returns[data.benchmark], day, 60));
+        const neutral = preprocessSignal(
+          raw.map(([, value]) => value),
+          { winsorize: 0.025, groups, betas }
+        );
+        signals = raw.map(([symbol], index) => [symbol, neutral[index]]);
+      }
+      // capture the (neutralized signal, forward-return) cross-section for
+      // Alphalens-style factor analytics — signal uses data <= day, forward return
+      // is after day. Record the returns-index so IS/OOS IC can be split later.
       if (signals.length >= 6) {
         const csSignal: number[] = [];
         const fwd: Record<number, number[]> = { 1: [], 5: [], 10: [], 20: [] };
@@ -492,6 +616,7 @@ export function runRealBacktest(
           }
         }
         crossSections.push({ signal: csSignal, forwardByHorizon: fwd });
+        crossSectionReturnIndex.push(returns.length);
       }
       const next = new Map<string, number>();
       if (isTimeSeriesFamily) {
@@ -511,7 +636,7 @@ export function runRealBacktest(
           }
         }
       }
-      // turnover + cost
+      // turnover -> cost accrued to the executing bar (subtracted below)
       let turnover = 0;
       const keys = new Set([...weights.keys(), ...next.keys()]);
       keys.forEach((symbol) => {
@@ -521,19 +646,12 @@ export function runRealBacktest(
       turnoverSeries.push(turnover);
       weights = next;
       weightsHistory.push(next);
-      if (returns.length > 0) returns[returns.length - 1] -= turnover * 2 * costRate;
-      else if (turnover > 0) {
-        // initial entry cost charged to the first day
-        benchmarkReturns.push(0);
-        returns.push(-turnover * 2 * costRate);
-        const year = data.dates[day].slice(0, 4);
-        yearsPnl.set(year, (yearsPnl.get(year) ?? 0) - turnover * 2 * costRate);
-        continue;
-      }
+      pendingCost += turnover * 2 * costRate;
     }
 
-    // earn next-day returns with current weights
-    let dayReturn = 0;
+    // earn next-bar returns with current weights, net of any pending rebalance cost
+    let dayReturn = -pendingCost;
+    pendingCost = 0;
     weights.forEach((weight, symbol) => {
       const ret = data.returns[symbol][day + 1];
       if (ret !== null) dayReturn += weight * ret;
@@ -550,9 +668,13 @@ export function runRealBacktest(
 
   const extras: RealBacktestExtras = {
     dailyReturns: returns.map((value) => Number(value.toFixed(6))),
-    returnsStartIndex: slice.start
+    returnsStartIndex: slice.start,
+    benchmarkReturns: benchmarkReturns.slice(),
+    dates: returns.map((_, index) => data.dates[slice.start + index + 1] ?? data.dates[data.dates.length - 1]),
+    periodsPerYear
   };
   const poolCorrelation = realPoolCorrelation(extras, context.priorCandidates);
+  const randomBaseline = randomRankBaselineOosSharpe(data, universe, slice, holding, costRate, longOnly, periodsPerYear, 0.58);
 
   const splitYears = (from: number, to: number) => {
     const map = new Map<string, number>();
@@ -571,7 +693,8 @@ export function runRealBacktest(
     trials,
     poolCorrelation,
     undefined,
-    periodsPerYear
+    periodsPerYear,
+    randomBaseline
   );
   const outOfSample = computeRealMetrics(
     returns.slice(splitIndex),
@@ -581,9 +704,10 @@ export function runRealBacktest(
     trials,
     poolCorrelation,
     undefined,
-    periodsPerYear
+    periodsPerYear,
+    randomBaseline
   );
-  const full = computeRealMetrics(returns, turnoverSeries, weightsHistory, yearsPnl, trials, poolCorrelation, undefined, periodsPerYear);
+  const full = computeRealMetrics(returns, turnoverSeries, weightsHistory, yearsPnl, trials, poolCorrelation, undefined, periodsPerYear, randomBaseline);
 
   // equity curve on real dates
   const equityCurve: EquityPoint[] = [];
@@ -606,9 +730,10 @@ export function runRealBacktest(
     }
   }
 
-  // deterministic seeded random-rank baseline for honesty
-  const rng = seededRandom(`real-baseline-${strategy.id}`);
-  void rng;
+  // OUT-OF-SAMPLE factor analytics: only the cross-sections captured at/after the
+  // in-sample split, so the admission gate's "predictive skill" check cannot be
+  // satisfied by in-sample IC. Full-sample analytics are kept for display.
+  const oosCrossSections = crossSections.filter((_, index) => crossSectionReturnIndex[index] >= splitIndex);
 
   const result: BacktestResult = {
     inSample,
@@ -616,8 +741,9 @@ export function runRealBacktest(
     full,
     equityCurve,
     generatedCode: "",
-    dataUsed: `${universe.length} names, ${data.dates[slice.start]} to ${data.dates[slice.end - 1]}, ${data.frequency ?? "daily"} adjusted closes (${data.source}), benchmark ${data.benchmark}`,
-    factorAnalytics: computeFactorAnalytics(crossSections, holding) ?? undefined
+    dataUsed: `${universe.length} names, ${data.dates[slice.start]} to ${data.dates[slice.end - 1]}, ${data.frequency ?? "daily"} adjusted closes (${data.source}), benchmark ${data.benchmark}; cross-sectional signals winsorized + sector/beta-neutralized before ranking`,
+    factorAnalytics: computeFactorAnalytics(crossSections, holding) ?? undefined,
+    factorAnalyticsOOS: computeFactorAnalytics(oosCrossSections, holding) ?? undefined
   };
   return { result, extras };
 }

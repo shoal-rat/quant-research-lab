@@ -1230,6 +1230,29 @@ button {
   background: rgba(120, 128, 138, 0.18);
 }
 
+.status-not_backtestable {
+  color: #6b4ea3;
+  background: rgba(140, 110, 190, 0.16);
+}
+
+.scaffold-tag {
+  margin-left: 8px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b4ea3;
+  background: rgba(140, 110, 190, 0.16);
+  padding: 2px 7px;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.kv-list .muted {
+  color: #8a93a0;
+  font-size: 0.82rem;
+}
+
 .page-heading {
   margin-bottom: 16px;
   padding: 2px 2px 0;

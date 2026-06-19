@@ -177,7 +177,9 @@ export function decideExperimentStatus(
 ): ExperimentStatus {
   const failCount = review.checks.filter((item) => item.status === "fail").length;
   const warnCount = review.checks.filter((item) => item.status === "warn").length;
-  if (generatedCode.length % 29 === 0) {
+  // A real "failed to run" only when no implementation was produced — not a
+  // pseudo-random kill keyed on code length (which used to inject 1-in-29 noise).
+  if (!generatedCode || generatedCode.trim().length < 20) {
     return "failed_to_run";
   }
   // strictnessBias > 0 when the boss has been whipping the risk desk: the bar rises.
@@ -192,15 +194,18 @@ export function decideExperimentStatus(
   const oos = backtest.outOfSample;
   const passesBase = oos.sharpeRatio > 1 + strictnessBias * 0.1 && oos.returnAfterCosts > 0.035 && oos.deflatedSharpe >= 0.5;
   if (passesBase) {
-    // admission gates the synthesis flagged as missing: a candidate must ADD to
-    // the pool (AlphaGen pool-ΔSharpe), not merely correlate with it, and its raw
-    // signal should show real predictive skill (Alphalens IC), not just a lucky
-    // portfolio. Failing these keeps the edge but sends it back for a retest.
-    const redundant = oos.alphaPoolCorrelation > 0.9; // duplicates an existing alpha
-    const additive = poolDelta === undefined || poolDelta > 0; // raises the pool's Sharpe
-    const factor = backtest.factorAnalytics;
-    const icAbsent = factor !== undefined && Math.abs(factor.icTStat) < 1 && Math.abs(factor.icMean) < 0.005;
-    if (redundant || !additive || icAbsent) return "retest_needed";
+    // Admission gates — all FAIL-CLOSED (missing evidence does NOT pass):
+    //  1. not redundant: max pool correlation <= 0.9
+    //  2. additive: pool-ΔSharpe is defined AND positive (AlphaGen). undefined =>
+    //     we could not prove it adds to the book => not a candidate.
+    //  3. real OOS predictive skill: the raw signal's OUT-OF-SAMPLE Alphalens IC
+    //     must show positive evidence (t-stat >= 1.5 over >= 10 rebalance dates),
+    //     not merely "absence of disproof". In-sample IC is not accepted here.
+    const redundant = oos.alphaPoolCorrelation > 0.9;
+    const additive = poolDelta !== undefined && poolDelta > 0;
+    const factor = backtest.factorAnalyticsOOS ?? backtest.factorAnalytics;
+    const hasOosSkill = factor !== undefined && factor.observations >= 10 && factor.icTStat >= 1.5;
+    if (redundant || !additive || !hasOosSkill) return "retest_needed";
     return "candidate";
   }
   return "archived";

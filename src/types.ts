@@ -35,7 +35,12 @@ export type ExperimentStatus =
   | "rejected"
   | "retest_needed"
   | "failed_to_run"
-  | "archived";
+  | "archived"
+  // synthetic / illustrative path: the active dataset cannot actually backtest
+  // this family (e.g. a news/earnings factor on a close-only price panel), so the
+  // numbers are from the mock simulator and must NEVER be promoted, pooled, or
+  // counted in NAV. The UI shows it as "ILLUSTRATIVE — NO REAL DATA".
+  | "not_backtestable";
 
 export type RiskCheckStatus = "pass" | "warn" | "fail";
 
@@ -241,8 +246,13 @@ export interface CapacityReport {
   marketImpactBps: number;
   bidAskSpreadBps: number;
   borrowCostBps: number;
-  maxDeployableCapitalUsd: number;
+  maxDeployableCapitalUsd: number | null; // null until a real volume/ADV feed exists
   bottleneck: string;
+  // these figures are algebra over turnover/concentration — there is no volume or
+  // spread data in a close-only panel — so they are flagged illustrative, never
+  // presented as liquidity-validated numbers.
+  illustrative: boolean;
+  basis: string;
 }
 
 export interface ExecutionSimulationReport {
@@ -254,6 +264,8 @@ export interface ExecutionSimulationReport {
   haltStressLoss: number;
   limitMoveRisk: number;
   summary: string;
+  illustrative: boolean;
+  basis: string;
 }
 
 export interface FeatureStoreRecord {
@@ -540,7 +552,11 @@ export interface BacktestResult {
   equityCurve: EquityPoint[];
   generatedCode: string;
   dataUsed: string;
-  factorAnalytics?: FactorAnalytics;
+  factorAnalytics?: FactorAnalytics; // full-sample, for display
+  factorAnalyticsOOS?: FactorAnalytics; // out-of-sample only, used by the admission gate
+  // true when produced by the mock simulator (no real backtest possible for this
+  // family on the active dataset); such results are illustrative and never promoted.
+  synthetic?: boolean;
 }
 
 export interface RiskCheck {
@@ -582,6 +598,8 @@ export interface ExperimentRecord {
   returnsStartIndex?: number;
   poolSharpeDelta?: number;
   factorAnalytics?: FactorAnalytics;
+  factorAnalyticsOOS?: FactorAnalytics;
+  synthetic?: boolean;
   dataRange: string;
   dataUsed: string;
   factorLogic: string;

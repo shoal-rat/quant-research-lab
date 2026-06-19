@@ -103,8 +103,12 @@ export function BoardPage(): JSX.Element {
               <span>worst Sharpe {number(latestAudit.walkForward.worstSharpe)}</span>
             </div>
             <div className="workflow-item">
-              <small>Capacity</small>
-              <strong>${(latestAudit.capacity.maxDeployableCapitalUsd / 1_000_000).toFixed(0)}M</strong>
+              <small>Capacity{latestAudit.capacity.illustrative ? " (illustrative)" : ""}</small>
+              <strong>
+                {latestAudit.capacity.maxDeployableCapitalUsd === null
+                  ? "n/a"
+                  : `$${(latestAudit.capacity.maxDeployableCapitalUsd / 1_000_000).toFixed(0)}M`}
+              </strong>
               <span>{latestAudit.capacity.bottleneck}</span>
             </div>
             <div className="workflow-item">

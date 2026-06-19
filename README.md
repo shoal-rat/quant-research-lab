@@ -40,6 +40,14 @@ The important part is not the animation. It is the audit trail:
 
 Historical simulations only. No brokerage connection. Not investment advice.
 
+### What's measured vs. illustrative
+
+A senior-quant review pushed the calculation layer to be honest about its own limits:
+
+- **Measured from data** — cross-sectional backtest (no lookahead: bar `t` signal earns `t+1`), signals **winsorized + sector/beta-neutralized before ranking**, costs on turnover, Sharpe/Sortino/Calmar/PSR, Alphalens **IC (with a separate out-of-sample IC used by the admission gate)**, deflated Sharpe, purged + embargoed walk-forward, regime split **by the benchmark** (not by the strategy's own P&L), and a **measured random-rank baseline**. Every leaf formula is checked against the Python `empyrical`/`scipy`/`statsmodels` stack (`scripts/quant_reference`).
+- **Illustrative scaffolds** — capacity, market impact, borrow, and execution-stress numbers are algebra over turnover/concentration on a **close-only** panel (no volume/ADV/spread feed), so they are flagged `illustrative` in the UI and `maxDeployableCapital` is `n/a` until a real liquidity feed is connected.
+- **Not promotable** — a family the active dataset cannot actually backtest (e.g. a news/earnings factor on price-only data) runs the mock simulator for illustration only, is labelled **"Illustrative — no real data"**, and is **never** scored, pooled, counted in NAV, or promoted.
+
 ## Meet The Desk
 
 Each researcher owns one job.
@@ -228,7 +236,7 @@ Current suite: 28 tests covering real-data span, no-lookahead behavior, cost mon
 
 ## What Shipped
 
-- [x] Research Workflow 2.0: discovery cards, compiled signals, source credibility, novelty, point-in-time contracts, validation, capacity, execution stress, paper trading, baselines, and research feed.
+- [x] Research Workflow 2.0: discovery cards, compiled signals, source credibility, novelty, point-in-time contracts, validation, baselines, and research feed (capacity / execution stress / paper trading are clearly-labelled illustrative scaffolds pending a liquidity feed).
 - [x] Claude Code / Codex research brain through a local bridge.
 - [x] Bring-your-own data: upload, remote URL, large local files, and databases.
 - [x] Frequency-aware metrics for tick, minute, hourly, daily, weekly, and monthly bars.

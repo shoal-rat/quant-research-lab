@@ -5,7 +5,8 @@ const statusLabels: Record<ExperimentStatus, string> = {
   rejected: "Rejected",
   retest_needed: "Retest",
   failed_to_run: "Failed",
-  archived: "Archived"
+  archived: "Archived",
+  not_backtestable: "Illustrative"
 };
 
 export function StatusBadge({ status }: { status: ExperimentStatus | RiskCheckStatus }): JSX.Element {

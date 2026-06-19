@@ -403,10 +403,10 @@ function registryV2(
   };
 }
 
-function alphaDecay(backtest: BacktestResult, returns: number[]): ResearchWorkflowAudit["alphaDecay"] {
+function alphaDecay(backtest: BacktestResult, returns: number[], periodsPerYear: number): ResearchWorkflowAudit["alphaDecay"] {
   const recent = returns.slice(Math.floor(returns.length * 0.75));
   const lifetimeSharpe = backtest.full.sharpeRatio;
-  const recentSharpe = sharpe(recent);
+  const recentSharpe = sharpe(recent, periodsPerYear);
   const sharpeDecline = round(lifetimeSharpe - recentSharpe, 2);
   const retirementSignal = sharpeDecline > 0.8 || (backtest.outOfSample.alphaPoolCorrelation > 0.65 && recentSharpe < 0.3);
   return {
@@ -420,20 +420,25 @@ function alphaDecay(backtest: BacktestResult, returns: number[]): ResearchWorkfl
   };
 }
 
+// NOTE: these figures are algebra over turnover and concentration. The bundled
+// dataset is CLOSE-ONLY — there is no volume, ADV, or bid/ask spread — so capacity
+// cannot be measured, only illustrated. Every field is flagged illustrative and
+// maxDeployableCapitalUsd is null until a real volume/ADV feed is connected. They
+// are NOT liquidity-validated numbers.
 function capacity(strategy: StrategySpec, backtest: BacktestResult): CapacityReport {
-  const universeSize = Math.max(1, strategy.universe.length);
   const turnover = backtest.outOfSample.turnover;
   const spread = strategy.holdingPeriod <= 3 ? 11 : strategy.holdingPeriod <= 5 ? 7 : 4;
   const borrow = strategy.portfolioType === "long_short" ? 18 + backtest.outOfSample.alphaPoolCorrelation * 12 : 0;
   const impact = round(3 + turnover * 22 + backtest.outOfSample.concentrationScore * 18, 1);
-  const maxCapital = Math.max(250_000, (universeSize * 45_000_000) / (1 + turnover * 4 + backtest.outOfSample.concentrationScore * 3));
   return {
     advParticipation: round(Math.min(0.18, 0.015 + turnover * 0.06 + backtest.outOfSample.concentrationScore * 0.04), 3),
     marketImpactBps: impact,
     bidAskSpreadBps: spread,
     borrowCostBps: round(borrow, 1),
-    maxDeployableCapitalUsd: Math.round(maxCapital),
-    bottleneck: turnover > 0.7 ? "turnover and slippage" : strategy.portfolioType === "long_short" ? "short borrow and crowded names" : "single-name liquidity"
+    maxDeployableCapitalUsd: null,
+    bottleneck: turnover > 0.7 ? "turnover and slippage" : strategy.portfolioType === "long_short" ? "short borrow and crowded names" : "single-name liquidity",
+    illustrative: true,
+    basis: "Heuristic from turnover/concentration on close-only data — no volume/ADV/spread feed. Not measured."
   };
 }
 
@@ -449,7 +454,11 @@ function execution(strategy: StrategySpec, backtest: BacktestResult, cap: Capaci
     closeAuctionRisk: round(Math.min(0.18, turnover * 0.11), 3),
     haltStressLoss: round(Math.min(0.12, backtest.outOfSample.concentrationScore * 0.08), 3),
     limitMoveRisk: round(strategy.portfolioType === "long_short" ? 0.035 + turnover * 0.025 : 0.015 + turnover * 0.01, 3),
-    summary: slippage > 18 ? "Execution stress can erase a material share of the edge." : "Execution assumptions are plausible for paper trading."
+    summary:
+      "Illustrative scaffold (no microstructure data). " +
+      (slippage > 18 ? "Modeled execution stress could erase a material share of the edge." : "Modeled execution assumptions look plausible for paper trading."),
+    illustrative: true,
+    basis: "Derived from the illustrative capacity scaffold + drawdown/turnover; no real fill, latency, or auction data."
   };
 }
 
@@ -576,13 +585,28 @@ export function buildResearchWorkflowAudit(input: {
   dataUsed: string;
   status: ExperimentStatus;
   humanReviewRequired: boolean;
+  // the TRUE per-bar daily series (not the decimated equity curve) + its
+  // annualization factor, so walk-forward / regime / decay / baseline Sharpes are
+  // computed correctly. Falls back to the equity curve only for the mock path.
+  dailyReturns?: number[];
+  benchmarkReturns?: number[];
+  returnDates?: string[];
+  periodsPerYear?: number;
 }): ResearchWorkflowAudit {
   const { strategy, backtest, riskReview, experiments, settings, params, dataUsed, status } = input;
   const family = getFamily(strategy.familyKey);
   const discoveryCard = strategy.discoveryCard ?? family.discoveryCard ?? defaultDiscoveryCard(family, strategy);
   const compiledSignal = strategy.compiledSignal ?? family.compiledSignal ?? compileSignal(family, strategy);
   const credibility = family.sourceCredibility ?? sourceCredibility(discoveryCard.sourceCitations);
-  const series = returnsFromBacktest(backtest);
+  const series =
+    input.dailyReturns && input.dailyReturns.length > 0
+      ? {
+          returns: input.dailyReturns,
+          benchmarkReturns: input.benchmarkReturns ?? new Array(input.dailyReturns.length).fill(0),
+          dates: input.returnDates ?? input.dailyReturns.map((_, index) => `t${index}`),
+          periodsPerYear: input.periodsPerYear ?? 252
+        }
+      : returnsFromBacktest(backtest);
   const cap = capacity(strategy, backtest);
   const exec = execution(strategy, backtest, cap);
   const review = humanReview(input.humanReviewRequired);
@@ -595,7 +619,7 @@ export function buildResearchWorkflowAudit(input: {
     registry: registryV2(strategy, params, riskReview, experiments, status, dataUsed, review.status),
     walkForward: buildWalkForward(series.returns, series.dates, strategy.holdingPeriod, series.periodsPerYear),
     regimes: buildRegimes(series.returns, series.benchmarkReturns, series.periodsPerYear),
-    alphaDecay: alphaDecay(backtest, series.returns),
+    alphaDecay: alphaDecay(backtest, series.returns, series.periodsPerYear),
     capacity: cap,
     execution: exec,
     feature: featureRecord(strategy, discoveryCard),

@@ -33,7 +33,10 @@ export function StrategyLabPage(): JSX.Element {
   if (!family) return <div className="page-card">{zh ? "暂无策略" : "No strategies yet."}</div>;
 
   const isTimeSeries = family.key === "seasonality" || family.key === "trend_overlay";
-  const longShort = family.netSharpe[1] >= 0; // most cross-sectional families are long/short capable
+  // cross-sectional families CAN run long/short in the backtest engine; the paper
+  // deploy book is long-only top-N. We label "capable" so the tag never overstates
+  // the actually-traded portfolio. (No per-family long/short-only flag exists.)
+  const longShortCapable = !isTimeSeries;
 
   const issue = (text: string) => {
     const trimmed = text.trim();
@@ -82,14 +85,10 @@ export function StrategyLabPage(): JSX.Element {
         ? zh
           ? "信号为正则等权持有，否则空仓"
           : "Equal-weight when the signal is on, else flat"
-        : longShort
-          ? zh
-            ? "按信号排序：做多前 30%，做空后 30%"
-            : "Rank by signal: long the top 30%, short the bottom 30%"
-          : zh
-            ? "做多信号最强的一档"
-            : "Long the top bucket",
-      tag: longShort && !isTimeSeries ? "long / short" : "long only"
+        : zh
+          ? "回测里按信号排序做多前 30% / 做空后 30%；模拟下单则只做多头部 N 只"
+          : "Backtest ranks long top 30% / short bottom 30%; the paper book is long-only top-N",
+      tag: longShortCapable ? "long / short capable" : "long only"
     },
     {
       icon: <Crown size={16} />,

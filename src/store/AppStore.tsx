@@ -291,7 +291,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
   useEffect(() => {
     settingsRef.current = settings;
     director.setChatterEnabled(settings.casualOfficeChatter);
-    writeStored(STORAGE.settings, settings);
+    // NEVER persist the Alpaca paper keys to localStorage — keep them in memory
+    // for this session only (lost on reload). The bridge's QRL_ALPACA_KEY_FILE is
+    // the durable path. Other secrets (anthropic/openai) keep their prior behavior.
+    writeStored(STORAGE.settings, { ...settings, paperApiKey: "", paperApiSecret: "" });
     document.documentElement.dataset.theme = settings.themeMode;
     document.documentElement.dataset.reducedMotion = settings.reducedAnimation ? "true" : "false";
   }, [director, settings]);

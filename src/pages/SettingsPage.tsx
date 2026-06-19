@@ -354,8 +354,8 @@ export function SettingsPage(): JSX.Element {
         <h2>{lang === "zh" ? "模拟交易（Alpaca Paper）" : "Paper trading (Alpaca Paper)"}</h2>
         <p>
           {lang === "zh"
-            ? "免费在 alpaca.markets 注册并创建 Paper（模拟）密钥。密钥只发送到本地桥接器（再由它调用 paper 端点），不会发给其他主机；留空则桥接器使用自己的 QRL_ALPACA_KEY_FILE。仅限模拟盘，永不真金白银。"
-            : "Sign up free at alpaca.markets and create Paper API keys. Keys are sent only to your local bridge (which calls the paper endpoint) — never to any other host. Leave blank to let the bridge use its own QRL_ALPACA_KEY_FILE. Paper/simulated only, never real money."}
+            ? "免费在 alpaca.markets 注册并创建 Paper（模拟）密钥。密钥只保存在本次浏览器会话的内存里（刷新即清除，不写入磁盘 / localStorage），且只发送到你本地的桥接器（再由它调用 paper 端点）；想长期保存请改用桥接器的 QRL_ALPACA_KEY_FILE。仅限模拟盘，永不真金白银。"
+            : "Sign up free at alpaca.markets and create Paper API keys. Keys are kept in memory for this browser session only (cleared on reload — never written to disk / localStorage) and sent only to your local bridge (which calls the paper endpoint). For durable storage use the bridge's QRL_ALPACA_KEY_FILE instead. Paper/simulated only, never real money."}
         </p>
         <div className="form-grid">
           <label className="field">

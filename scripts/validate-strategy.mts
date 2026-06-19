@@ -11,7 +11,15 @@ import { runRealBacktest } from "../src/engines/realBacktestEngine";
 import { reviewBacktestRisk, decideExperimentStatus } from "../src/engines/riskReviewEngine";
 import { computeWalkForward } from "../src/engines/walkForward";
 import { poolSharpeDelta } from "../src/engines/poolAnalytics";
+import { getAllFamilies } from "../src/engines/strategyKnowledge";
 import type { BacktestParameters, StrategySpec } from "../src/types";
+
+// the price-computable factor families the engine can actually backtest in-browser
+export function computableFamilies(): Array<{ key: string; name: string; factorKind: string }> {
+  return getAllFamilies()
+    .filter((f) => f.priceComputable)
+    .map((f) => ({ key: f.key, name: f.name, factorKind: f.factorKind }));
+}
 
 export interface ValidateOptions {
   top?: number;

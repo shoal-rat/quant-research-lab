@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseMarketCsv } from "./dataset/csvParse";
 import { runRealBacktest } from "./realBacktestEngine";
-import { RealMarketData } from "./realMarket";
+import { buildRealMarketData, RealMarketData } from "./realMarket";
 import { BacktestParameters, StrategySpec } from "../types";
 
 // Build a deterministic multi-name daily price panel (no Math.random).
@@ -106,5 +106,61 @@ describe("real backtest engine integrity", () => {
     expect(out.extras.benchmarkReturns?.length).toBe(out.extras.dailyReturns.length);
     expect(out.extras.dates?.length).toBe(out.extras.dailyReturns.length);
     expect(out.extras.periodsPerYear).toBe(252);
+  });
+});
+
+// OHLCV path: volume factors compute + capacity becomes measured from real ADV.
+function ohlcvData(): RealMarketData {
+  const tickers = ["AAA", "BBB", "CCC", "DDD", "EEE", "FFF", "GGG", "HHH", "III", "JJJ"];
+  const industries = ["Tech", "Tech", "Fin", "Fin", "Energy", "Energy", "Tech", "Fin", "Energy", "Tech"];
+  const N = 700;
+  const dates = Array.from({ length: N }, (_, d) => new Date(Date.UTC(2015, 0, 1) + d * 86_400_000).toISOString().slice(0, 10));
+  const tk: RealMarketData["tickers"] = {};
+  tickers.forEach((sym, i) => {
+    const closes: number[] = [];
+    const volumes: number[] = [];
+    const highs: number[] = [];
+    const lows: number[] = [];
+    for (let d = 0; d < N; d += 1) {
+      const c = 50 * (1 + 0.0003 * d) * (1 + 0.06 * Math.sin(d / 13 + i));
+      closes.push(Number(c.toFixed(4)));
+      volumes.push(Math.round(1_000_000 * (1 + i) * (1 + 0.5 * Math.abs(Math.sin(d / 7))))); // distinct ADV per name
+      highs.push(Number((c * 1.01).toFixed(4)));
+      lows.push(Number((c * 0.99).toFixed(4)));
+    }
+    tk[sym] = { name: sym, industry: industries[i], closes, volumes, highs, lows };
+  });
+  return buildRealMarketData({
+    source: "test", fetchedAt: "t", start: dates[0], end: dates[N - 1],
+    dates, benchmark: "AAA", tickers: tk, frequency: "daily", periodsPerYear: 252
+  });
+}
+
+function familyStrategy(familyKey: string, factorKind: StrategySpec["factorKind"], params: Record<string, number>): StrategySpec {
+  return {
+    id: `STR-${familyKey}`, name: familyKey, hypothesis: familyKey, factorLogic: familyKey,
+    factorKind, familyKey, holdingPeriod: 20, portfolioType: "long_short", universe: [],
+    parameters: params, generation: 0, ideaMode: "explore", ideaReasoning: []
+  };
+}
+
+describe("OHLCV volume factors + measured capacity", () => {
+  const data = ohlcvData();
+  const ctx = { totalTrials: 1, priorCandidates: [] };
+  const params: BacktestParameters = { ...PARAMS, holdingPeriod: 20 };
+
+  it("computes the Amihud illiquidity factor and a measured median dollar volume", () => {
+    const out = runRealBacktest(familyStrategy("amihud_illiquidity", "quality_proxy", { illiqWindow: 60 }), params, data, ctx);
+    expect(out.extras.dailyReturns.length).toBeGreaterThan(50);
+    expect(out.extras.dailyReturns.every((v) => Number.isFinite(v))).toBe(true);
+    expect(out.result.medianDollarVolume).toBeDefined();
+    expect(out.result.medianDollarVolume as number).toBeGreaterThan(0);
+  });
+
+  it("computes the low-turnover liquidity and range-volatility factors", () => {
+    const liq = runRealBacktest(familyStrategy("dollar_volume_liquidity", "quality_proxy", { volumeWindow: 60 }), params, data, ctx);
+    const rng = runRealBacktest(familyStrategy("range_volatility", "low_volatility", { rangeWindow: 20 }), params, data, ctx);
+    expect(Number.isFinite(liq.result.full.sharpeRatio)).toBe(true);
+    expect(Number.isFinite(rng.result.full.sharpeRatio)).toBe(true);
   });
 });

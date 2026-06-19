@@ -45,7 +45,8 @@ Historical simulations only. No brokerage connection. Not investment advice.
 A senior-quant review pushed the calculation layer to be honest about its own limits:
 
 - **Measured from data** — cross-sectional backtest (no lookahead: bar `t` signal earns `t+1`), signals **winsorized + sector/beta-neutralized before ranking**, costs on turnover, Sharpe/Sortino/Calmar/PSR, Alphalens **IC (with a separate out-of-sample IC, and the admission gate requires OOS IC — no in-sample fallback)**, deflated Sharpe, purged + embargoed walk-forward, regime split **by the benchmark** (not by the strategy's own P&L), and a **measured random-rank baseline** on the in-browser engine (the bridge/agent return-series path can't reconstruct a random portfolio, so that check **abstains** rather than passing on an assumed 0). Every leaf formula is checked against the Python `empyrical`/`scipy`/`statsmodels` stack (`scripts/quant_reference`).
-- **Illustrative scaffolds** — capacity, market impact, borrow, and execution-stress numbers are algebra over turnover/concentration on a **close-only** panel (no volume/ADV/spread feed), so they are flagged `illustrative` in the UI and `maxDeployableCapital` is `n/a` until a real liquidity feed is connected.
+- **Capacity now measured** — the bundled dataset carries **OHLCV (volume + adjusted high/low)**, so `maxDeployableCapital` is computed from real **median ADV × 5% participation ÷ turnover**, and volume factors (**Amihud illiquidity**, **low-turnover/liquidity premium**, **Parkinson range-volatility**) are tradable. Market-impact/spread/borrow are still modelled (no live quote feed) and stay flagged.
+- **Still illustrative** — execution-stress, latency, and partial-fill numbers (no microstructure feed); on a close-only upload (no volume) capacity falls back to the illustrative scaffold.
 - **Not promotable** — a family the active dataset cannot actually backtest (e.g. a news/earnings factor on price-only data) runs the mock simulator for illustration only, is labelled **"Illustrative — no real data"**, and is **never** scored, pooled, counted in NAV, or promoted.
 
 ## Meet The Desk
@@ -233,6 +234,38 @@ npm run build
 ```
 
 Current suite: 28 tests covering real-data span, no-lookahead behavior, cost monotonicity, CSV long/wide parsing, provider backtests, bridge metrics, frequency detection, intraday annualization, bandit determinism, gates, workflow audit, and progression.
+
+## Trade it in a simulated market
+
+Two ways to take the lab's strategies from backtest to a live-ish run — both
+simulated, no real money:
+
+**1. Local simulator (offline, runs instantly):** replays the bundled real OHLCV
+data bar-by-bar against a virtual $100k account, trades cross-sectional momentum
+with no lookahead and real costs, and reports P&L vs SPY buy-and-hold.
+
+```
+node scripts/paper-trade-sim.mjs            # 2y, long-only top-6 momentum
+node scripts/paper-trade-sim.mjs --ls       # long/short variant
+```
+
+Example run (2024-06 → 2026-06): $100,000 → **$172,555 (+72.6%)**, beating SPY
+buy-and-hold (+41.3%) by 31 points at Sharpe 1.21 — net of transaction costs.
+
+**2. Alpaca paper trading (a real simulated market with virtual money):** free —
+sign up at [alpaca.markets](https://alpaca.markets) (email only), open the Paper
+Trading dashboard, and create paper API keys. The connector reads them from your
+environment and **only ever uses the paper endpoint** (`paper-api.alpaca.markets`)
+— it has no live-trading code path.
+
+```
+$env:APCA_API_KEY_ID="..."; $env:APCA_API_SECRET_KEY="..."   # your paper keys
+node scripts/alpaca-paper.mjs status            # account equity + positions
+node scripts/alpaca-paper.mjs targets           # momentum targets (no orders)
+node scripts/alpaca-paper.mjs rebalance --yes   # submit PAPER orders
+```
+
+Not investment advice. Paper/simulated trading only.
 
 ## What Shipped
 

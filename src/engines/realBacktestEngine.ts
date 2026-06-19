@@ -116,6 +116,66 @@ function rollingBeta(
   return varx > 1e-12 ? cov / varx : 1;
 }
 
+// average daily dollar volume (close x volume) over a window ending at `at`;
+// null when the dataset has no volume (e.g. a close-only CSV upload)
+function avgDollarVolume(data: RealMarketData, symbol: string, at: number, window: number): number | null {
+  const volumes = data.tickers[symbol].volumes;
+  const closes = data.tickers[symbol].closes;
+  if (!volumes) return null;
+  let sum = 0;
+  let count = 0;
+  for (let index = Math.max(0, at - window + 1); index <= at; index += 1) {
+    const v = volumes[index];
+    const c = closes[index];
+    if (v !== null && v !== undefined && c) {
+      sum += v * c;
+      count += 1;
+    }
+  }
+  return count >= Math.max(5, window * 0.5) ? sum / count : null;
+}
+
+// Amihud (2002) illiquidity: average of |return| / dollar-volume over a window.
+// Higher = more price impact per dollar = more illiquid (illiquidity premium).
+function amihudIlliquidity(data: RealMarketData, symbol: string, at: number, window: number): number | null {
+  const volumes = data.tickers[symbol].volumes;
+  const closes = data.tickers[symbol].closes;
+  const returns = data.returns[symbol];
+  if (!volumes) return null;
+  let sum = 0;
+  let count = 0;
+  for (let index = Math.max(1, at - window + 1); index <= at; index += 1) {
+    const r = returns[index];
+    const v = volumes[index];
+    const c = closes[index];
+    if (r !== null && v !== null && v !== undefined && v > 0 && c) {
+      sum += Math.abs(r) / (v * c);
+      count += 1;
+    }
+  }
+  return count >= Math.max(5, window * 0.5) ? (sum / count) * 1e9 : null; // scaled for readability (rank-invariant)
+}
+
+// average high-low range as a fraction of close (Parkinson-style range vol)
+function avgHighLowRange(data: RealMarketData, symbol: string, at: number, window: number): number | null {
+  const highs = data.tickers[symbol].highs;
+  const lows = data.tickers[symbol].lows;
+  const closes = data.tickers[symbol].closes;
+  if (!highs || !lows) return null;
+  let sum = 0;
+  let count = 0;
+  for (let index = Math.max(0, at - window + 1); index <= at; index += 1) {
+    const h = highs[index];
+    const l = lows[index];
+    const c = closes[index];
+    if (h !== null && h !== undefined && l !== null && l !== undefined && c) {
+      sum += (h - l) / c;
+      count += 1;
+    }
+  }
+  return count >= Math.max(5, window * 0.5) ? sum / count : null;
+}
+
 // signal per family for ticker `symbol` at day index `at` (data up to `at` only)
 function computeSignal(
   strategy: StrategySpec,
@@ -235,6 +295,23 @@ function computeSignal(
       const close = closes[at];
       if (!high || !close) return null;
       return close / high;
+    }
+    case "amihud_illiquidity": {
+      // long the more illiquid names (Amihud illiquidity premium)
+      const window = Math.round(num(p.illiqWindow, 60));
+      return amihudIlliquidity(data, symbol, at, window);
+    }
+    case "dollar_volume_liquidity": {
+      // low-turnover / low-attention premium: long names with LOWER dollar volume
+      const window = Math.round(num(p.volumeWindow, 60));
+      const adv = avgDollarVolume(data, symbol, at, window);
+      return adv === null ? null : -Math.log(Math.max(1, adv));
+    }
+    case "range_volatility": {
+      // Parkinson-style range vol as a low-volatility variant: long LOW range
+      const window = Math.round(num(p.rangeWindow, 20));
+      const range = avgHighLowRange(data, symbol, at, window);
+      return range === null ? null : -range;
     }
     default: {
       // Unknown / non-price family on real data: do NOT silently impersonate
@@ -745,6 +822,15 @@ export function runRealBacktest(
   // label-window overlap with the last in-sample rebalance. Full-sample kept for display.
   const oosCrossSections = crossSections.filter((_, index) => crossSectionReturnIndex[index] >= oosStart);
 
+  // MEASURED capacity input: median recent (~60-bar) daily dollar volume across the
+  // traded universe, when the dataset carries volume. Drives a real ADV-based
+  // capacity model instead of a turnover heuristic.
+  const advValues = universe
+    .map((symbol) => avgDollarVolume(data, symbol, slice.end - 1, 60))
+    .filter((value): value is number => value !== null && Number.isFinite(value) && value > 0)
+    .sort((a, b) => a - b);
+  const medianDollarVolume = advValues.length > 0 ? advValues[Math.floor(advValues.length / 2)] : undefined;
+
   const result: BacktestResult = {
     inSample,
     outOfSample,
@@ -753,7 +839,8 @@ export function runRealBacktest(
     generatedCode: "",
     dataUsed: `${universe.length} names, ${data.dates[slice.start]} to ${data.dates[slice.end - 1]}, ${data.frequency ?? "daily"} adjusted closes (${data.source}), benchmark ${data.benchmark}; cross-sectional signals winsorized + sector/beta-neutralized before ranking`,
     factorAnalytics: computeFactorAnalytics(crossSections, holding) ?? undefined,
-    factorAnalyticsOOS: computeFactorAnalytics(oosCrossSections, holding) ?? undefined
+    factorAnalyticsOOS: computeFactorAnalytics(oosCrossSections, holding) ?? undefined,
+    medianDollarVolume
   };
   return { result, extras };
 }

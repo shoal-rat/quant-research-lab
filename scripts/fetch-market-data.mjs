@@ -55,14 +55,27 @@ async function fetchTicker(symbol) {
   const payload = await response.json();
   const result = payload?.chart?.result?.[0];
   if (!result?.timestamp) throw new Error(`${symbol}: empty result`);
-  const adj = result.indicators?.adjclose?.[0]?.adjclose ?? result.indicators?.quote?.[0]?.close;
+  const quote = result.indicators?.quote?.[0] ?? {};
+  const adjArr = result.indicators?.adjclose?.[0]?.adjclose ?? quote.close;
+  // each date -> { c: adjusted close, v: volume, h: adjusted high, l: adjusted low }
+  // high/low are put on the adjusted scale via the close adjustment factor so they
+  // are consistent with `closes` (their ratio, used for range vol, is unaffected).
   const map = new Map();
   result.timestamp.forEach((ts, index) => {
-    const value = adj[index];
-    if (value !== null && value !== undefined && Number.isFinite(value)) {
-      const date = new Date(ts * 1000).toISOString().slice(0, 10);
-      map.set(date, value);
-    }
+    const adj = adjArr?.[index];
+    const rawClose = quote.close?.[index];
+    if (adj === null || adj === undefined || !Number.isFinite(adj)) return;
+    const factor = rawClose && Number.isFinite(rawClose) ? adj / rawClose : 1;
+    const rawHigh = quote.high?.[index];
+    const rawLow = quote.low?.[index];
+    const vol = quote.volume?.[index];
+    const date = new Date(ts * 1000).toISOString().slice(0, 10);
+    map.set(date, {
+      c: adj,
+      v: Number.isFinite(vol) ? vol : null,
+      h: Number.isFinite(rawHigh) ? rawHigh * factor : null,
+      l: Number.isFinite(rawLow) ? rawLow * factor : null
+    });
   });
   return map;
 }
@@ -92,13 +105,19 @@ for (const [symbol, name, industry] of UNIVERSE) {
   const map = series.get(symbol);
   if (!map) continue;
   const closes = [];
+  const volumes = [];
+  const highs = [];
+  const lows = [];
   let last = null;
   let missing = 0;
   for (const date of dates) {
-    const value = map.get(date);
-    if (value !== undefined) last = value;
+    const bar = map.get(date);
+    if (bar !== undefined) last = bar;
     else missing += 1;
-    closes.push(last === null ? null : Number(last.toFixed(4)));
+    closes.push(last === null ? null : Number(last.c.toFixed(4)));
+    volumes.push(last === null || last.v === null ? null : Math.round(last.v));
+    highs.push(last === null || last.h === null ? null : Number(last.h.toFixed(4)));
+    lows.push(last === null || last.l === null ? null : Number(last.l.toFixed(4)));
   }
   // drop names that joined the calendar too late (need >= 15y of history)
   const firstIdx = closes.findIndex((value) => value !== null);
@@ -107,11 +126,11 @@ for (const [symbol, name, industry] of UNIVERSE) {
     continue;
   }
   if (missing > 0) console.log(`${symbol}: forward-filled ${missing} gaps`);
-  tickers[symbol] = { name, industry, closes };
+  tickers[symbol] = { name, industry, closes, volumes, highs, lows };
 }
 
 const bundle = {
-  source: "Yahoo Finance chart API (adjusted close, splits+dividends)",
+  source: "Yahoo Finance chart API (adjusted OHLC + volume, splits+dividends)",
   license: "Quotes for personal/educational use; not for redistribution as a market data feed.",
   fetchedAt: new Date().toISOString(),
   start: dates[0],

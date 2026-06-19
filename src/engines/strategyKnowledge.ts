@@ -510,6 +510,81 @@ export const STRATEGY_FAMILIES: StrategyFamily[] = [
     priceComputable: true,
     baseEdgeDaily: 0.00036,
     decayHalfLifeRuns: 10
+  },
+  {
+    key: "amihud_illiquidity",
+    name: "Amihud Illiquidity Premium",
+    factorKind: "quality_proxy",
+    rationaleKind: "structural",
+    rationale: "Investors demand a return premium for holding harder-to-trade names; price impact per dollar traded predicts future returns.",
+    construction: "Compute Amihud illiquidity (avg |return| / dollar-volume) over ~60 days, long the most illiquid decile, short the most liquid, hold 20 days.",
+    holdingPeriods: [20],
+    grossSharpe: [0.4, 0.9],
+    netSharpe: [0.1, 0.4],
+    costSensitivity: "high",
+    crowdingRisk: "low",
+    failureModes: [
+      "The illiquid leg is exactly where costs and slippage bite hardest",
+      "In a large-cap universe the illiquidity spread is small",
+      "Capacity is genuinely limited on the long-illiquid leg"
+    ],
+    parameters: [
+      { name: "illiqWindow", min: 20, max: 120, default: 60, step: 10 },
+      { name: "minDollarVolume", min: 0, max: 5, default: 1, step: 1 }
+    ],
+    keyPapers: ["Amihud (2002) illiquidity and stock returns"],
+    newsDriven: false,
+    priceComputable: true,
+    baseEdgeDaily: 0.0004,
+    decayHalfLifeRuns: 11
+  },
+  {
+    key: "dollar_volume_liquidity",
+    name: "Low-Turnover (Liquidity) Premium",
+    factorKind: "quality_proxy",
+    rationaleKind: "behavioral",
+    rationale: "Low-attention, low-turnover names are under-owned and earn a premium versus crowded high-volume names.",
+    construction: "Rank by average daily dollar volume over ~60 days, long the lowest-volume decile, short the highest, hold 20 days.",
+    holdingPeriods: [20],
+    grossSharpe: [0.3, 0.7],
+    netSharpe: [0.1, 0.4],
+    costSensitivity: "medium",
+    crowdingRisk: "low",
+    failureModes: [
+      "Overlaps with size and illiquidity factors",
+      "Low-volume names are costlier to trade than the backtest assumes",
+      "Premium is regime-dependent (reverses in liquidity-driven rallies)"
+    ],
+    parameters: [{ name: "volumeWindow", min: 20, max: 120, default: 60, step: 10 }],
+    keyPapers: ["Datar, Naik & Radcliffe (1998) liquidity and stock returns"],
+    newsDriven: false,
+    priceComputable: true,
+    baseEdgeDaily: 0.00032,
+    decayHalfLifeRuns: 10
+  },
+  {
+    key: "range_volatility",
+    name: "Low Range-Volatility",
+    factorKind: "low_volatility",
+    rationaleKind: "behavioral",
+    rationale: "Low-risk names outperform on a risk-adjusted basis; intraday high-low range is a clean volatility proxy (Parkinson).",
+    construction: "Rank by average (high-low)/close range over ~20 days, long the lowest-range decile, short the highest, hold 20 days.",
+    holdingPeriods: [20],
+    grossSharpe: [0.4, 0.9],
+    netSharpe: [0.2, 0.5],
+    costSensitivity: "low",
+    crowdingRisk: "medium",
+    failureModes: [
+      "Low-vol crashes when rates spike and the trade unwinds",
+      "Overlaps with the close-to-close low-volatility factor",
+      "Sector tilts (utilities/staples) unless neutralized"
+    ],
+    parameters: [{ name: "rangeWindow", min: 10, max: 60, default: 20, step: 5 }],
+    keyPapers: ["Parkinson (1980) range estimator", "Baker, Bradley & Wurgler (2011) low-vol"],
+    newsDriven: false,
+    priceComputable: true,
+    baseEdgeDaily: 0.00038,
+    decayHalfLifeRuns: 11
   }
 ];
 

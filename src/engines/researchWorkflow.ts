@@ -420,25 +420,36 @@ function alphaDecay(backtest: BacktestResult, returns: number[], periodsPerYear:
   };
 }
 
-// NOTE: these figures are algebra over turnover and concentration. The bundled
-// dataset is CLOSE-ONLY — there is no volume, ADV, or bid/ask spread — so capacity
-// cannot be measured, only illustrated. Every field is flagged illustrative and
-// maxDeployableCapitalUsd is null until a real volume/ADV feed is connected. They
-// are NOT liquidity-validated numbers.
+// When the dataset carries volume, capacity is MEASURED from real average daily
+// dollar volume (ADV): max deployable capital = ADV x a participation cap, divided
+// by per-rebalance turnover (you re-trade the book each rebalance). Spread/impact
+// are still modelled (no quote data), so they stay flagged, but the headline
+// $-capacity is now grounded in real volume rather than pure algebra. On a
+// close-only dataset (no volume) it falls back to the illustrative scaffold.
 function capacity(strategy: StrategySpec, backtest: BacktestResult): CapacityReport {
   const turnover = backtest.outOfSample.turnover;
   const spread = strategy.holdingPeriod <= 3 ? 11 : strategy.holdingPeriod <= 5 ? 7 : 4;
   const borrow = strategy.portfolioType === "long_short" ? 18 + backtest.outOfSample.alphaPoolCorrelation * 12 : 0;
   const impact = round(3 + turnover * 22 + backtest.outOfSample.concentrationScore * 18, 1);
+  const advParticipation = round(Math.min(0.18, 0.015 + turnover * 0.06 + backtest.outOfSample.concentrationScore * 0.04), 3);
+  const adv = backtest.medianDollarVolume;
+  const measured = adv !== undefined && adv > 0;
+  // cap participation at 5% of ADV; divide by turnover so a high-churn book that
+  // re-trades every rebalance gets a smaller sustainable size
+  const maxDeployableCapitalUsd = measured
+    ? Math.round((adv * 0.05) / Math.max(0.1, turnover))
+    : null;
   return {
-    advParticipation: round(Math.min(0.18, 0.015 + turnover * 0.06 + backtest.outOfSample.concentrationScore * 0.04), 3),
+    advParticipation,
     marketImpactBps: impact,
     bidAskSpreadBps: spread,
     borrowCostBps: round(borrow, 1),
-    maxDeployableCapitalUsd: null,
+    maxDeployableCapitalUsd,
     bottleneck: turnover > 0.7 ? "turnover and slippage" : strategy.portfolioType === "long_short" ? "short borrow and crowded names" : "single-name liquidity",
-    illustrative: true,
-    basis: "Heuristic from turnover/concentration on close-only data — no volume/ADV/spread feed. Not measured."
+    illustrative: !measured,
+    basis: measured
+      ? `Capacity from measured median ADV $${(adv / 1e6).toFixed(1)}M x 5% participation / turnover; spread/impact still modelled (no quote feed).`
+      : "Heuristic from turnover/concentration on close-only data — no volume/ADV/spread feed. Not measured."
   };
 }
 

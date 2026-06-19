@@ -5,6 +5,13 @@ export interface RealTicker {
   name: string;
   industry: string;
   closes: (number | null)[];
+  // optional OHLCV (adjusted high/low on the close scale; raw split-adjusted
+  // volume) — present in the bundled dataset, enables volume/liquidity factors
+  // (Amihud, dollar-volume) and a MEASURED capacity model. Older CSV/upload
+  // datasets may omit these.
+  volumes?: (number | null)[];
+  highs?: (number | null)[];
+  lows?: (number | null)[];
 }
 
 export type DataFrequency = "minute" | "hourly" | "daily" | "weekly" | "monthly" | "irregular";

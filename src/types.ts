@@ -561,6 +561,9 @@ export interface BacktestResult {
   // true when produced by the mock simulator (no real backtest possible for this
   // family on the active dataset); such results are illustrative and never promoted.
   synthetic?: boolean;
+  // median recent daily dollar volume of the traded universe (when the dataset
+  // carries volume), enabling a MEASURED capacity model instead of a heuristic.
+  medianDollarVolume?: number;
 }
 
 export interface RiskCheck {

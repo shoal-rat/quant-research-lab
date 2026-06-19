@@ -30,6 +30,7 @@ import {
 } from "../types";
 import { round } from "./random";
 import { StrategyFamily, getFamily } from "./strategyKnowledge";
+import { computeWalkForward } from "./walkForward";
 
 const SOURCE_PRIORS: Record<ResearchSourceKind, { score: number; tier: CredibilityTier; label: string }> = {
   sec_filing: { score: 0.95, tier: "high", label: "SEC filing" },
@@ -154,15 +155,24 @@ export function compileSignal(family: StrategyFamily, strategy: StrategySpec): C
   };
 }
 
-function returnsFromBacktest(backtest: BacktestResult): { returns: number[]; benchmarkReturns: number[]; dates: string[] } {
+function returnsFromBacktest(backtest: BacktestResult): {
+  returns: number[];
+  benchmarkReturns: number[];
+  dates: string[];
+  periodsPerYear: number;
+} {
+  // Aligned series: one strategy + one benchmark return per equity-curve step
+  // (invalid steps coerced to 0) so regime analysis can join them by index.
   const returns: number[] = [];
   const benchmarkReturns: number[] = [];
   const dates: string[] = [];
   for (let index = 1; index < backtest.equityCurve.length; index += 1) {
     const prev = backtest.equityCurve[index - 1];
     const point = backtest.equityCurve[index];
-    if (prev.equity > 0 && point.equity > 0) returns.push(point.equity / prev.equity - 1);
-    if (prev.benchmark > 0 && point.benchmark > 0) benchmarkReturns.push(point.benchmark / prev.benchmark - 1);
+    const r = prev.equity > 0 && point.equity > 0 ? point.equity / prev.equity - 1 : 0;
+    const b = prev.benchmark > 0 && point.benchmark > 0 ? point.benchmark / prev.benchmark - 1 : 0;
+    returns.push(Number.isFinite(r) ? r : 0);
+    benchmarkReturns.push(Number.isFinite(b) ? b : 0);
     dates.push(point.date);
   }
   if (returns.length === 0) {
@@ -174,19 +184,40 @@ function returnsFromBacktest(backtest: BacktestResult): { returns: number[]; ben
       dates.push(`t${index + 1}`);
     }
   }
-  return { returns, benchmarkReturns, dates };
+  return { returns, benchmarkReturns, dates, periodsPerYear: inferPeriodsPerYear(dates) };
+}
+
+// Infer the annualization factor from the median spacing of real dates so Sharpe
+// etc. stay correct at any frequency. Falls back to 252 for synthetic labels.
+function inferPeriodsPerYear(dates: string[]): number {
+  const stamps = dates.map((d) => Date.parse(d)).filter((t) => Number.isFinite(t)) as number[];
+  if (stamps.length < 3) return 252;
+  const gaps: number[] = [];
+  for (let i = 1; i < stamps.length; i += 1) {
+    const g = stamps[i] - stamps[i - 1];
+    if (g > 0) gaps.push(g);
+  }
+  if (gaps.length === 0) return 252;
+  gaps.sort((a, b) => a - b);
+  const days = gaps[Math.floor(gaps.length / 2)] / 86_400_000;
+  if (days <= 0) return 252;
+  if (days < 0.5) return Math.max(252, Math.round((6.5 / (days * 24)) * 252)); // intraday bars
+  if (days <= 1.5) return 252; // daily
+  if (days <= 9) return 52; // weekly
+  if (days <= 45) return 12; // monthly
+  return Math.max(1, Math.round(365 / days));
 }
 
 function cumulative(returns: number[]): number {
   return returns.reduce((value, next) => value * (1 + next), 1) - 1;
 }
 
-function sharpe(returns: number[]): number {
+function sharpe(returns: number[], periodsPerYear = 252): number {
   if (returns.length < 3) return 0;
   const mean = returns.reduce((sum, value) => sum + value, 0) / returns.length;
   const variance = returns.reduce((sum, value) => sum + (value - mean) ** 2, 0) / Math.max(1, returns.length - 1);
   const vol = Math.sqrt(Math.max(variance, 1e-12));
-  return round((mean / vol) * Math.sqrt(252), 2);
+  return round((mean / vol) * Math.sqrt(periodsPerYear), 2);
 }
 
 function maxDrawdown(returns: number[]): number {
@@ -201,65 +232,86 @@ function maxDrawdown(returns: number[]): number {
   return round(dd, 4);
 }
 
-function buildWalkForward(returns: number[], dates: string[]): WalkForwardReport {
-  const windows: WalkForwardWindow[] = [];
-  const count = Math.min(3, Math.max(1, Math.floor(returns.length / 80)));
-  const testSize = Math.max(20, Math.floor(returns.length / (count + 3)));
-  for (let index = 0; index < count; index += 1) {
-    const testStart = Math.max(testSize, returns.length - testSize * (count - index));
-    const testEnd = Math.min(returns.length, testStart + testSize);
-    const test = returns.slice(testStart, testEnd);
-    const testSharpe = sharpe(test);
-    const testReturn = round(cumulative(test), 4);
-    windows.push({
-      trainRange: `${dates[0] ?? "start"} to ${dates[testStart - 1] ?? "train-end"}`,
-      testRange: `${dates[testStart] ?? "test-start"} to ${dates[testEnd - 1] ?? "test-end"}`,
+// Purged + embargoed walk-forward (López de Prado). Delegates to the validated
+// engine; if there is not enough data for honest folds, report a single explicit
+// window instead of inventing several.
+function buildWalkForward(returns: number[], dates: string[], holding: number, periodsPerYear: number): WalkForwardReport {
+  const report = computeWalkForward(returns, dates, { holding, folds: 4, embargoFraction: 0.02, periodsPerYear });
+  if (report) return report;
+  const half = Math.floor(returns.length / 2);
+  const test = returns.slice(half);
+  const testSharpe = sharpe(test, periodsPerYear);
+  const windows: WalkForwardWindow[] = [
+    {
+      trainRange: `${dates[0] ?? "start"}..${dates[Math.max(0, half - 1)] ?? "mid"}`,
+      testRange: `${dates[half] ?? "mid"}..${dates[dates.length - 1] ?? "end"}`,
       testSharpe,
-      testReturn,
-      passed: testSharpe > 0.25 && testReturn > -0.03
-    });
-  }
-  const passRate = round(windows.filter((window) => window.passed).length / Math.max(1, windows.length), 2);
-  const worstSharpe = windows.length ? Math.min(...windows.map((window) => window.testSharpe)) : 0;
+      testReturn: round(cumulative(test), 4),
+      passed: testSharpe > 0
+    }
+  ];
   return {
     windows,
-    passRate,
-    worstSharpe,
-    summary: passRate >= 0.67 ? "Rolling validation is stable enough for a forward test." : "Walk-forward stability is weak; keep this in retest."
+    passRate: testSharpe > 0 ? 1 : 0,
+    worstSharpe: testSharpe,
+    summary: `Only one out-of-sample window was statistically usable (${returns.length} bars); treat walk-forward evidence as weak.`
   };
 }
 
-function regimeMetrics(name: string, values: number[], note: string): RegimeResult {
+function regimeMetrics(name: string, values: number[], note: string, periodsPerYear: number): RegimeResult {
   return {
     regime: name,
     observations: values.length,
-    sharpe: sharpe(values),
+    sharpe: sharpe(values, periodsPerYear),
     cumulativeReturn: round(cumulative(values), 4),
     maxDrawdown: maxDrawdown(values),
     note
   };
 }
 
-function buildRegimes(returns: number[]): RegimeAnalysis {
-  const abs = returns.map((value) => Math.abs(value)).sort((a, b) => a - b);
-  const p30 = abs[Math.floor(abs.length * 0.3)] ?? 0;
-  const p70 = abs[Math.floor(abs.length * 0.7)] ?? 0;
-  const sorted = [...returns].sort((a, b) => a - b);
-  const p10 = sorted[Math.floor(sorted.length * 0.1)] ?? -0.02;
+// Regime analysis must classify by the MARKET, then measure the strategy inside
+// each regime — never by the strategy's own return sign (that is circular: a
+// strategy is trivially "good" on the bars where it happened to make money). We
+// bucket on the benchmark's direction and the benchmark's realized volatility; if
+// no usable benchmark exists we fall back to the strategy's rolling volatility
+// (still exogenous to the sign of its return) and say so in the note.
+function buildRegimes(returns: number[], benchmarkReturns: number[], periodsPerYear: number): RegimeAnalysis {
+  const hasBenchmark = benchmarkReturns.some((value) => Math.abs(value) > 1e-9);
+  const driver = hasBenchmark ? benchmarkReturns : returns;
+  const driverLabel = hasBenchmark ? "benchmark" : "strategy-volatility (no benchmark available)";
+
+  // realized volatility as |driver| smoothed over a 5-bar window -> vol regime
+  const win = 5;
+  const vol: number[] = driver.map((_, i) => {
+    const slice = driver.slice(Math.max(0, i - win + 1), i + 1).map((v) => Math.abs(v));
+    return slice.reduce((s, v) => s + v, 0) / slice.length;
+  });
+  const sortedVol = [...vol].sort((a, b) => a - b);
+  const volP70 = sortedVol[Math.floor(sortedVol.length * 0.7)] ?? 0;
+  const volP30 = sortedVol[Math.floor(sortedVol.length * 0.3)] ?? 0;
+  const sortedDriver = [...driver].sort((a, b) => a - b);
+  const crisisCut = sortedDriver[Math.floor(sortedDriver.length * 0.1)] ?? -0.02;
+
+  const pick = (predicate: (driverValue: number, volValue: number, index: number) => boolean) =>
+    returns.filter((_, i) => predicate(driver[i], vol[i], i));
+
   const regimes = [
-    regimeMetrics("bull_market", returns.filter((value) => value > 0), "Positive strategy-return bars; proxy for favorable tape."),
-    regimeMetrics("bear_market", returns.filter((value) => value <= 0), "Negative strategy-return bars; stress proxy when benchmark regimes are unavailable."),
-    regimeMetrics("high_volatility", returns.filter((value) => Math.abs(value) >= p70), "Top realized-volatility bucket."),
-    regimeMetrics("low_volatility", returns.filter((value) => Math.abs(value) <= p30), "Bottom realized-volatility bucket."),
-    regimeMetrics("crisis", returns.filter((value) => value <= p10), "Worst decile of strategy bars.")
-  ].filter((regime) => regime.observations > 0);
+    regimeMetrics("market_up", pick((d) => d > 0), `Strategy return on bars where the ${driverLabel} rose.`, periodsPerYear),
+    regimeMetrics("market_down", pick((d) => d <= 0), `Strategy return on bars where the ${driverLabel} fell.`, periodsPerYear),
+    regimeMetrics("high_volatility", pick((_, v) => v >= volP70), `Strategy return in the top ${driverLabel} realized-vol bucket.`, periodsPerYear),
+    regimeMetrics("low_volatility", pick((_, v) => v <= volP30), `Strategy return in the bottom ${driverLabel} realized-vol bucket.`, periodsPerYear),
+    regimeMetrics("crisis", pick((d) => d <= crisisCut), `Strategy return on the worst-decile ${driverLabel} bars.`, periodsPerYear)
+  ].filter((regime) => regime.observations >= 5);
+
   const best = [...regimes].sort((a, b) => b.sharpe - a.sharpe)[0];
   const worst = [...regimes].sort((a, b) => a.sharpe - b.sharpe)[0];
   return {
     regimes,
     bestRegime: best?.regime ?? "unknown",
     worstRegime: worst?.regime ?? "unknown",
-    summary: worst && worst.sharpe < -0.5 ? `Regime weakness: ${worst.regime}.` : "No single computed regime is catastrophic."
+    summary:
+      (worst && worst.sharpe < -0.5 ? `Regime weakness in ${worst.regime}.` : "No single market regime is catastrophic.") +
+      (hasBenchmark ? "" : " (No benchmark series — regimes use strategy realized vol, so the market-direction split is unavailable.)")
   };
 }
 
@@ -458,20 +510,25 @@ function memoryGraph(strategy: StrategySpec, card: ResearchDiscoveryCard, status
   };
 }
 
-function baselines(backtest: BacktestResult, benchmarkReturns: number[]): BaselineComparison[] {
+// Honest "dumb baselines": only quantities we actually computed from this run's
+// data. The buy-and-hold benchmark Sharpe and the random-rank Sharpe are real;
+// a zero-edge line anchors the comparison. We deliberately do NOT invent
+// sector-neutral-momentum or low-vol baseline Sharpes (those would require
+// separate backtests we did not run) — a fabricated benchmark is worse than
+// none, because it manufactures a "we beat it" result.
+function baselines(backtest: BacktestResult, benchmarkReturns: number[], periodsPerYear: number): BaselineComparison[] {
   const strategySharpe = backtest.outOfSample.sharpeRatio;
-  const benchmarkSharpe = sharpe(benchmarkReturns);
+  const benchmarkSharpe = sharpe(benchmarkReturns, periodsPerYear);
+  const benchmarkReturn = cumulative(benchmarkReturns);
   const random = backtest.outOfSample.randomBaselineSharpe;
   const items = [
-    { baseline: "random_rank", sharpe: random, returnDelta: backtest.outOfSample.returnAfterCosts },
-    { baseline: "SPY", sharpe: benchmarkSharpe, returnDelta: backtest.outOfSample.returnAfterCosts - cumulative(benchmarkReturns) },
-    { baseline: "equal_weight", sharpe: round(benchmarkSharpe * 0.85, 2), returnDelta: backtest.outOfSample.returnAfterCosts - cumulative(benchmarkReturns) * 0.85 },
-    { baseline: "sector_neutral_momentum", sharpe: round(Math.max(0.15, benchmarkSharpe + 0.15), 2), returnDelta: backtest.outOfSample.returnAfterCosts - 0.025 },
-    { baseline: "low_volatility", sharpe: round(Math.max(0.1, benchmarkSharpe * 0.75 + 0.2), 2), returnDelta: backtest.outOfSample.returnAfterCosts - 0.018 }
+    { baseline: "buy_and_hold_benchmark", sharpe: benchmarkSharpe, returnDelta: backtest.outOfSample.returnAfterCosts - benchmarkReturn },
+    { baseline: "random_rank_portfolio", sharpe: random, returnDelta: backtest.outOfSample.returnAfterCosts },
+    { baseline: "zero_edge", sharpe: 0, returnDelta: backtest.outOfSample.returnAfterCosts }
   ];
   return items.map((item) => ({
     baseline: item.baseline,
-    sharpe: item.sharpe,
+    sharpe: round(item.sharpe, 2),
     excessSharpe: round(strategySharpe - item.sharpe, 2),
     returnDelta: round(item.returnDelta, 4),
     passed: strategySharpe > item.sharpe + 0.1 && item.returnDelta > -0.02
@@ -536,8 +593,8 @@ export function buildResearchWorkflowAudit(input: {
     novelty: buildNovelty(strategy, backtest, experiments),
     pointInTime: pointInTimeLayer(discoveryCard, family),
     registry: registryV2(strategy, params, riskReview, experiments, status, dataUsed, review.status),
-    walkForward: buildWalkForward(series.returns, series.dates),
-    regimes: buildRegimes(series.returns),
+    walkForward: buildWalkForward(series.returns, series.dates, strategy.holdingPeriod, series.periodsPerYear),
+    regimes: buildRegimes(series.returns, series.benchmarkReturns, series.periodsPerYear),
     alphaDecay: alphaDecay(backtest, series.returns),
     capacity: cap,
     execution: exec,
@@ -563,7 +620,7 @@ export function buildResearchWorkflowAudit(input: {
         "Retain failed attempts so future agents stop repeating them."
       ]
     },
-    baselines: baselines(backtest, series.benchmarkReturns),
+    baselines: baselines(backtest, series.benchmarkReturns, series.periodsPerYear),
     libraryCard: libraryCard({ ...strategy, compiledSignal }, discoveryCard, status, backtest),
     researchFeed: feed({ ...strategy, discoveryCard, compiledSignal }, riskReview, status)
   };

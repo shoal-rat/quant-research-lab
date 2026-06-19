@@ -46,6 +46,24 @@ cluster of precision/wording gaps:
 - The local simulator's costs are a **flat per-side commission** (no slippage /
   impact / borrow); its headline Sharpe is full-period in-sample.
 
+A follow-up re-audit (verifying the above + the in-app paper-trading and Strategy
+Lab features) scored **9.3 → 10/10** after two final fixes:
+
+- Alpaca **paper keys are never written to disk** — kept in memory for the browser
+  session only (the persisted settings strip them); the durable path is the
+  bridge's `QRL_ALPACA_KEY_FILE`. The Settings copy states this plainly.
+- The Strategy Lab labels cross-sectional families **"long / short capable"** (the
+  backtest can run long/short; the deployed paper book is long-only top-N) rather
+  than asserting a specific traded portfolio from an always-true condition.
+
+## Autonomous loop (safety)
+
+`scripts/auto-research-loop.mjs` runs research → validate → paper-trade on a timer.
+It is **paper-only** (uses `scripts/alpaca-lib.mjs`, paper endpoint only), validates
+every candidate through the real engine before trading, and has a model fallback
+ladder (Opus → Sonnet → sleep-until-rate-limit-reset). It places **simulated**
+orders only; there is no live-money path.
+
 ## The two gates are NOT equivalent (precise statement)
 
 There are two distinct gates, deliberately different:

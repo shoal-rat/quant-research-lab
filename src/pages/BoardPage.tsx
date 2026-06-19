@@ -26,6 +26,14 @@ export function BoardPage(): JSX.Element {
     experiments.some((experiment) => experiment.familyKey === family.key)
   );
   const discovered = discoveredFamilies;
+  // newest experiment that carries an Alphalens-style signal evaluation
+  const latestFactor = useMemo(() => {
+    for (let i = experiments.length - 1; i >= 0; i -= 1) {
+      const e = experiments[i];
+      if (e.factorAnalytics) return { fa: e.factorAnalytics, oos: e.outOfSampleResult, name: e.strategyName };
+    }
+    return null;
+  }, [experiments]);
 
   const sparkline = useMemo(() => {
     if (equity.length < 2) return "";
@@ -164,6 +172,65 @@ export function BoardPage(): JSX.Element {
           ))}
         </div>
       </section>
+
+      {latestFactor && (
+        <section className="page-card">
+          <h2>{zh ? "信号质量（Alphalens 风格）" : "Signal quality (Alphalens-style)"}</h2>
+          <p className="board-hint">
+            {zh
+              ? `评估的是原始信号本身（不只是组合）：信息系数 IC = 每期信号排名与未来收益排名的相关性。最近：${latestFactor.name}`
+              : `Grades the raw signal itself, not just the portfolio: Information Coefficient (IC) = per-period rank correlation of the signal with forward returns. Latest: ${latestFactor.name}`}
+          </p>
+          <div className="factor-grid">
+            <div className="factor-stat">
+              <small>IC mean</small>
+              <strong className={latestFactor.fa.icMean > 0.02 ? "good" : latestFactor.fa.icMean < -0.02 ? "bad" : ""}>
+                {latestFactor.fa.icMean.toFixed(3)}
+              </strong>
+            </div>
+            <div className="factor-stat">
+              <small>IC-IR</small>
+              <strong className={latestFactor.fa.icIR > 0.3 ? "good" : ""}>{latestFactor.fa.icIR.toFixed(2)}</strong>
+            </div>
+            <div className="factor-stat">
+              <small>IC t-stat</small>
+              <strong className={Math.abs(latestFactor.fa.icTStat) > 2 ? "good" : ""}>{latestFactor.fa.icTStat.toFixed(1)}</strong>
+            </div>
+            <div className="factor-stat">
+              <small>{zh ? "分位单调" : "monotonic"}</small>
+              <strong className={latestFactor.fa.quantileMonotonic ? "good" : "bad"}>
+                {latestFactor.fa.quantileMonotonic ? (zh ? "是" : "yes") : zh ? "否" : "no"}
+              </strong>
+            </div>
+            <div className="factor-stat">
+              <small>{zh ? "分位价差" : "Q-spread"}</small>
+              <strong>{percent(latestFactor.fa.quantileSpread, 2)}</strong>
+            </div>
+            <div className="factor-stat">
+              <small>Sortino</small>
+              <strong>{(latestFactor.oos.sortino ?? 0).toFixed(2)}</strong>
+            </div>
+            <div className="factor-stat">
+              <small>Calmar</small>
+              <strong>{(latestFactor.oos.calmar ?? 0).toFixed(2)}</strong>
+            </div>
+            <div className="factor-stat">
+              <small>PSR</small>
+              <strong className={(latestFactor.oos.probabilisticSharpe ?? 0) > 0.95 ? "good" : ""}>
+                {percent(latestFactor.oos.probabilisticSharpe ?? 0, 0)}
+              </strong>
+            </div>
+          </div>
+          <p className="board-hint">
+            {zh ? "IC 衰减（按持有周期，单位 bar）：" : "IC decay (by horizon, bars): "}
+            {latestFactor.fa.icDecay.map((d) => `${d.horizon}d ${d.ic.toFixed(3)}`).join(" · ")}
+            {" — "}
+            {zh
+              ? "IC-IR>0.3 不错、>0.5 优秀；|t|>2 才可信。"
+              : "IC-IR>0.3 decent, >0.5 strong; |t|>2 to be credible."}
+          </p>
+        </section>
+      )}
 
       {discovered.length > 0 && (
         <section className="page-card">

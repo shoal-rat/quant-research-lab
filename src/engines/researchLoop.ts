@@ -143,7 +143,9 @@ export async function completeIteration(
     datasetLabel = "Deterministic mock simulator";
   }
   const riskReview = reviewBacktestRisk(strategy, backtest);
-  const status = decideExperimentStatus(backtest, riskReview, generatedCode, strictnessBias);
+  // the candidate gate now uses the pool-ΔSharpe (does this alpha ADD to the pool?)
+  const poolDelta = extras ? poolSharpeDelta(extras, priorCandidates) : undefined;
+  const status = decideExperimentStatus(backtest, riskReview, generatedCode, strictnessBias, poolDelta);
   const createdAt = new Date().toISOString();
   const workflowAudit = buildResearchWorkflowAudit({
     strategy,
@@ -174,7 +176,8 @@ export async function completeIteration(
     datasetLabel,
     dailyReturns: extras?.dailyReturns,
     returnsStartIndex: extras?.returnsStartIndex,
-    poolSharpeDelta: extras ? poolSharpeDelta(extras, priorCandidates) : undefined,
+    poolSharpeDelta: poolDelta,
+    factorAnalytics: backtest.factorAnalytics,
     dataRange: `${settings.startDate} to ${settings.endDate}`,
     dataUsed: backtest.dataUsed,
     factorLogic: strategy.factorLogic,

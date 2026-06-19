@@ -23,6 +23,64 @@ export interface FamilyParameter {
   step: number;
 }
 
+// --- research discovery: source credibility + hypothesis cards ---
+export type SourceKind =
+  | "sec_filing"
+  | "earnings_call"
+  | "paper"
+  | "press_release"
+  | "sellside"
+  | "news"
+  | "github"
+  | "forum"
+  | "reddit"
+  | "rumor";
+
+// internet sources are noisy — score how much each one can be trusted
+export const SOURCE_CREDIBILITY: Record<SourceKind, number> = {
+  sec_filing: 0.95,
+  earnings_call: 0.9,
+  paper: 0.85,
+  press_release: 0.7,
+  sellside: 0.55,
+  news: 0.5,
+  github: 0.5,
+  forum: 0.3,
+  reddit: 0.3,
+  rumor: 0.15
+};
+
+export function sourceCredibility(kind: string): number {
+  return SOURCE_CREDIBILITY[kind as SourceKind] ?? 0.4;
+}
+
+export interface ResearchSource {
+  kind: SourceKind;
+  url?: string;
+  title?: string;
+  credibility: number; // 0..1
+}
+
+// the structured hypothesis card: messy information turned into a tradable idea
+export interface ResearchCard {
+  phenomenon: string;
+  whyAlpha: string;
+  tradableUniverse: string;
+  requiredData: string[];
+  signalConstruction: string; // the compiled signal: universe / feature / rank / lag / hold / portfolio
+  timestampLag: string;
+  holdingPeriod: string;
+  failureRisks: string[];
+  sources: ResearchSource[];
+}
+
+export type NoveltyVerdict = "novel" | "likely_rename" | "duplicate" | "failed_before";
+export interface NoveltyResult {
+  verdict: NoveltyVerdict;
+  note: string;
+  nearestKey?: string;
+}
+
 export interface StrategyFamily {
   key: string;
   name: string;

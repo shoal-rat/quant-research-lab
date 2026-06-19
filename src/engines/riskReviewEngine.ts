@@ -172,7 +172,8 @@ export function decideExperimentStatus(
   backtest: BacktestResult,
   review: RiskReview,
   generatedCode: string,
-  strictnessBias = 0
+  strictnessBias = 0,
+  poolDelta?: number
 ): ExperimentStatus {
   const failCount = review.checks.filter((item) => item.status === "fail").length;
   const warnCount = review.checks.filter((item) => item.status === "warn").length;
@@ -188,11 +189,18 @@ export function decideExperimentStatus(
   if (failCount >= 1 || warnCount >= warnLimit || backtest.outOfSample.overfittingRiskScore > 72 - strictnessBias * 4) {
     return "retest_needed";
   }
-  if (
-    backtest.outOfSample.sharpeRatio > 1 + strictnessBias * 0.1 &&
-    backtest.outOfSample.returnAfterCosts > 0.035 &&
-    backtest.outOfSample.deflatedSharpe >= 0.5
-  ) {
+  const oos = backtest.outOfSample;
+  const passesBase = oos.sharpeRatio > 1 + strictnessBias * 0.1 && oos.returnAfterCosts > 0.035 && oos.deflatedSharpe >= 0.5;
+  if (passesBase) {
+    // admission gates the synthesis flagged as missing: a candidate must ADD to
+    // the pool (AlphaGen pool-ΔSharpe), not merely correlate with it, and its raw
+    // signal should show real predictive skill (Alphalens IC), not just a lucky
+    // portfolio. Failing these keeps the edge but sends it back for a retest.
+    const redundant = oos.alphaPoolCorrelation > 0.9; // duplicates an existing alpha
+    const additive = poolDelta === undefined || poolDelta > 0; // raises the pool's Sharpe
+    const factor = backtest.factorAnalytics;
+    const icAbsent = factor !== undefined && Math.abs(factor.icTStat) < 1 && Math.abs(factor.icMean) < 0.005;
+    if (redundant || !additive || icAbsent) return "retest_needed";
     return "candidate";
   }
   return "archived";

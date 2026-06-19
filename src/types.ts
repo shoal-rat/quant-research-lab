@@ -496,6 +496,33 @@ export interface PerformanceMetrics {
   deflatedSharpe: number;
   trialsAtDiscovery: number;
   alphaPoolCorrelation: number;
+  // expanded risk-adjusted metrics (empyrical/quantstats conventions); optional
+  // so older stored experiments and the mock path stay valid
+  sortino?: number;
+  calmar?: number;
+  probabilisticSharpe?: number;
+}
+
+export interface QuantileBucket {
+  quantile: number;
+  meanForwardReturn: number;
+  count: number;
+}
+
+// Alphalens-style evaluation of the raw signal (not the portfolio).
+export interface FactorAnalytics {
+  horizon: number;
+  observations: number;
+  icMean: number;
+  icStd: number;
+  icIR: number;
+  icTStat: number;
+  hitRate: number;
+  icDecay: Array<{ horizon: number; ic: number }>;
+  quantiles: QuantileBucket[];
+  quantileSpread: number;
+  quantileMonotonic: boolean;
+  rankAutocorrelation: number;
 }
 
 export interface EquityPoint {
@@ -513,6 +540,7 @@ export interface BacktestResult {
   equityCurve: EquityPoint[];
   generatedCode: string;
   dataUsed: string;
+  factorAnalytics?: FactorAnalytics;
 }
 
 export interface RiskCheck {
@@ -553,6 +581,7 @@ export interface ExperimentRecord {
   dailyReturns?: number[];
   returnsStartIndex?: number;
   poolSharpeDelta?: number;
+  factorAnalytics?: FactorAnalytics;
   dataRange: string;
   dataUsed: string;
   factorLogic: string;

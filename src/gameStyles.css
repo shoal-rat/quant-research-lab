@@ -1202,3 +1202,24 @@
 .discovered-refs { display: flex; flex-wrap: wrap; gap: 6px 12px; }
 .discovered-refs a, .discovered-refs span { font-size: 11px; color: var(--teal); text-decoration: none; }
 .discovered-refs a:hover { text-decoration: underline; }
+
+/* ---- factor analytics (signal quality) ---- */
+.factor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+  gap: 10px;
+  margin: 6px 0 10px;
+}
+.factor-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+}
+.factor-stat small { color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.4px; }
+.factor-stat strong { color: var(--ink); font-size: 17px; font-variant-numeric: tabular-nums; }
+.factor-stat strong.good { color: var(--green); }
+.factor-stat strong.bad { color: var(--danger); }

@@ -9,6 +9,8 @@ import {
 import { deflatedSharpeProbability } from "./backtestEngine";
 import { dateIndex, RealMarketData, realUniverse } from "./realMarket";
 import { clamp, round, seededRandom } from "./random";
+import { calmarRatio, probabilisticSharpe, sortinoRatio } from "./perfMetrics";
+import { computeFactorAnalytics, FactorCrossSection } from "./factorAnalytics";
 
 // Real-data backtester: computes family signals from actual adjusted closes at
 // whatever frequency the dataset carries (hourly, daily, weekly, monthly...),
@@ -283,7 +285,10 @@ function computeRealMetrics(
     yearDependencyScore: round(yearDependency, 3),
     deflatedSharpe: round(deflated, 3),
     trialsAtDiscovery: trials,
-    alphaPoolCorrelation: poolCorrelation
+    alphaPoolCorrelation: poolCorrelation,
+    sortino: round(sortinoRatio(returns, periodsPerYear), 2),
+    calmar: round(calmarRatio(annualized, maxDrawdown), 2),
+    probabilisticSharpe: round(probabilisticSharpe(sharpe, returns, periodsPerYear), 3)
   };
 }
 
@@ -462,6 +467,7 @@ export function runRealBacktest(
   const turnoverSeries: number[] = [];
   const weightsHistory: Map<string, number>[] = [];
   const yearsPnl = new Map<string, number>();
+  const crossSections: FactorCrossSection[] = [];
   let weights = new Map<string, number>();
 
   for (let day = slice.start; day < slice.end - 1; day += 1) {
@@ -471,6 +477,21 @@ export function runRealBacktest(
       for (const symbol of universe) {
         const signal = computeSignal(strategy, data, symbol, day, industryPeers, periodsPerYear);
         if (signal !== null && Number.isFinite(signal)) signals.push([symbol, signal]);
+      }
+      // capture the (signal, forward-return) cross-section for Alphalens-style
+      // factor analytics — signal uses data <= day, forward return is after day
+      if (signals.length >= 6) {
+        const csSignal: number[] = [];
+        const fwd: Record<number, number[]> = { 1: [], 5: [], 10: [], 20: [] };
+        for (const [symbol, signal] of signals) {
+          csSignal.push(signal);
+          const c0 = data.tickers[symbol].closes[day];
+          for (const h of [1, 5, 10, 20]) {
+            const ch = data.tickers[symbol].closes[day + h];
+            fwd[h].push(c0 && ch ? ch / c0 - 1 : NaN);
+          }
+        }
+        crossSections.push({ signal: csSignal, forwardByHorizon: fwd });
       }
       const next = new Map<string, number>();
       if (isTimeSeriesFamily) {
@@ -595,7 +616,8 @@ export function runRealBacktest(
     full,
     equityCurve,
     generatedCode: "",
-    dataUsed: `${universe.length} names, ${data.dates[slice.start]} to ${data.dates[slice.end - 1]}, ${data.frequency ?? "daily"} adjusted closes (${data.source}), benchmark ${data.benchmark}`
+    dataUsed: `${universe.length} names, ${data.dates[slice.start]} to ${data.dates[slice.end - 1]}, ${data.frequency ?? "daily"} adjusted closes (${data.source}), benchmark ${data.benchmark}`,
+    factorAnalytics: computeFactorAnalytics(crossSections, holding) ?? undefined
   };
   return { result, extras };
 }

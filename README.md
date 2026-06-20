@@ -13,7 +13,8 @@
 [![Vite](https://img.shields.io/badge/Vite-7-646cff?logo=vite&logoColor=white)](https://vite.dev)
 [![Brain](https://img.shields.io/badge/brain-Claude%20Code%20%2F%20Codex-7b61ff)](#research-brain)
 [![Data](https://img.shields.io/badge/data-bring%20your%20own-c792ea)](#bring-your-own-data)
-[![Tests](https://img.shields.io/badge/tests-28%20passing-2f9c95)](#verify)
+[![Tests](https://img.shields.io/badge/tests-64%20passing-2f9c95)](#verify)
+[![Review](https://img.shields.io/badge/senior--quant%20review-9%2F10-2f9c95)](docs/REVIEW.md)
 [![Wallpaper](https://img.shields.io/badge/desktop-wallpaper%20ready-e9b455)](#desktop-mode)
 [![License](https://img.shields.io/badge/license-MIT-8f5a2a)](LICENSE)
 
@@ -266,17 +267,41 @@ npm run build
 
 Current suite: 28 tests covering real-data span, no-lookahead behavior, cost monotonicity, CSV long/wide parsing, provider backtests, bridge metrics, frequency detection, intraday annualization, bandit determinism, gates, workflow audit, and progression.
 
-## Trade it in a simulated market
+## Inside the app: one click does everything
 
-Two ways to take the lab's strategies from backtest to a live-ish run — both
-simulated, no real money:
+No finance knowledge required. Start the engine + app (`start.cmd`, or the Quick
+start above), then press the single glowing **green ▶** on the main screen. That one
+button runs the whole thing as **one process**:
 
-The flow is **backtest on history → only trade if it passes**. Both tools run
-cross-sectional momentum, **positive-momentum only**, with a **trend filter**
-(invest only when SPY is above its 200d moving average, else hold cash). The paper
-connector first **validates the strategy on history through the real lab engine**
-(no-lookahead backtest + walk-forward + deflated Sharpe + out-of-sample IC) and
-**refuses to trade unless it passes**.
+1. **Researches** strategies in parallel (Claude Code, with an Opus → Sonnet fallback
+   that sleeps until the rate-limit resets),
+2. **backtests** each on 20 years of history through the real engine — no lookahead,
+   walk-forward, deflated Sharpe, out-of-sample IC — and only keeps the winners,
+3. **paper-invests** them as a live **strategy horse race**: ~10 strategies each hold
+   a sleeve of the account, marked to market on live prices; the worst is evicted
+   every few hours and replaced by a freshly-validated challenger; the leader's book
+   is mirrored to your Alpaca paper account.
+
+The office researchers you see are a **live mirror** of that one process — the app
+never calls the LLM a second time for the same job.
+
+Tabs on the main screen:
+
+- **🏇 Horse Race** — the live leaderboard (each strategy's pedigree, NAV, book, and evictions).
+- **📈 Paper Trading** — validate a strategy on history, deploy it if it passes, and watch its **1 / 5 / 10-day** P&L from your Alpaca paper account.
+- **🔬 Strategy Lab** — click any strategy to see *how* its signal is derived (phenomenon → signal → neutralize → rank → hold), then tweak it with a boss command.
+
+All **paper / simulated money** — there is no live-money path anywhere.
+
+## Trade it from the command line
+
+If you'd rather drive it from a terminal — both simulated, no real money. The flow is
+**backtest on history → only trade if it passes**. Both tools run cross-sectional
+momentum, **positive-momentum only**, with a **trend filter** (invest only when SPY
+is above its 200d moving average, else hold cash). The paper connector first
+**validates the strategy on history through the real lab engine** (no-lookahead
+backtest + walk-forward + deflated Sharpe + out-of-sample IC) and **refuses to trade
+unless it passes**.
 
 Universe: the bundled set is 60 names (20y); pass `--universe=large` (after
 `node scripts/fetch-universe.mjs`) for a **~513-name S&P 500 + NASDAQ-100** set.
@@ -328,17 +353,18 @@ Not investment advice. Paper/simulated trading only.
 
 ## What Shipped
 
-- [x] Research Workflow 2.0: discovery cards, compiled signals, source credibility, novelty, point-in-time contracts, validation, baselines, and research feed (capacity / execution stress / paper trading are clearly-labelled illustrative scaffolds pending a liquidity feed).
-- [x] Claude Code / Codex research brain through a local bridge.
-- [x] Bring-your-own data: upload, remote URL, large local files, and databases.
-- [x] Frequency-aware metrics for tick, minute, hourly, daily, weekly, and monthly bars.
-- [x] Cached large-data kernels for repeated backtests.
-- [x] Strategy-family discovery from papers, news, and institution notes.
-- [x] 20 years of bundled US market data.
+- [x] **One-click autopilot**: a single green ▶ runs research → backtest → paper-invest as **one process**; the office animation is a live mirror of it (no duplicate LLM calls). `start.cmd` launches the engine + app.
+- [x] **Strategy horse race**: ~10 strategies researched in parallel, validated, and raced as virtual sleeves on live prices; the worst is evicted and replaced by a validated challenger; the leader is mirrored to your Alpaca paper account.
+- [x] **In-app paper trading** (Alpaca, paper endpoint only): validate-on-history-then-deploy, with 1 / 5 / 10-day P&L; plus a Strategy Lab to inspect and edit each strategy's logic.
+- [x] **Validated calculation core**: no-lookahead backtest with winsorized + sector/beta-neutralized signals, purged + embargoed walk-forward, deflated Sharpe, **out-of-sample IC admission gate**, measured random-rank baseline — all checked against the Python `empyrical`/`scipy`/`statsmodels` stack. Reviewed to **9/10** ([docs/REVIEW.md](docs/REVIEW.md)).
+- [x] **OHLCV data**: volume + adjusted high/low → Amihud illiquidity, low-turnover, and range-volatility factors, plus a **measured** capacity model (median ADV). ~513-name S&P 500 + NASDAQ-100 universe.
+- [x] Research Workflow 2.0: discovery cards, compiled signals, source credibility, novelty, point-in-time contracts, validation, baselines, and research feed.
+- [x] Claude Code / Codex research brain through a local bridge (Opus → Sonnet fallback with rate-limit-reset handling).
+- [x] Bring-your-own data: upload, remote URL, large local files, and databases; frequency-aware metrics (tick → monthly); cached large-data kernels.
 - [x] Thompson bandit, pool delta-Sharpe reward, MAP-Elites niches, CSCV PBO.
 - [x] Game layer: XP, titles, achievements, fund NAV, office events, confetti, EN / 中文.
 
-Next ideas: fundamentals for the quality family, an in-game dataset browser, and multi-desk competition.
+Next ideas: a packaged one-file desktop app (engine + UI in one window), fundamentals for the quality family, and small/mid-cap universe de-survivorship.
 
 ## Credits
 

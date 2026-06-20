@@ -29,6 +29,27 @@ export function LoopControls(): JSX.Element {
     setEditText("");
   };
 
+  // ONE start: the office researchers begin researching AND the strategy horse race
+  // (research -> validate -> paper-invest) starts on the bridge. No second button.
+  const startEverything = (): void => {
+    startResearch();
+    const base = (settings.bridgeUrl || "http://127.0.0.1:8787").replace(/\/$/, "");
+    void fetch(`${base}/race/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sleeves: 10,
+        universe: "large",
+        evictHours: 6,
+        interval: 30,
+        key: settings.paperApiKey || undefined,
+        secret: settings.paperApiSecret || undefined
+      })
+    }).catch(() => {
+      /* bridge may be down; the Autopilot banner surfaces that */
+    });
+  };
+
   return (
     <div className="loop-controls">
       <span
@@ -43,7 +64,7 @@ export function LoopControls(): JSX.Element {
           <CirclePause size={15} />
         </button>
       ) : (
-        <button className="primary-button compact" onClick={startResearch} title={t(lang, "start")}>
+        <button className="primary-button compact start-everything" onClick={startEverything} title={lang === "zh" ? "一键开始：研究 + 赛马 + 模拟投资" : "Start everything: research + race + paper-invest"}>
           <Play size={15} />
         </button>
       )}

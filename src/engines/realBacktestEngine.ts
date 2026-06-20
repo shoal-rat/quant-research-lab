@@ -607,6 +607,38 @@ function randomRankBaselineOosSharpe(
   return round(sharpes.reduce((sum, value) => sum + value, 0) / sharpes.length, 2);
 }
 
+// Current top-N long book for ANY family at the latest bar (data up to the last
+// date only — no lookahead): rank names by the family's signal, take the top N,
+// gated by the SPY-vs-200d-MA regime (cash when risk-off). Used by the live
+// strategy tournament to know what each sleeve would hold right now.
+export function latestTargets(
+  strategy: StrategySpec,
+  data: RealMarketData,
+  top: number
+): { targets: string[]; riskOn: boolean; asOf: string } {
+  const available = realUniverse(data);
+  const universe = strategy.universe.filter((s) => available.includes(s));
+  const uni = universe.length >= 6 ? universe : available;
+  const industryPeers: Record<string, string[]> = {};
+  for (const s of uni) (industryPeers[data.tickers[s].industry] = industryPeers[data.tickers[s].industry] ?? []).push(s);
+  const last = data.dates.length - 1;
+  const ppy = data.periodsPerYear ?? DEFAULT_PERIODS_PER_YEAR;
+
+  const spy = data.tickers[data.benchmark]?.closes ?? [];
+  let sum = 0;
+  let cnt = 0;
+  for (let k = Math.max(0, last - 199); k <= last; k += 1) if (spy[k]) { sum += spy[k] as number; cnt += 1; }
+  const ma = cnt > 0 ? sum / cnt : 0;
+  const riskOn = !!(spy[last] && ma && (spy[last] as number) >= ma);
+
+  const scored = uni
+    .map((s) => ({ s, v: computeSignal(strategy, data, s, last, industryPeers, ppy) }))
+    .filter((x) => x.v !== null && Number.isFinite(x.v as number))
+    .sort((a, b) => (b.v as number) - (a.v as number));
+  const targets = riskOn ? scored.slice(0, Math.max(1, top)).map((x) => x.s) : [];
+  return { targets, riskOn, asOf: data.dates[last] };
+}
+
 export function runRealBacktest(
   strategy: StrategySpec,
   params: BacktestParameters,

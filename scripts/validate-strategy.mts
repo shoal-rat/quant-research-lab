@@ -7,12 +7,12 @@
 // paper connector/sim refuse to trade unless `passed` is true.
 import fs from "node:fs";
 import { buildRealMarketData } from "../src/engines/realMarket";
-import { runRealBacktest } from "../src/engines/realBacktestEngine";
+import { runRealBacktest, latestTargets } from "../src/engines/realBacktestEngine";
 import { reviewBacktestRisk, decideExperimentStatus } from "../src/engines/riskReviewEngine";
 import { computeWalkForward } from "../src/engines/walkForward";
 import { poolSharpeDelta } from "../src/engines/poolAnalytics";
-import { getAllFamilies } from "../src/engines/strategyKnowledge";
-import type { BacktestParameters, StrategySpec } from "../src/types";
+import { getAllFamilies, getFamily } from "../src/engines/strategyKnowledge";
+import type { BacktestParameters, HoldingPeriod, StrategySpec } from "../src/types";
 
 // the price-computable factor families the engine can actually backtest in-browser
 export function computableFamilies(): Array<{ key: string; name: string; factorKind: string }> {
@@ -152,5 +152,95 @@ export function validateMomentum(universeFile: string, opts: ValidateOptions = {
     targets,
     universeSize: symbols.length,
     dataRange: `${data.dates[0]} -> ${data.dates[last]}`
+  };
+}
+
+export interface ConfigOptions {
+  familyKey: string;
+  params?: Record<string, number>;
+  top?: number;
+  holding?: number;
+  costBps?: number;
+}
+
+// Validate ANY computable family + parameters through the same real engine gate,
+// and return its current top-N book (via the engine's latestTargets). Used by the
+// strategy tournament so each sleeve can be a different family.
+export function validateConfig(universeFile: string, opts: ConfigOptions): ValidateResult & { familyKey: string } {
+  const family = getFamily(opts.familyKey);
+  const top = opts.top ?? 8;
+  const holding = (opts.holding ?? family.holdingPeriods[0] ?? 5) as HoldingPeriod;
+  const costBps = opts.costBps ?? 5;
+  const bundle = JSON.parse(fs.readFileSync(universeFile, "utf-8"));
+  const data = buildRealMarketData(bundle);
+  const symbols = Object.keys(data.tickers).filter((s) => s !== data.benchmark);
+
+  const defaults: Record<string, number> = {};
+  for (const p of family.parameters) defaults[p.name] = p.default;
+  const strategy: StrategySpec = {
+    id: `STR-${family.key}`,
+    name: family.name,
+    hypothesis: family.rationale,
+    factorLogic: family.construction,
+    factorKind: family.factorKind,
+    familyKey: family.key,
+    holdingPeriod: holding,
+    portfolioType: "long_only",
+    universe: symbols,
+    parameters: { ...defaults, ...(opts.params ?? {}) },
+    generation: 0,
+    ideaMode: "explore",
+    ideaReasoning: []
+  };
+  const params: BacktestParameters = {
+    universe: symbols,
+    dateRange: { start: data.dates[0], end: data.dates[data.dates.length - 1] },
+    holdingPeriod: holding,
+    portfolioType: "long_only",
+    transactionCostBps: costBps,
+    benchmark: data.benchmark
+  };
+
+  const { result, extras } = runRealBacktest(strategy, params, data, { totalTrials: 1, priorCandidates: [] });
+  const review = reviewBacktestRisk(strategy, result);
+  const wf = computeWalkForward(extras.dailyReturns, extras.dates, { holding, periodsPerYear: extras.periodsPerYear ?? 252 });
+  const poolDelta = poolSharpeDelta(extras, []);
+  const labStatus = decideExperimentStatus(result, review, strategy.factorLogic.repeat(3), 0, poolDelta, wf?.passRate);
+
+  const oos = result.outOfSample;
+  const oosIC = result.factorAnalyticsOOS;
+  const metrics = {
+    oosSharpe: oos.sharpeRatio,
+    fullSharpe: result.full.sharpeRatio,
+    returnAfterCosts: oos.returnAfterCosts,
+    deflatedSharpe: oos.deflatedSharpe,
+    oosICt: oosIC ? oosIC.icTStat : null,
+    oosICobs: oosIC ? oosIC.observations : null,
+    walkForwardPassRate: wf ? wf.passRate : null,
+    randomBaselineSharpe: oos.randomBaselineSharpe,
+    maxDrawdown: oos.maxDrawdown
+  };
+  const reasons: string[] = [];
+  if (labStatus === "failed_to_run") reasons.push("strategy failed to run");
+  if (metrics.oosSharpe < 0.5) reasons.push(`OOS Sharpe ${metrics.oosSharpe.toFixed(2)} < 0.50`);
+  if (metrics.returnAfterCosts <= 0) reasons.push(`OOS return after costs ${(metrics.returnAfterCosts * 100).toFixed(1)}% <= 0`);
+  if (metrics.deflatedSharpe < 0.5) reasons.push(`deflated Sharpe ${(metrics.deflatedSharpe * 100).toFixed(0)}% < 50%`);
+  if (wf && wf.passRate < 0.5) reasons.push(`walk-forward pass rate ${(wf.passRate * 100).toFixed(0)}% < 50%`);
+  if (metrics.oosSharpe <= metrics.randomBaselineSharpe + 0.1) reasons.push(`does not beat random baseline (${metrics.randomBaselineSharpe.toFixed(2)})`);
+  if (metrics.maxDrawdown < -0.6) reasons.push(`catastrophic max drawdown ${(metrics.maxDrawdown * 100).toFixed(0)}%`);
+  const passed = reasons.length === 0;
+
+  const book = latestTargets(strategy, data, top);
+  const last = data.dates.length - 1;
+  return {
+    passed,
+    labStatus,
+    reasons,
+    metrics,
+    regime: book,
+    targets: book.targets,
+    universeSize: symbols.length,
+    dataRange: `${data.dates[0]} -> ${data.dates[last]}`,
+    familyKey: family.key
   };
 }

@@ -4,6 +4,7 @@
 import fs from "node:fs";
 
 export const PAPER_BASE = "https://paper-api.alpaca.markets";
+const DATA_BASE = "https://data.alpaca.markets";
 
 // Parse paper keys from a local file (JSON / KEY=VALUE / unambiguous bare tokens).
 export function loadKeysFromFile(file) {
@@ -65,6 +66,28 @@ export const submitNotional = (k, s, symbol, notional, side = "buy") =>
     method: "POST",
     body: JSON.stringify({ symbol, notional, side, type: "market", time_in_force: "day" })
   });
+
+// Latest prices for a set of symbols (IEX feed, free tier) to mark positions to
+// market. Returns { SYMBOL: price }, using latest trade then daily/prev bar.
+export async function getLatestPrices(key, secret, symbols) {
+  const list = [...new Set(symbols)].filter(Boolean);
+  if (list.length === 0) return {};
+  const url = `${DATA_BASE}/v2/stocks/snapshots?symbols=${encodeURIComponent(list.join(","))}&feed=iex`;
+  const res = await fetch(url, { headers: headers(key, secret) });
+  const text = await res.text();
+  const body = text ? JSON.parse(text) : {};
+  if (!res.ok) throw new Error(`snapshots: HTTP ${res.status} ${body.message ?? text}`);
+  const map = body.snapshots ?? body;
+  const out = {};
+  for (const [sym, snap] of Object.entries(map)) {
+    if (!snap || typeof snap !== "object") continue;
+    const q = snap.latestQuote;
+    const mid = q && q.ap && q.bp ? (q.ap + q.bp) / 2 : null;
+    const p = snap.latestTrade?.p ?? snap.dailyBar?.c ?? mid ?? snap.prevDailyBar?.c ?? null;
+    if (p && Number.isFinite(p)) out[sym] = p;
+  }
+  return out;
+}
 
 // Trailing-window returns from a portfolio-history equity series (Alpaca daily).
 export function windowReturns(history) {

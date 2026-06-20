@@ -138,6 +138,13 @@ const CLAUDE_MODEL = process.env.QRL_CLAUDE_MODEL ?? "claude-haiku-4-5";
 // set QRL_CODEX_MODEL=gpt-5.4-nano or similar.
 const CODEX_MODEL = process.env.QRL_CODEX_MODEL ?? "default";
 const TIMEOUT_MS = 45000;
+// Dialogue (/condense) spawns a fresh `claude -p` per line; each is a heavy cold
+// start on Windows and gets MUCH slower while the race child is running its own
+// research calls (process contention). Give dialogue a generous ceiling so a
+// slow-but-working call finishes instead of being killed at 45s, and cap how many
+// run at once so an office burst doesn't pile up dozens of CLI startups.
+const CONDENSE_TIMEOUT_MS = Number(process.env.QRL_CONDENSE_TIMEOUT_MS ?? 120000);
+const CONDENSE_MAX_CONCURRENT = Number(process.env.QRL_CONDENSE_CONCURRENCY ?? 2);
 // Dataset endpoints let the CLI run real analysis code over a (possibly very
 // large) local file or database, so they get a stronger model, more reasoning,
 // and a longer timeout than the cheap dialogue path. The agent owns the data:
@@ -158,6 +165,22 @@ const ALLOW_DATA_TOOLS = process.env.QRL_ALLOW_DATA_TOOLS === "1";
 const KERNEL_DIR = path.join(os.tmpdir(), "qrl-kernels");
 // dialogue replies are deterministic enough to reuse for an identical prompt
 const condenseCache = new Map();
+// small async semaphore: run at most `max` tasks concurrently, queue the rest
+function makeLimiter(max) {
+  let active = 0;
+  const queue = [];
+  const pump = () => {
+    if (active >= max || queue.length === 0) return;
+    active += 1;
+    const { task, resolve, reject } = queue.shift();
+    Promise.resolve()
+      .then(task)
+      .then(resolve, reject)
+      .finally(() => { active -= 1; pump(); });
+  };
+  return (task) => new Promise((resolve, reject) => { queue.push({ task, resolve, reject }); pump(); });
+}
+const condenseLimit = makeLimiter(CONDENSE_MAX_CONCURRENT);
 const isWindows = process.platform === "win32";
 
 // CLIs run from a neutral directory so they never pick up a project's
@@ -227,7 +250,7 @@ async function condenseWithClaude(prompt, model) {
       "--append-system-prompt",
       "You are a dialogue-generation API. Reply with ONLY the requested JSON object. No prose, no markdown, no questions."
     ],
-    { stdin: prompt }
+    { stdin: prompt, timeoutMs: CONDENSE_TIMEOUT_MS }
   );
   if (result.code !== 0) throw new Error(`claude CLI exit ${result.code}: ${result.stderr.slice(-400)}`);
   return result.stdout.trim();
@@ -244,7 +267,7 @@ async function condenseWithCodex(prompt, model) {
       args.push("--model", chosenModel);
     }
     args.push("-");
-    const result = await run("codex", args, { stdin: prompt });
+    const result = await run("codex", args, { stdin: prompt, timeoutMs: CONDENSE_TIMEOUT_MS });
     if (result.code !== 0) throw new Error(`codex CLI exit ${result.code}: ${result.stderr.slice(-400)}`);
     if (fs.existsSync(outFile)) {
       return fs.readFileSync(outFile, "utf8").trim();
@@ -677,8 +700,9 @@ const server = http.createServer(async (req, res) => {
           return;
         }
         const started = Date.now();
-        const text =
-          backend === "codex" ? await condenseWithCodex(prompt, model) : await condenseWithClaude(prompt, model);
+        const text = await condenseLimit(() =>
+          backend === "codex" ? condenseWithCodex(prompt, model) : condenseWithClaude(prompt, model)
+        );
         if (condenseCache.size > 200) condenseCache.clear();
         condenseCache.set(cacheKey, text);
         console.log(`[bridge] ${backend} ok in ${((Date.now() - started) / 1000).toFixed(1)}s (${text.length} chars)`);

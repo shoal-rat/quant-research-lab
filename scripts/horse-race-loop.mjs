@@ -44,6 +44,15 @@ const COST_BPS = Number(args.cost) || 5;
 const TOP = Number(args.top) || 8;
 const UNIVERSE = args.universe === "bundled" ? "bundled" : "large";
 const KEY_FILE = process.env.QRL_ALPACA_KEY_FILE || args.keyFile || null;
+// keys come from APCA_API_KEY_ID/SECRET (e.g. passed in by the bridge when the web
+// page hits Start) OR a key file. Resolved per call, never stored.
+function resolveKeys() {
+  if (process.env.APCA_API_KEY_ID && process.env.APCA_API_SECRET_KEY) {
+    return { id: process.env.APCA_API_KEY_ID, secret: process.env.APCA_API_SECRET_KEY };
+  }
+  return KEY_FILE ? loadKeysFromFile(KEY_FILE) : null;
+}
+const HAS_KEYS = Boolean((process.env.APCA_API_KEY_ID && process.env.APCA_API_SECRET_KEY) || KEY_FILE);
 function defaultDeadline() { const n = new Date(); return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate() + 1, 22, 0, 0)); }
 const DEADLINE = args.until ? new Date(args.until) : defaultDeadline();
 const universeFile = UNIVERSE === "large" ? path.join(ROOT, "data", "universe-large.json") : path.join(ROOT, "public", "assets", "data", "market-real.json");
@@ -169,8 +178,8 @@ function markSleeve(s) {
 }
 
 async function refreshPrices(state) {
-  if (!KEY_FILE) return;
-  const keys = loadKeysFromFile(KEY_FILE);
+  if (!HAS_KEYS) return;
+  const keys = resolveKeys();
   if (!keys) return;
   const syms = new Set();
   for (const s of state.sleeves) {
@@ -187,8 +196,8 @@ async function refreshPrices(state) {
 }
 
 async function deployLeader(leader) {
-  if (!KEY_FILE || !leader || !leader.validated || !leader.targets?.length) return;
-  const keys = loadKeysFromFile(KEY_FILE);
+  if (!HAS_KEYS || !leader || !leader.validated || !leader.targets?.length) return;
+  const keys = resolveKeys();
   if (!keys) return;
   try {
     const account = await getAccount(keys.id, keys.secret);
@@ -265,7 +274,7 @@ function markAll(state) {
 async function main() {
   log({ phase: "start", deadline: DEADLINE.toISOString(), sleeves: SLEEVES, total: TOTAL, intervalMin: INTERVAL_MS / 60000, evictHours: EVICT_MS / 3600000, universe: UNIVERSE, hasKeys: Boolean(KEY_FILE) });
   if (!fs.existsSync(universeFile)) { log({ phase: "fatal", error: `universe file missing: ${universeFile}` }); return; }
-  if (!KEY_FILE) log({ phase: "warn", msg: "no QRL_ALPACA_KEY_FILE — cannot fetch live prices or mirror the leader; set it to run the race" });
+  if (!HAS_KEYS) log({ phase: "warn", msg: "no paper keys (APCA_API_KEY_ID/SECRET or QRL_ALPACA_KEY_FILE) — cannot fetch live prices or mirror the leader" });
   const { validateConfig, computableFamilies } = await loadValidator();
   const computableKeys = (computableFamilies ? computableFamilies() : []).map((f) => f.key);
 
@@ -280,8 +289,8 @@ async function main() {
   // make sure we have prices for the books we are about to buy
   const seedSyms = new Set();
   ranked.slice(0, SLEEVES * 2).forEach((x) => (x.v.targets || []).forEach((t) => seedSyms.add(t)));
-  if (KEY_FILE) {
-    const keys = loadKeysFromFile(KEY_FILE);
+  if (HAS_KEYS) {
+    const keys = resolveKeys();
     if (keys && seedSyms.size) {
       try { Object.assign(priceCache, await getLatestPrices(keys.id, keys.secret, [...seedSyms])); } catch (e) { log({ phase: "prices", error: String(e).slice(0, 140) }); }
     }

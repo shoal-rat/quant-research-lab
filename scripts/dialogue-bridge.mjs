@@ -47,6 +47,61 @@ import {
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const UNIVERSE_BUNDLED = path.join(PROJECT_ROOT, "public", "assets", "data", "market-real.json");
 const UNIVERSE_LARGE = path.join(PROJECT_ROOT, "data", "universe-large.json");
+const RACE_SCRIPT = path.join(PROJECT_ROOT, "scripts", "horse-race-loop.mjs");
+const RACE_STATE_FILE = path.join(PROJECT_ROOT, "data", "horse-race-state.json");
+
+// The horse race runs as a CHILD of the bridge so the web page can start/stop it
+// and then be closed — the race keeps running here until stopped or the bridge exits.
+let raceChild = null;
+let raceParams = null;
+const raceRunning = () => Boolean(raceChild && raceChild.exitCode === null && !raceChild.killed);
+
+function startRace(payload) {
+  if (raceRunning()) return { running: true, already: true, params: raceParams };
+  const p = payload || {};
+  const until = typeof p.until === "string" && p.until ? p.until : (() => { const n = new Date(); return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate() + 1, 22, 0, 0)).toISOString(); })();
+  raceParams = {
+    until,
+    sleeves: Number(p.sleeves) || 10,
+    interval: Number(p.interval) || 30,
+    evictHours: Number(p.evictHours) || 6,
+    universe: p.universe === "bundled" ? "bundled" : "large"
+  };
+  const env = { ...process.env };
+  if (p.key && p.secret) {
+    env.APCA_API_KEY_ID = p.key;
+    env.APCA_API_SECRET_KEY = p.secret;
+  }
+  raceChild = spawn(
+    "node",
+    [RACE_SCRIPT, `--until=${raceParams.until}`, `--sleeves=${raceParams.sleeves}`, `--interval=${raceParams.interval}`, `--evictHours=${raceParams.evictHours}`, `--universe=${raceParams.universe}`],
+    { cwd: PROJECT_ROOT, env }
+  );
+  raceChild.stdout?.on("data", () => {});
+  raceChild.stderr?.on("data", () => {});
+  raceChild.on("exit", (code) => {
+    console.log(`[bridge] race child exited (${code})`);
+    if (raceChild && raceChild.exitCode !== null) raceChild = null;
+  });
+  console.log(`[bridge] race started: ${JSON.stringify(raceParams)}`);
+  return { running: true, already: false, params: raceParams };
+}
+
+function stopRace() {
+  if (raceChild) {
+    try { raceChild.kill(); } catch { /* already gone */ }
+    raceChild = null;
+  }
+  return { running: false };
+}
+
+function raceStateSnapshot() {
+  let state = null;
+  try {
+    if (fs.existsSync(RACE_STATE_FILE)) state = JSON.parse(fs.readFileSync(RACE_STATE_FILE, "utf-8"));
+  } catch { /* state file mid-write */ }
+  return { running: raceRunning(), params: raceParams, state };
+}
 
 // Resolve paper keys: request body wins, else the bridge's QRL_ALPACA_KEY_FILE.
 function resolvePaperKeys(payload) {
@@ -756,6 +811,25 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ---- Strategy horse race control (the web page's start/stop/watch remote) ----
+  if (req.method === "GET" && req.url === "/race/state") {
+    send(res, 200, raceStateSnapshot());
+    return;
+  }
+  if (req.method === "POST" && req.url === "/race/start") {
+    try {
+      const payload = await readJson(req);
+      send(res, 200, startRace(payload));
+    } catch (error) {
+      send(res, 500, { error: String(error) });
+    }
+    return;
+  }
+  if (req.method === "POST" && req.url === "/race/stop") {
+    send(res, 200, stopRace());
+    return;
+  }
+
   send(res, 404, { error: "not found" });
 });
 
@@ -765,6 +839,7 @@ server.listen(PORT, "127.0.0.1", () => {
   console.log(`  dialogue + research brain: POST /condense`);
   console.log(`  discover strategies (web search): POST /research/strategies`);
   console.log(`  paper trading (Alpaca PAPER only): POST /paper/validate · /paper/status · /paper/deploy`);
+  console.log(`  strategy horse race: GET /race/state · POST /race/start · /race/stop (driven from the #/race page)`);
   if (ALLOW_DATA_TOOLS) {
     console.log(`  BIG-DATA MODE ON: the agent writes a reusable backtest kernel ONCE per source, then it runs free`);
     console.log(`    data model: claude=${DATA_CLAUDE_MODEL} | codex reasoning=${DATA_REASONING} | kernel cache: ${KERNEL_DIR}`);
@@ -773,3 +848,13 @@ server.listen(PORT, "127.0.0.1", () => {
   }
   console.log("  keep this window open while playing");
 });
+
+// stop the race child if the bridge is closed
+for (const sig of ["SIGINT", "SIGTERM", "exit"]) {
+  process.on(sig, () => {
+    if (raceChild) {
+      try { raceChild.kill(); } catch { /* gone */ }
+    }
+    if (sig !== "exit") process.exit(0);
+  });
+}

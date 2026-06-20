@@ -97,3 +97,43 @@
 .pos-row .down { color: #a33333; }
 .paper-safety { display: flex; align-items: center; gap: 8px; color: #596270; font-size: 0.8rem; }
 .paper-page .muted, .strat-sent .muted { color: #8a93a0; }
+
+/* ============================ Horse Race ============================ */
+.race-page .page-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.race-controls .primary-button { display: inline-flex; align-items: center; gap: 6px; }
+.race-controls .primary-button.stop { background: #a33333; }
+.race-config { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0 14px; }
+.race-config label { display: flex; flex-direction: column; font-size: 0.7rem; color: #6b7280; gap: 3px; }
+.race-config input, .race-config select { padding: 6px 8px; border-radius: 8px; border: 1px solid rgba(120,128,138,0.3); font: inherit; width: 130px; }
+.race-status { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #596270; margin-bottom: 12px; }
+.race-dot { width: 9px; height: 9px; border-radius: 50%; background: #9aa3af; }
+.race-status.live .race-dot { background: #10b981; box-shadow: 0 0 0 0 rgba(16,185,129,0.6); animation: racePulse 1.6s infinite; }
+@keyframes racePulse { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); } 70% { box-shadow: 0 0 0 8px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
+.race-track { display: flex; flex-direction: column; gap: 8px; }
+.lane { display: flex; gap: 10px; align-items: stretch; padding: 8px 10px; border-radius: 12px; background: rgba(120,128,138,0.06); border: 1px solid transparent; }
+.lane.leader { background: linear-gradient(150deg, rgba(245,200,66,0.16), rgba(245,200,66,0.03)); border-color: rgba(212,160,23,0.4); }
+.lane-rank { display: flex; align-items: center; justify-content: center; width: 28px; font-weight: 700; color: #8a93a0; }
+.lane.leader .lane-rank { color: #b8860b; }
+.lane-body { flex: 1; min-width: 0; }
+.lane-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lane-head strong { font-size: 0.86rem; }
+.lane-badge { font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.03em; padding: 2px 6px; border-radius: 999px; background: rgba(120,128,138,0.18); color: #6b7280; }
+.lane-badge.ok { background: rgba(84,166,104,0.18); color: #176b43; }
+.lane-ped { font-size: 0.66rem; color: #8a93a0; }
+.lane-ret { margin-left: auto; font-weight: 700; font-size: 0.9rem; }
+.lane-ret.up { color: #176b43; }
+.lane-ret.down { color: #a33333; }
+.lane-bar-wrap { position: relative; height: 18px; margin: 5px 0 3px; background: rgba(120,128,138,0.1); border-radius: 6px; overflow: hidden; }
+.lane-bar { height: 100%; border-radius: 6px; transition: width .6s ease; }
+.lane-bar.up { background: linear-gradient(90deg, #34d399, #10b981); }
+.lane-bar.down { background: linear-gradient(90deg, #f87171, #ef4444); }
+.lane-nav { position: absolute; right: 8px; top: 0; line-height: 18px; font-size: 0.7rem; font-weight: 600; color: #374151; }
+.lane-targets { font-size: 0.68rem; color: #8a93a0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.race-evicted { margin-top: 16px; }
+.race-evicted h3 { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #6b7280; }
+.evicted-chip { display: inline-block; margin: 0 6px 6px 0; font-size: 0.74rem; padding: 3px 9px; border-radius: 8px; background: rgba(120,128,138,0.1); text-decoration: line-through; color: #8a93a0; }
+.evicted-chip .up { color: #176b43; }
+.evicted-chip .down { color: #a33333; }
+.race-foot { margin-top: 16px; font-size: 0.78rem; color: #8a93a0; }
+.race-page .up { color: #176b43; }
+.race-page .down { color: #a33333; }

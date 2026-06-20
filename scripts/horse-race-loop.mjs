@@ -30,7 +30,8 @@ import {
   getOpenOrders,
   getPositions,
   loadKeysFromFile,
-  submitNotional
+  submitNotional,
+  toAlpacaSymbol
 } from "./alpaca-lib.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -194,11 +195,20 @@ async function deployLeader(leader) {
     const stale = await getOpenOrders(keys.id, keys.secret);
     if (stale.length) await cancelAllOrders(keys.id, keys.secret);
     const positions = await getPositions(keys.id, keys.secret);
-    const set = new Set(leader.targets);
+    const alpacaTargets = leader.targets.map(toAlpacaSymbol);
+    const set = new Set(alpacaTargets);
     for (const p of positions) if (!set.has(p.symbol)) await closePosition(keys.id, keys.secret, p.symbol).catch(() => {});
-    const notional = Math.floor(Number(account.equity) / leader.targets.length);
-    for (const sym of leader.targets) await submitNotional(keys.id, keys.secret, sym, notional, "buy");
-    log({ phase: "deploy-leader", leader: leader.name, targets: leader.targets, notional });
+    const notional = Math.floor(Number(account.equity) / alpacaTargets.length);
+    const filled = [];
+    for (const sym of alpacaTargets) {
+      try {
+        await submitNotional(keys.id, keys.secret, sym, notional, "buy");
+        filled.push(sym);
+      } catch (e) {
+        log({ phase: "deploy-leader", skip: sym, error: String(e).slice(0, 100) });
+      }
+    }
+    log({ phase: "deploy-leader", leader: leader.name, targets: filled, notional });
   } catch (e) {
     log({ phase: "deploy-leader", error: String(e).slice(0, 140) });
   }

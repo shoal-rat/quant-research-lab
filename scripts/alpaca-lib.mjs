@@ -67,24 +67,53 @@ export const submitNotional = (k, s, symbol, notional, side = "buy") =>
     body: JSON.stringify({ symbol, notional, side, type: "market", time_in_force: "day" })
   });
 
+// Alpaca uses "." for share classes (BRK.B); our universe uses Yahoo's "-" (BRK-B).
+export function toAlpacaSymbol(s) {
+  return s.replace(/-([A-Z]{1,2})$/, ".$1");
+}
+function priceFromSnap(snap) {
+  if (!snap || typeof snap !== "object") return null;
+  const q = snap.latestQuote;
+  const mid = q && q.ap && q.bp ? (q.ap + q.bp) / 2 : null;
+  const p = snap.latestTrade?.p ?? snap.dailyBar?.c ?? mid ?? snap.prevDailyBar?.c ?? null;
+  return p && Number.isFinite(p) ? p : null;
+}
+
 // Latest prices for a set of symbols (IEX feed, free tier) to mark positions to
-// market. Returns { SYMBOL: price }, using latest trade then daily/prev bar.
+// market. Returns { ORIGINAL_SYMBOL: price }. Resilient: maps class-share tickers
+// to Alpaca format, chunks the request, and SELF-HEALS by dropping any symbol the
+// API rejects (a single invalid symbol otherwise 400s the whole batch).
 export async function getLatestPrices(key, secret, symbols) {
-  const list = [...new Set(symbols)].filter(Boolean);
-  if (list.length === 0) return {};
-  const url = `${DATA_BASE}/v2/stocks/snapshots?symbols=${encodeURIComponent(list.join(","))}&feed=iex`;
-  const res = await fetch(url, { headers: headers(key, secret) });
-  const text = await res.text();
-  const body = text ? JSON.parse(text) : {};
-  if (!res.ok) throw new Error(`snapshots: HTTP ${res.status} ${body.message ?? text}`);
-  const map = body.snapshots ?? body;
+  const originals = [...new Set(symbols)].filter(Boolean);
+  if (originals.length === 0) return {};
+  const toOrig = new Map(); // alpaca symbol -> original
+  for (const s of originals) toOrig.set(toAlpacaSymbol(s), s);
+
   const out = {};
-  for (const [sym, snap] of Object.entries(map)) {
-    if (!snap || typeof snap !== "object") continue;
-    const q = snap.latestQuote;
-    const mid = q && q.ap && q.bp ? (q.ap + q.bp) / 2 : null;
-    const p = snap.latestTrade?.p ?? snap.dailyBar?.c ?? mid ?? snap.prevDailyBar?.c ?? null;
-    if (p && Number.isFinite(p)) out[sym] = p;
+  const chunk = (arr, n) => arr.reduce((a, _, i) => (i % n ? a : [...a, arr.slice(i, i + n)]), []);
+  for (const group of chunk([...toOrig.keys()], 100)) {
+    let pending = group;
+    for (let attempt = 0; attempt < 6 && pending.length; attempt += 1) {
+      const url = `${DATA_BASE}/v2/stocks/snapshots?symbols=${encodeURIComponent(pending.join(","))}&feed=iex`;
+      const res = await fetch(url, { headers: headers(key, secret) });
+      const text = await res.text();
+      const body = text ? JSON.parse(text) : {};
+      if (res.ok) {
+        const map = body.snapshots ?? body;
+        for (const [sym, snap] of Object.entries(map)) {
+          const p = priceFromSnap(snap);
+          if (p) out[toOrig.get(sym) ?? sym] = p;
+        }
+        break;
+      }
+      // drop the offending symbol named in "invalid symbol: XYZ" and retry
+      const bad = String(body.message ?? text).match(/invalid symbol:?\s*([A-Za-z0-9.\-]+)/i);
+      if (bad) {
+        pending = pending.filter((s) => s !== bad[1]);
+        continue;
+      }
+      throw new Error(`snapshots: HTTP ${res.status} ${body.message ?? text}`);
+    }
   }
   return out;
 }

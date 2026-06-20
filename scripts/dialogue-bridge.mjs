@@ -160,11 +160,24 @@ const KERNEL_DIR = path.join(os.tmpdir(), "qrl-kernels");
 const condenseCache = new Map();
 const isWindows = process.platform === "win32";
 
-// CLIs run from a neutral temp directory so they never pick up a project's
-// CLAUDE.md/AGENTS.md context and start "helping" instead of writing dialogue.
-const NEUTRAL_CWD = fs.mkdtempSync(path.join(os.tmpdir(), "qrl-bridge-"));
+// CLIs run from a neutral directory so they never pick up a project's
+// CLAUDE.md/AGENTS.md context and start "helping" instead of writing dialogue. It
+// lives under HOME, NOT %TEMP%: a temp dir gets cleaned by Windows/endpoint-AV while
+// the bridge is running, and spawning a shell from a cwd that no longer exists fails
+// with a misleading "spawn cmd.exe ENOENT" (the dialogue/research path then breaks).
+const NEUTRAL_CWD = path.join(os.homedir(), ".qrl-bridge-cwd");
+function ensureNeutralCwd() {
+  try { fs.mkdirSync(NEUTRAL_CWD, { recursive: true }); } catch { /* fall back below */ }
+}
+ensureNeutralCwd();
 
 function run(command, args, { stdin, timeoutMs = TIMEOUT_MS, cwd = NEUTRAL_CWD } = {}) {
+  // Guard the cwd: if it vanished (temp cleanup) recreate the neutral dir, else fall
+  // back to a dir that definitely exists so the shell can always launch.
+  if (!fs.existsSync(cwd)) {
+    if (cwd === NEUTRAL_CWD) ensureNeutralCwd();
+    if (!fs.existsSync(cwd)) cwd = fs.existsSync(NEUTRAL_CWD) ? NEUTRAL_CWD : PROJECT_ROOT;
+  }
   return new Promise((resolve) => {
     const child = spawn(command, args, { shell: isWindows, windowsHide: true, cwd });
     let stdout = "";

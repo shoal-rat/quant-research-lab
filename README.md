@@ -25,6 +25,34 @@
 
 ---
 
+## Quick start (one click)
+
+No finance knowledge needed. On Windows, **double-click `start.cmd`** in the project
+folder. It installs dependencies the first time, then opens two small windows (the
+**engine** and the **app**) and your browser at `http://127.0.0.1:5173`.
+
+On the main screen, press **“Start investing”** on the purple **AI Quant Autopilot**
+banner. The AI then researches strategies, backtests each on 20 years of history, and
+paper-invests the winners for you — racing ~10 strategies and replacing the losers
+automatically. Open the **Horse Race** tab to watch. You can close the browser
+anytime; it keeps running in the engine window. Close the two windows to stop.
+
+Prefer to run it by hand?
+
+```
+npm install
+npm run dialogue-bridge      # the engine (keep open). For live paper trading:
+                             #   set QRL_ALPACA_KEY_FILE to your Alpaca paper keys file first
+npm run dev                  # the app  → open http://127.0.0.1:5173
+```
+
+It's all **paper / simulated money** — there is no live-money path anywhere. A free
+Alpaca paper account ([alpaca.markets](https://alpaca.markets)) is optional and only
+needed if you want it to place simulated orders; without keys it still researches,
+backtests, and races.
+
+---
+
 ## What This Is
 
 Quant Research Lab is an office sim wrapped around a quant research loop. Claude Code or Codex reads the active dataset through a local bridge, proposes a strategy, and the browser runs the rest of the desk: data checks, cross-sectional backtest, risk review, debate, decision, and memory.

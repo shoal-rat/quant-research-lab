@@ -14,6 +14,7 @@ import { RacePage } from "./pages/RacePage";
 import { ToastStack } from "./components/ToastStack";
 import { GameModal } from "./components/GameModal";
 import { LoopControls } from "./components/LoopControls";
+import { AutopilotBanner } from "./components/AutopilotBanner";
 import { phaseLabel, t } from "./i18n";
 import { useAppStore } from "./store/AppStore";
 
@@ -83,6 +84,8 @@ export function App(): JSX.Element {
   return (
     <div className={`game-shell ${wallpaperMode ? "wallpaper" : ""}`}>
       <OfficePage />
+
+      {!wallpaperMode && route.name === "office" && <AutopilotBanner />}
 
       {!wallpaperMode && (
         <header className="game-hud-top">

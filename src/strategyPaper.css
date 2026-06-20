@@ -137,3 +137,40 @@
 .race-foot { margin-top: 16px; font-size: 0.78rem; color: #8a93a0; }
 .race-page .up { color: #176b43; }
 .race-page .down { color: #a33333; }
+
+/* ============================ Autopilot banner (main screen) ============================ */
+.autopilot-banner {
+  position: fixed;
+  top: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  width: min(680px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.96), rgba(139,92,246,0.96));
+  color: #fff;
+  box-shadow: 0 12px 36px rgba(80,60,180,0.34);
+  backdrop-filter: blur(6px);
+}
+.autopilot-banner.live { background: linear-gradient(135deg, rgba(16,185,129,0.96), rgba(5,150,105,0.96)); box-shadow: 0 12px 36px rgba(16,120,90,0.34); }
+.autopilot-close { position: absolute; top: 6px; right: 10px; background: none; border: none; color: rgba(255,255,255,0.8); font-size: 1.2rem; line-height: 1; cursor: pointer; }
+.autopilot-icon { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; }
+.autopilot-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.autopilot-text strong { font-size: 0.96rem; }
+.autopilot-text span { font-size: 0.78rem; color: rgba(255,255,255,0.92); line-height: 1.35; }
+.autopilot-text span.warn { color: #fff3c4; }
+.autopilot-actions { flex: 0 0 auto; display: flex; gap: 8px; align-items: center; }
+.autopilot-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 10px; border: none; cursor: pointer; font: inherit; font-weight: 600; background: #fff; color: #4338ca; white-space: nowrap; }
+.autopilot-banner.live .autopilot-btn { color: #065f46; }
+.autopilot-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.autopilot-btn.ghost { background: rgba(255,255,255,0.18); color: #fff; }
+.autopilot-btn.stop { background: rgba(0,0,0,0.22); color: #fff; }
+.autopilot-mini { position: fixed; top: 74px; left: 50%; transform: translateX(-50%); z-index: 60; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; border: none; cursor: pointer; font: inherit; font-weight: 600; font-size: 0.8rem; color: #fff; background: linear-gradient(135deg, rgba(99,102,241,0.95), rgba(139,92,246,0.95)); box-shadow: 0 6px 18px rgba(80,60,180,0.3); }
+@media (max-width: 620px) {
+  .autopilot-banner { flex-wrap: wrap; }
+  .autopilot-actions { width: 100%; justify-content: flex-end; }
+}

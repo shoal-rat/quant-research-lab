@@ -166,6 +166,47 @@ function parseResearchIntent(text: string): string | null {
   return null;
 }
 
+interface RaceMirror {
+  running: boolean;
+  activity: string;
+  strategies: number;
+  board: Array<{ name: string; ret: number; nav: number }>;
+  bridgeUp: boolean;
+}
+
+// map a race log phase to the office animation phase, so the researchers visibly
+// reflect the ONE real pipeline (no second LLM call)
+const RACE_TO_PHASE: Record<string, LoopPhase> = {
+  seed: "proposing",
+  research: "proposing",
+  validate: "backtesting",
+  standings: "backtesting",
+  "deploy-leader": "decision",
+  eviction: "risk_review",
+  prices: "data_check",
+  start: "proposing"
+};
+
+function raceActivityLine(line: Record<string, unknown>, zh: boolean): string {
+  const str = (k: string) => (line[k] === undefined || line[k] === null ? "" : String(line[k]));
+  switch (line.phase) {
+    case "research":
+      return zh ? "正在并行研究策略…" : "Researching strategies in parallel…";
+    case "validate":
+      return (zh ? "回测验证：" : "Validating on history: ") + (str("familyKey") || str("model"));
+    case "deploy-leader":
+      return (zh ? "把领跑策略下单到模拟账户：" : "Deploying the leader to paper: ") + str("leader");
+    case "eviction":
+      return str("evicted") ? (zh ? `淘汰 ${str("evicted")}，寻找挑战者` : `Evicted ${str("evicted")}, finding a challenger`) : zh ? "淘汰回合：排名中" : "Eviction round: ranking the field";
+    case "standings":
+      return zh ? "策略同场竞速中…" : "Strategies racing…";
+    case "seed":
+      return zh ? "组建起跑阵容…" : "Setting the starting grid…";
+    default:
+      return zh ? "运行中…" : "Running…";
+  }
+}
+
 interface AppStoreValue {
   agents: AgentProfile[];
   settings: Settings;
@@ -206,6 +247,10 @@ interface AppStoreValue {
   addManualBubble: (bubble: Omit<SpeechBubble, "id" | "createdAt">) => void;
   sendBossDirective: (text: string) => void;
   applyBossAction: (agentId: string, kind: "love" | "whip") => void;
+  // the single research+invest process (the bridge-run horse race) + its controls
+  raceState: RaceMirror;
+  startRace: () => void;
+  stopRace: () => void;
 }
 
 const AppStoreContext = createContext<AppStoreValue | null>(null);
@@ -233,6 +278,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
     readStored(STORAGE.achievements, {})
   );
   const [toasts, setToasts] = useState<GameToast[]>([]);
+  // The strategy horse race (the single research+invest process, run by the bridge)
+  // mirrored into the app: one poller feeds the office animation, the HUD start
+  // button, and the autopilot banner — so nothing in the browser calls the LLM a
+  // second time for the same aim.
+  const [raceState, setRaceState] = useState<RaceMirror>({ running: false, activity: "", board: [], strategies: 0, bridgeUp: true });
+  const raceMirroringRef = useRef(false);
   const advancingRef = useRef(false);
   const loopRef = useRef(loop);
   const agentsRef = useRef(agents);
@@ -1029,6 +1080,57 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
     [director]
   );
 
+  const startRace = useCallback(() => {
+    const s = settingsRef.current;
+    const base = (s.bridgeUrl || "http://127.0.0.1:8787").replace(/\/$/, "");
+    void fetch(`${base}/race/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sleeves: 10, universe: "large", evictHours: 6, interval: 30, key: s.paperApiKey || undefined, secret: s.paperApiSecret || undefined })
+    }).catch(() => undefined);
+  }, []);
+  const stopRace = useCallback(() => {
+    const base = (settingsRef.current.bridgeUrl || "http://127.0.0.1:8787").replace(/\/$/, "");
+    void fetch(`${base}/race/stop`, { method: "POST" }).catch(() => undefined);
+  }, []);
+
+  // ONE poller for the whole app: read the race (the single research+invest process)
+  // and mirror it into the office animation + HUD + banner. Nothing here calls the
+  // LLM — the bridge's race daemon is the only thing researching.
+  useEffect(() => {
+    let cancelled = false;
+    const tick = async () => {
+      const base = (settingsRef.current.bridgeUrl || "http://127.0.0.1:8787").replace(/\/$/, "");
+      try {
+        const res = await fetch(`${base}/race/log`);
+        const json = await res.json();
+        if (cancelled) return;
+        const lines: Array<Record<string, unknown>> = Array.isArray(json.lines) ? json.lines : [];
+        const last = [...lines].reverse().find((l) => l.phase && l.phase !== "performance") ?? lines[lines.length - 1] ?? {};
+        const standings = [...lines].reverse().find((l) => l.phase === "standings" && Array.isArray(l.board)) as { board?: Array<Record<string, unknown>> } | undefined;
+        const board = (standings?.board ?? []).map((b) => ({ name: String(b.name), ret: Number(b.ret ?? 0), nav: Number(b.nav ?? 0) }));
+        const zh = settingsRef.current.language === "zh";
+        const running = Boolean(json.running);
+        setRaceState({ running, activity: running ? raceActivityLine(last, zh) : "", board, strategies: board.length, bridgeUp: true });
+        if (running && !advancingRef.current) {
+          raceMirroringRef.current = true;
+          setLoop((prev) => ({ ...prev, running: true, phase: RACE_TO_PHASE[String(last.phase)] ?? "coding", statusMessage: raceActivityLine(last, zh) }));
+        } else if (!running && raceMirroringRef.current) {
+          raceMirroringRef.current = false;
+          setLoop((prev) => ({ ...prev, running: false, phase: "idle", statusMessage: phaseStatus(settingsRef.current.language, "idle") }));
+        }
+      } catch {
+        if (!cancelled) setRaceState((p) => ({ ...p, running: false, bridgeUp: false }));
+      }
+    };
+    void tick();
+    const id = window.setInterval(tick, 8000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, []);
+
   const value = useMemo<AppStoreValue>(
     () => ({
       agents,
@@ -1069,7 +1171,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
       clearExperiments,
       addManualBubble,
       sendBossDirective,
-      applyBossAction
+      applyBossAction,
+      raceState,
+      startRace,
+      stopRace
     }),
     [
       agents,
@@ -1110,7 +1215,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }): J
       clearExperiments,
       addManualBubble,
       sendBossDirective,
-      applyBossAction
+      applyBossAction,
+      raceState,
+      startRace,
+      stopRace
     ]
   );
 

@@ -49,6 +49,7 @@ const UNIVERSE_BUNDLED = path.join(PROJECT_ROOT, "public", "assets", "data", "ma
 const UNIVERSE_LARGE = path.join(PROJECT_ROOT, "data", "universe-large.json");
 const RACE_SCRIPT = path.join(PROJECT_ROOT, "scripts", "horse-race-loop.mjs");
 const RACE_STATE_FILE = path.join(PROJECT_ROOT, "data", "horse-race-state.json");
+const RACE_LOG_FILE = path.join(PROJECT_ROOT, "data", "horse-race-log.jsonl");
 
 // The horse race runs as a CHILD of the bridge so the web page can start/stop it
 // and then be closed — the race keeps running here until stopped or the bridge exits.
@@ -814,6 +815,17 @@ const server = http.createServer(async (req, res) => {
   // ---- Strategy horse race control (the web page's start/stop/watch remote) ----
   if (req.method === "GET" && req.url === "/race/state") {
     send(res, 200, raceStateSnapshot());
+    return;
+  }
+  if (req.method === "GET" && req.url.startsWith("/race/log")) {
+    let lines = [];
+    try {
+      if (fs.existsSync(RACE_LOG_FILE)) {
+        const raw = fs.readFileSync(RACE_LOG_FILE, "utf-8").trim().split(/\r?\n/);
+        lines = raw.slice(-30).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+      }
+    } catch { /* log mid-write */ }
+    send(res, 200, { running: raceRunning(), lines });
     return;
   }
   if (req.method === "POST" && req.url === "/race/start") {

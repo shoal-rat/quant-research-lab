@@ -1,25 +1,14 @@
-import { CheckCircle2, CirclePause, FastForward, Loader, Pencil, Play, Telescope, XCircle, Zap } from "lucide-react";
+import { CheckCircle2, CirclePause, Pencil, Play, XCircle } from "lucide-react";
 import { useState } from "react";
-import { phaseLabel, t } from "../i18n";
+import { phaseLabel } from "../i18n";
 import { useAppStore } from "../store/AppStore";
 
-// Compact floating loop controls for the game HUD.
+// Compact HUD control for the ONE research+invest process (the strategy horse race,
+// run by the bridge). The green play/pause is the single start: it begins the race
+// (research -> validate -> paper-invest) and the office animation mirrors it. No
+// second pipeline, so the LLM is never asked to research twice for the same aim.
 export function LoopControls(): JSX.Element {
-  const {
-    loop,
-    settings,
-    startResearch,
-    pauseResearch,
-    nextIteration,
-    toggleAutoRun,
-    cliStatus,
-    researching,
-    researchStrategies,
-    reviewDraft,
-    approveReviewDraft,
-    rejectReviewDraft,
-    editReviewDraft
-  } = useAppStore();
+  const { loop, settings, cliStatus, raceState, startRace, stopRace, reviewDraft, approveReviewDraft, rejectReviewDraft, editReviewDraft } = useAppStore();
   const [editText, setEditText] = useState("");
   const lang = settings.language;
   const submitEdit = (): void => {
@@ -28,64 +17,30 @@ export function LoopControls(): JSX.Element {
     editReviewDraft(directive);
     setEditText("");
   };
-
-  // ONE start: the office researchers begin researching AND the strategy horse race
-  // (research -> validate -> paper-invest) starts on the bridge. No second button.
-  const startEverything = (): void => {
-    startResearch();
-    const base = (settings.bridgeUrl || "http://127.0.0.1:8787").replace(/\/$/, "");
-    void fetch(`${base}/race/start`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sleeves: 10,
-        universe: "large",
-        evictHours: 6,
-        interval: 30,
-        key: settings.paperApiKey || undefined,
-        secret: settings.paperApiSecret || undefined
-      })
-    }).catch(() => {
-      /* bridge may be down; the Autopilot banner surfaces that */
-    });
-  };
+  const running = raceState.running;
 
   return (
     <div className="loop-controls">
       <span
         className={`cli-dot ${cliStatus.connected ? "ok" : cliStatus.checking ? "checking" : "off"}`}
-        title={cliStatus.connected ? t(lang, "cliConnected") : cliStatus.detail || t(lang, "cliOffline")}
+        title={cliStatus.connected ? "Engine connected" : cliStatus.detail || "Engine offline"}
       />
-      <span className={`phase-pill ${loop.running ? "running" : ""}`}>
-        {phaseLabel(lang, loop.phase)}
+      <span className={`phase-pill ${running ? "running" : ""}`} title={raceState.activity}>
+        {running ? raceState.activity.slice(0, 28) || phaseLabel(lang, loop.phase) : phaseLabel(lang, loop.phase)}
       </span>
-      {loop.running ? (
-        <button className="secondary-button compact" onClick={pauseResearch} title={t(lang, "pause")}>
+      {running ? (
+        <button className="secondary-button compact" onClick={stopRace} title={lang === "zh" ? "停止" : "Stop"}>
           <CirclePause size={15} />
         </button>
       ) : (
-        <button className="primary-button compact start-everything" onClick={startEverything} title={lang === "zh" ? "一键开始：研究 + 赛马 + 模拟投资" : "Start everything: research + race + paper-invest"}>
+        <button
+          className="primary-button compact start-everything"
+          onClick={startRace}
+          title={lang === "zh" ? "一键开始：研究 + 赛马 + 模拟投资" : "Start: research + race + paper-invest"}
+        >
           <Play size={15} />
         </button>
       )}
-      <button className="secondary-button compact" onClick={nextIteration} title={t(lang, "nextStep")}>
-        <FastForward size={15} />
-      </button>
-      <button
-        className={loop.autoRun ? "primary-button compact" : "secondary-button compact"}
-        onClick={toggleAutoRun}
-        title={t(lang, "autoRun")}
-      >
-        <Zap size={15} />
-      </button>
-      <button
-        className={`secondary-button compact ${researching ? "is-busy" : ""}`}
-        onClick={() => researchStrategies()}
-        disabled={researching}
-        title={`${t(lang, "discover")} — ${t(lang, "discoverTip")}`}
-      >
-        {researching ? <Loader size={15} className="spin" /> : <Telescope size={15} />}
-      </button>
       {reviewDraft && (
         <section className="review-draft hud-review-draft" aria-live="polite">
           <div className="review-draft-head">

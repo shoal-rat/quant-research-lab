@@ -1,52 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Pause, Sparkles, Trophy } from "lucide-react";
 import { useAppStore } from "../store/AppStore";
 import { navigate } from "../App";
 
-// One-click "AI quant autopilot" for the main screen: anyone — no finance
-// knowledge — clicks once and the AI researches strategies, validates them on 20y
-// of history, and paper-invests the winners (the horse race), all automatically.
-// The browser can't run the engine itself, so this drives the local bridge.
+// Main-screen status for the ONE research+invest process. It reads the shared race
+// mirror from the store (a single poller) — it does NOT start anything itself; the
+// green ▶ in the HUD is the single start. Here it just explains and shows progress.
 export function AutopilotBanner(): JSX.Element | null {
-  const { settings } = useAppStore();
+  const { settings, raceState, stopRace } = useAppStore();
   const zh = settings.language === "zh";
-  const base = (settings.bridgeUrl || "http://127.0.0.1:8787").replace(/\/$/, "");
-  const [running, setRunning] = useState<boolean | null>(null);
-  const [horses, setHorses] = useState(0);
-  const [bridgeUp, setBridgeUp] = useState<boolean | null>(null);
-  const [busy, setBusy] = useState(false);
   const [minimized, setMinimized] = useState(false);
-
-  const poll = useCallback(async () => {
-    try {
-      const res = await fetch(`${base}/race/state`);
-      const json = await res.json();
-      setBridgeUp(true);
-      setRunning(Boolean(json.running));
-      setHorses(json.state?.sleeves?.length ?? 0);
-    } catch {
-      setBridgeUp(false);
-      setRunning(null);
-    }
-  }, [base]);
-
-  useEffect(() => {
-    poll();
-    const t = window.setInterval(poll, 10000);
-    return () => window.clearInterval(t);
-  }, [poll]);
-
-  const stop = async () => {
-    setBusy(true);
-    try {
-      await fetch(`${base}/race/stop`, { method: "POST" });
-      await poll();
-    } catch {
-      /* ignore */
-    } finally {
-      setBusy(false);
-    }
-  };
+  const { running, bridgeUp, strategies, activity } = raceState;
 
   if (minimized) {
     return (
@@ -69,13 +33,14 @@ export function AutopilotBanner(): JSX.Element | null {
         <strong>{zh ? "AI 量化自动驾驶" : "AI Quant Autopilot"}</strong>
         {running ? (
           <span>
-            {zh ? `运行中 · ${horses} 条策略正在同场竞速并模拟投资` : `Running · ${horses} strategies racing and paper-investing for you`}
+            {zh ? `运行中 · ${strategies || "…"} 条策略 · ` : `Running · ${strategies || "…"} strategies · `}
+            {activity}
           </span>
         ) : bridgeUp === false ? (
           <span className="warn">
             {zh
-              ? "引擎未启动 —— 双击项目里的 start.cmd（或运行 npm run dialogue-bridge），然后再点开始。"
-              : "Engine not running — double-click start.cmd in the project (or run “npm run dialogue-bridge”), then press Start."}
+              ? "引擎未启动 —— 双击项目里的 start.cmd（或运行 npm run dialogue-bridge），然后点上方绿色 ▶ 开始。"
+              : "Engine not running — double-click start.cmd in the project (or run “npm run dialogue-bridge”), then press the green ▶ Start."}
           </span>
         ) : (
           <span>
@@ -91,7 +56,7 @@ export function AutopilotBanner(): JSX.Element | null {
             <button className="autopilot-btn ghost" onClick={() => navigate("/race")}>
               <Trophy size={15} /> {zh ? "观看比赛" : "Watch"}
             </button>
-            <button className="autopilot-btn stop" onClick={stop} disabled={busy}>
+            <button className="autopilot-btn stop" onClick={stopRace}>
               <Pause size={15} /> {zh ? "停止" : "Stop"}
             </button>
           </>

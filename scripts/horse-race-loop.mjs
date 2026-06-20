@@ -19,6 +19,7 @@
 //   node scripts/horse-race-loop.mjs --until=2026-06-20T22:00:00Z --sleeves=10 --interval=30 --evictHours=6 --universe=large
 import fs from "node:fs";
 import path from "node:path";
+import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadValidator } from "./_engine-bridge.mjs";
 import { researchJson } from "./claude-cli.mjs";
@@ -44,6 +45,9 @@ const EVICT_MS = (Number(args.evictHours) || 6) * 3600 * 1000;
 // when the market is closed (validation is historical, market-independent), so the
 // race always has fresh, vetted challengers ready to swap in.
 const RESEARCH_MS = (Number(args.researchHours) || 2) * 3600 * 1000;
+// refresh the real market context (Alpaca news + Yahoo fundamentals/options IV) the
+// research mind reads, so "one click start" keeps it fresh with no extra command.
+const CONTEXT_MS = (Number(args.contextHours) || 3) * 3600 * 1000;
 const POOL_CAP = Number(args.poolCap) || 30;
 const COST_BPS = Number(args.cost) || 5;
 const TOP = Number(args.top) || 8;
@@ -338,6 +342,23 @@ function markAll(state) {
   for (const s of state.sleeves) markSleeve(s);
 }
 
+// Spawn the market-context fetcher (Alpaca news + Yahoo fundamentals/options IV) so
+// the research mind always reads fresh real context. Resolves when done (or on a
+// timeout) so it never hangs the race; failures are non-fatal (uses the last context).
+function refreshContext(timeoutMs = 90_000) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (note) => { if (done) return; done = true; log({ phase: "context", ...note }); resolve(); };
+    let child;
+    try {
+      child = spawn(process.execPath, [path.join(ROOT, "scripts", "fetch-market-context.mjs"), `--universe=${UNIVERSE}`, "--max=30"], { cwd: ROOT, env: process.env, stdio: "ignore" });
+    } catch (e) { return finish({ error: String(e).slice(0, 120) }); }
+    const timer = setTimeout(() => { try { child.kill(); } catch { /* ignore */ } finish({ msg: "refresh timed out (using last context)" }); }, timeoutMs);
+    child.on("exit", (code) => { clearTimeout(timer); finish({ msg: "context refreshed", code }); });
+    child.on("error", (e) => { clearTimeout(timer); finish({ error: String(e).slice(0, 120) }); });
+  });
+}
+
 async function main() {
   log({ phase: "start", deadline: DEADLINE.toISOString(), sleeves: SLEEVES, total: TOTAL, intervalMin: INTERVAL_MS / 60000, evictHours: EVICT_MS / 3600000, universe: UNIVERSE, hasKeys: Boolean(KEY_FILE) });
   if (!fs.existsSync(universeFile)) { log({ phase: "fatal", error: `universe file missing: ${universeFile}` }); return; }
@@ -347,6 +368,12 @@ async function main() {
 
   const state = { startedAt: new Date().toISOString(), deadline: DEADLINE.toISOString(), universe: UNIVERSE, total: TOTAL, sleeves: [], evicted: [], pool: [], seq: SLEEVES, lastResearch: Date.now() };
   await refreshPrices({ sleeves: computableKeys.map((k) => ({ positions: {}, targets: [] })) }); // warm cache with all-family targets later; first real fill below
+
+  // pull fresh real context (news + fundamentals + options IV) BEFORE seeding so the
+  // very first field is already informed by today's market. Best-effort, time-capped.
+  log({ phase: "context", msg: "fetching real market context before seeding" });
+  state.lastContext = Date.now();
+  await refreshContext();
 
   // ---- seed the field: parallel research + validate, then take the best N ----
   log({ phase: "seed", msg: "researching the starting field in parallel" });
@@ -380,6 +407,12 @@ async function main() {
     if (leader && leader.name !== lastLeader) {
       await deployLeader(leader);
       lastLeader = leader.name;
+    }
+    // keep the real market context fresh on its own cadence (non-blocking: the next
+    // research round reads whatever the refresh has written)
+    if (Date.now() - (state.lastContext || 0) >= CONTEXT_MS) {
+      state.lastContext = Date.now();
+      refreshContext().catch(() => {});
     }
     // keep researching the bench every RESEARCH_MS — works even when the market is
     // closed and the standings aren't moving

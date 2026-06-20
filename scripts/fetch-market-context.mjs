@@ -22,8 +22,11 @@ const UA = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const num = (v) => (v === null || v === undefined || !Number.isFinite(Number(v)) ? undefined : Number(v));
 
-// Alpaca keys from the key file (id = PK…, secret = long token). Never printed.
+// Alpaca keys from env (passed in by the bridge/race) or the key file. Never printed.
 function alpacaKeys() {
+  if (process.env.APCA_API_KEY_ID && process.env.APCA_API_SECRET_KEY) {
+    return { id: process.env.APCA_API_KEY_ID, secret: process.env.APCA_API_SECRET_KEY };
+  }
   const file = process.env.QRL_ALPACA_KEY_FILE || args.keyFile;
   if (!file) return null;
   let raw;

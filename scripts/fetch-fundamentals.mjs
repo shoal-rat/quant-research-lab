@@ -20,7 +20,29 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = Object.fromEntries(process.argv.slice(2).map((a) => { const m = a.match(/^--([^=]+)=?(.*)$/); return m ? [m[1], m[2] === "" ? true : m[2]] : [a, true]; }));
-const KEY = process.env.FMP_API_KEY || args.key;
+// FMP key from env, or read it from a key file (QRL_ALPACA_KEY_FILE / --keyFile).
+// The file may also hold Alpaca keys; we only pick an FMP-labelled value or a bare
+// token that is clearly NOT an Alpaca key (PK… id / long secret). Never printed.
+function loadFmpKeyFromFile(file) {
+  let raw;
+  try { raw = fs.readFileSync(file, "utf-8"); } catch { return null; }
+  try {
+    const j = JSON.parse(raw);
+    const k = j.FMP_API_KEY || j.FMP_KEY || j.FMP || j.fmp || j.fmpApiKey || j.fmp_api_key;
+    if (k) return String(k);
+  } catch { /* not json */ }
+  for (const line of raw.split(/\r?\n/)) {
+    const m = line.match(/\b(FMP[_A-Z]*\s*KEY?|FMP)\b\s*[:=]\s*([A-Za-z0-9]{16,})/i);
+    if (m) return m[2];
+  }
+  // unlabelled fallback: an FMP key is exactly ~32 alnum chars; the Alpaca PK id is
+  // ~26 and its secret is longer (>=38). Pick the 28-36 alnum token that is neither.
+  const tokens = raw.split(/\s+/).filter(Boolean);
+  const pk = tokens.find((t) => /^PK[A-Za-z0-9]{8,}$/.test(t));
+  const fmp = tokens.find((t) => /^[A-Za-z0-9]{28,36}$/.test(t) && t !== pk);
+  return fmp || null;
+}
+const KEY = process.env.FMP_API_KEY || args.key || (process.env.QRL_ALPACA_KEY_FILE && loadFmpKeyFromFile(process.env.QRL_ALPACA_KEY_FILE)) || (args.keyFile && loadFmpKeyFromFile(args.keyFile));
 const BASE = "https://financialmodelingprep.com/api";
 const universeFile = args.universe === "large" ? path.join(root, "data", "universe-large.json") : path.join(root, "public", "assets", "data", "market-real.json");
 const dataDir = path.join(root, "data");

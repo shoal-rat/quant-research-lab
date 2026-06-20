@@ -87,16 +87,25 @@ gate, is in [docs/REVIEW.md](docs/REVIEW.md):
   commission + half bid-ask spread + square-root market impact + daily short-borrow,
   all widening for illiquid names (lower ADV) and sized point-in-time (no lookahead).
   See `src/engines/costModel.ts`.
-- **Fundamentals + news (optional, FMP free key):** `node scripts/fetch-fundamentals.mjs`
-  (with `FMP_API_KEY`) adds **point-in-time** quarterly fundamentals (P/E, P/B, ROE,
-  margin, leverage) and recent news to the universe, enabling a real, backtestable
-  **value + quality** factor (`fundamental_value`). It also writes the
-  survivorship-free S&P 500 membership history + delisted list to `data/`.
-- **Honest data limits:** truly survivorship-free *price* history for delisted names
-  and historical *options* data are not available on free tiers — this reduces
-  survivorship bias and adds real fundamentals/news, but is not a substitute for a
-  paid survivorship-free database (Sharadar/Norgate) or an options-history feed.
-  Without an FMP key, the value factor self-filters (no data → not traded).
+- **Real market context for the research mind (FREE, works today):**
+  `node scripts/fetch-market-context.mjs` pulls **Alpaca news** (your paper keys) +
+  **Yahoo current fundamentals** (P/E, P/B, ROE, margin) + **Yahoo options** ATM
+  implied-vol and put/call (via Yahoo's crumb flow, keyless) into
+  `data/market-context.json`. The horse race feeds a compact summary (recent news,
+  highest-IV names, cheapest/priciest valuations) to Claude so it researches with
+  **actual** news / option-implied risk / valuations — not a vacuum. Point the script
+  at your key file with `QRL_ALPACA_KEY_FILE=...`.
+- **Fundamentals history (optional, paid feed):** `node scripts/fetch-fundamentals.mjs`
+  adds **point-in-time** quarterly fundamentals to the universe, enabling the real,
+  backtestable **value + quality** factor (`fundamental_value`). NB: FMP's **free**
+  tier now paywalls/deprecates the fundamentals & constituent endpoints (`"Legacy
+  Endpoint… no longer supported"`), so a backtestable 20-year fundamental factor needs
+  a **paid** feed. Without one, the value factor self-filters (no data → not traded).
+- **Honest data limits:** the news / options-IV / valuations above are **current
+  snapshots** — they *inform research*, but a *backtestable* fundamental or options
+  factor needs **paid point-in-time history**. Truly survivorship-free *price* history
+  for delisted names is likewise not free (Sharadar/Norgate). Nothing here is a
+  substitute for a paid research database; it is the most that free sources honestly give.
 
 ## Meet The Desk
 

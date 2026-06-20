@@ -76,12 +76,30 @@ function saveState(state) { try { fs.writeFileSync(STATE, JSON.stringify(state, 
 const priceCache = {};
 const cfgKey = (c) => `${c.familyKey}|${JSON.stringify(c.params || {})}|${c.holding || ""}`;
 
+// Compact, real market context (from scripts/fetch-market-context.mjs) for the
+// research mind: recent news + option-implied vol + cheap/expensive valuations.
+function marketContextSummary() {
+  const file = path.join(ROOT, "data", "market-context.json");
+  let c;
+  try { if (fs.existsSync(file)) c = JSON.parse(fs.readFileSync(file, "utf-8")); } catch { return ""; }
+  if (!c) return "";
+  const lines = [];
+  const news = (c.news || []).slice(0, 5).map((n) => `- ${n.headline}`);
+  if (news.length) lines.push("Recent news:\n" + news.join("\n"));
+  const opt = Object.entries(c.options || {}).filter(([, v]) => v.atmIV).sort((a, b) => b[1].atmIV - a[1].atmIV);
+  if (opt.length) lines.push(`Highest option-implied vol: ${opt.slice(0, 4).map(([s, v]) => `${s} ${(v.atmIV * 100).toFixed(0)}%`).join(", ")}`);
+  const fund = Object.entries(c.fundamentals || {}).filter(([, v]) => v.pe && v.pe > 0).sort((a, b) => a[1].pe - b[1].pe);
+  if (fund.length) lines.push(`Cheapest P/E: ${fund.slice(0, 3).map(([s, v]) => `${s} ${v.pe.toFixed(0)}`).join(", ")}; priciest: ${fund.slice(-3).map(([s, v]) => `${s} ${v.pe.toFixed(0)}`).join(", ")}`);
+  return lines.length ? `\nREAL MARKET CONTEXT (today — for your judgement; the traded factors stay price/volume):\n${lines.join("\n")}\n` : "";
+}
+
 async function researchConfigs(computableKeys, deadlineMs) {
+  const ctx = marketContextSummary();
   const prompt = `You are the research mind for a paper-trading STRATEGY TOURNAMENT on US equities. You may web-search the
 current regime. Propose 3 DISTINCT candidate strategies drawn from these computable factor families:
 ${computableKeys.join(", ")}. Vary the family and the parameters; favour what should work in the current regime.
 Notes: price/volume families always work; "fundamental_value" works only if a fundamentals feed (FMP) has been
-loaded, otherwise it is skipped automatically — feel free to propose it, it self-filters if data is absent.
+loaded, otherwise it is skipped automatically — feel free to propose it, it self-filters if data is absent.${ctx}
 Return ONLY JSON: {"configs":[{"familyKey":"<one of the list>","params":{"<paramName>":<number>},"holding":<5|10|20>,"why":"one line"}]}`;
   const K = Math.min(4, Math.ceil(SLEEVES / 2));
   const calls = Array.from({ length: K }, (_, i) =>

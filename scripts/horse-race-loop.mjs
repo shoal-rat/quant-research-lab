@@ -40,6 +40,11 @@ const SLEEVES = Number(args.sleeves) || 10;
 const TOTAL = Number(args.total) || 100_000;
 const INTERVAL_MS = (Number(args.interval) || 30) * 60 * 1000;
 const EVICT_MS = (Number(args.evictHours) || 6) * 3600 * 1000;
+// keep researching + validating NEW ideas into a bench pool on this cadence, even
+// when the market is closed (validation is historical, market-independent), so the
+// race always has fresh, vetted challengers ready to swap in.
+const RESEARCH_MS = (Number(args.researchHours) || 2) * 3600 * 1000;
+const POOL_CAP = Number(args.poolCap) || 30;
 const COST_BPS = Number(args.cost) || 5;
 const TOP = Number(args.top) || 8;
 const UNIVERSE = args.universe === "bundled" ? "bundled" : "large";
@@ -229,6 +234,32 @@ function standings(state) {
     .map((s, i) => ({ rank: i + 1, name: s.name, ret: s.ret, nav: Math.round(s.nav), validated: s.validated, oosSharpe: s.pedigree.oosSharpe }));
 }
 
+// Research + validate NEW ideas and add the passers to the bench pool. Runs on its
+// own cadence regardless of market hours, so a deep bench of vetted challengers is
+// always ready. Dedupes against what is racing and what is already pooled.
+async function researchRound(state, validateConfig, computableKeys) {
+  state.pool = state.pool || [];
+  const racing = new Set(state.sleeves.map((s) => cfgKey({ familyKey: s.familyKey, params: s.params, holding: s.holding })));
+  const pooled = new Set(state.pool.map((p) => cfgKey(p.config)));
+  const proposed = await researchConfigs(computableKeys, DEADLINE.getTime());
+  const ranked = validateAll(validateConfig, proposed).filter(
+    (x) => x.v.passed && !racing.has(cfgKey(x.config)) && !pooled.has(cfgKey(x.config))
+  );
+  for (const cand of ranked) {
+    state.pool.push({
+      config: cand.config,
+      pedigree: { oosSharpe: cand.v.metrics.oosSharpe, oosICt: cand.v.metrics.oosICt, deflated: cand.v.metrics.deflatedSharpe },
+      validatedAt: new Date().toISOString()
+    });
+  }
+  // keep the strongest POOL_CAP, drop any that are now racing
+  state.pool = state.pool.filter((p) => !racing.has(cfgKey(p.config)));
+  state.pool.sort((a, b) => b.pedigree.oosSharpe - a.pedigree.oosSharpe);
+  if (state.pool.length > POOL_CAP) state.pool = state.pool.slice(0, POOL_CAP);
+  state.lastResearch = Date.now();
+  log({ phase: "research-round", added: ranked.length, poolSize: state.pool.length, bestBench: state.pool[0]?.pedigree.oosSharpe });
+}
+
 async function evictionRound(state, validateConfig, computableKeys) {
   log({ phase: "eviction", msg: "ranking field", standings: standings(state) });
   // survivors refresh their books to current targets (re-validate)
@@ -252,12 +283,28 @@ async function evictionRound(state, validateConfig, computableKeys) {
   state.sleeves = state.sleeves.filter((s) => s.id !== worst.id);
   log({ phase: "eviction", evicted: worst.name, ret: worst.ret });
 
-  // research + validate a fresh challenger that isn't already racing
+  // Promote the BEST challenger from the bench pool (filled continuously by
+  // researchRound, even when the market is closed). Fall back to on-demand research
+  // only if the bench is empty.
   const racing = new Set(state.sleeves.map((s) => cfgKey({ familyKey: s.familyKey, params: s.params, holding: s.holding })));
-  const proposed = await researchConfigs(computableKeys, DEADLINE.getTime());
-  const fallback = computableKeys.map((k) => ({ familyKey: k, params: {} }));
-  const ranked = validateAll(validateConfig, [...proposed, ...fallback]).filter((x) => !racing.has(cfgKey(x.config)));
-  const challenger = ranked[0];
+  state.pool = (state.pool || []).filter((p) => !racing.has(cfgKey(p.config)));
+  let challenger = null;
+  if (state.pool.length) {
+    const best = state.pool.shift(); // pool is kept sorted best-first
+    try {
+      const v = validateConfig(universeFile, { familyKey: best.config.familyKey, params: best.config.params, top: TOP, holding: best.config.holding });
+      challenger = { config: best.config, v };
+      log({ phase: "eviction", msg: "promoting from bench", bench: state.pool.length });
+    } catch (e) {
+      log({ phase: "eviction", error: String(e).slice(0, 120) });
+    }
+  }
+  if (!challenger) {
+    const proposed = await researchConfigs(computableKeys, DEADLINE.getTime());
+    const fallback = computableKeys.map((k) => ({ familyKey: k, params: {} }));
+    const ranked = validateAll(validateConfig, [...proposed, ...fallback]).filter((x) => !racing.has(cfgKey(x.config)));
+    challenger = ranked[0];
+  }
   if (challenger) {
     state.seq = (state.seq || state.sleeves.length) + 1;
     const sleeve = makeSleeve(`H${state.seq}`, freed, challenger);
@@ -278,7 +325,7 @@ async function main() {
   const { validateConfig, computableFamilies } = await loadValidator();
   const computableKeys = (computableFamilies ? computableFamilies() : []).map((f) => f.key);
 
-  const state = { startedAt: new Date().toISOString(), deadline: DEADLINE.toISOString(), universe: UNIVERSE, total: TOTAL, sleeves: [], evicted: [], seq: SLEEVES };
+  const state = { startedAt: new Date().toISOString(), deadline: DEADLINE.toISOString(), universe: UNIVERSE, total: TOTAL, sleeves: [], evicted: [], pool: [], seq: SLEEVES, lastResearch: Date.now() };
   await refreshPrices({ sleeves: computableKeys.map((k) => ({ positions: {}, targets: [] })) }); // warm cache with all-family targets later; first real fill below
 
   // ---- seed the field: parallel research + validate, then take the best N ----
@@ -313,6 +360,11 @@ async function main() {
     if (leader && leader.name !== lastLeader) {
       await deployLeader(leader);
       lastLeader = leader.name;
+    }
+    // keep researching the bench every RESEARCH_MS — works even when the market is
+    // closed and the standings aren't moving
+    if (Date.now() - (state.lastResearch || 0) >= RESEARCH_MS) {
+      try { await researchRound(state, validateConfig, computableKeys); } catch (e) { log({ phase: "research-round", error: String(e).slice(0, 160) }); }
     }
     if (Date.now() - (state.lastEviction || 0) >= EVICT_MS) {
       try { await evictionRound(state, validateConfig, computableKeys); } catch (e) { log({ phase: "eviction", error: String(e).slice(0, 160) }); }

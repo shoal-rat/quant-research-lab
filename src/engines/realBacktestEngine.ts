@@ -12,6 +12,10 @@ import { clamp, round, seededRandom } from "./random";
 import { annualizedReturn, annualizedSharpe, calmarRatio, maxDrawdown as maxDrawdownOf, probabilisticSharpe, sortinoRatio } from "./perfMetrics";
 import { computeFactorAnalytics, FactorCrossSection } from "./factorAnalytics";
 import { preprocessSignal } from "./signalPreprocess";
+import { dailyBorrowFraction, rebalanceCostFraction } from "./costModel";
+
+// assumed deployed book size used to size square-root market impact in the backtest
+const REF_BOOK_USD = 5_000_000;
 
 // Real-data backtester: computes family signals from actual adjusted closes at
 // whatever frequency the dataset carries (hourly, daily, weekly, monthly...),
@@ -739,21 +743,35 @@ export function runRealBacktest(
           }
         }
       }
-      // turnover -> cost accrued to the executing bar (subtracted below)
+      // per-name turnover -> realistic cost (commission + spread + impact), accrued
+      // to the executing bar
       let turnover = 0;
+      const deltas = new Map<string, number>();
       const keys = new Set([...weights.keys(), ...next.keys()]);
       keys.forEach((symbol) => {
-        turnover += Math.abs((next.get(symbol) ?? 0) - (weights.get(symbol) ?? 0));
+        const dw = Math.abs((next.get(symbol) ?? 0) - (weights.get(symbol) ?? 0));
+        turnover += dw;
+        if (dw > 0) deltas.set(symbol, dw);
       });
       turnover *= 0.5;
       turnoverSeries.push(turnover);
       weights = next;
       weightsHistory.push(next);
-      pendingCost += turnover * 2 * costRate;
+      // point-in-time ADV (data up to `day` only — no lookahead) for the cost model
+      const advAt = new Map<string, number | null>();
+      deltas.forEach((_, symbol) => advAt.set(symbol, avgDollarVolume(data, symbol, day, 60)));
+      pendingCost += rebalanceCostFraction(deltas, advAt, params.transactionCostBps, REF_BOOK_USD);
     }
 
-    // earn next-bar returns with current weights, net of any pending rebalance cost
-    let dayReturn = -pendingCost;
+    // earn next-bar returns with current weights, net of pending rebalance cost and
+    // the daily short-borrow drag on any short positions (point-in-time ADV)
+    let borrowDrag = 0;
+    if (!longOnly) {
+      const borrowAdv = new Map<string, number | null>();
+      weights.forEach((w, symbol) => { if (w < 0) borrowAdv.set(symbol, avgDollarVolume(data, symbol, day, 60)); });
+      borrowDrag = dailyBorrowFraction(weights, borrowAdv);
+    }
+    let dayReturn = -pendingCost - borrowDrag;
     pendingCost = 0;
     weights.forEach((weight, symbol) => {
       const ret = data.returns[symbol][day + 1];

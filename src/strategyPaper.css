@@ -134,6 +134,9 @@
 .evicted-chip { display: inline-block; margin: 0 6px 6px 0; font-size: 0.74rem; padding: 3px 9px; border-radius: 8px; background: rgba(120,128,138,0.1); text-decoration: line-through; color: #8a93a0; }
 .evicted-chip .up { color: #176b43; }
 .evicted-chip .down { color: #a33333; }
+.race-bench { font-size: 0.76rem; color: #6b7280; margin: 4px 0 12px; }
+.bench-chip { display: inline-block; margin: 0 6px 4px 0; padding: 2px 8px; border-radius: 8px; background: rgba(99,102,241,0.08); color: #4338ca; }
+.bench-chip small { color: #8a93a0; }
 .race-foot { margin-top: 16px; font-size: 0.78rem; color: #8a93a0; }
 .race-page .up { color: #176b43; }
 .race-page .down { color: #a33333; }

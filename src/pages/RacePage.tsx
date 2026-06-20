@@ -22,6 +22,7 @@ interface RaceState {
     deadline: string;
     sleeves: Sleeve[];
     evicted: Array<{ name: string; ret: number; finalNav: number; evictedAt: string }>;
+    pool?: Array<{ config: { familyKey: string }; pedigree: { oosSharpe: number } }>;
   } | null;
 }
 
@@ -140,9 +141,17 @@ export function RacePage(): JSX.Element {
       <div className={`race-status ${running ? "live" : ""}`}>
         <span className="race-dot" />
         {running
-          ? zh ? `比赛进行中 · ${horses.length} 匹 · 剩余 ${remaining !== null ? remaining.toFixed(1) : "?"} 小时` : `Race live · ${horses.length} horses · ${remaining !== null ? remaining.toFixed(1) : "?"}h left`
+          ? zh ? `比赛进行中 · ${horses.length} 匹 · 替补席 ${data?.state?.pool?.length ?? 0} 条 · 剩余 ${remaining !== null ? remaining.toFixed(1) : "?"} 小时` : `Race live · ${horses.length} horses · ${data?.state?.pool?.length ?? 0} on the bench · ${remaining !== null ? remaining.toFixed(1) : "?"}h left`
           : zh ? "未开始（点“开始比赛”，之后可随时关闭网页，比赛在桥接器里继续）" : "Not running (hit Start — then you can close this page; the race keeps running in the bridge)"}
       </div>
+      {running && (data?.state?.pool?.length ?? 0) > 0 && (
+        <p className="race-bench">
+          {zh ? "替补席（每 2 小时持续研究、回测验证，市场关门也不停）：" : "Bench (researched + validated every 2h — keeps going even when the market is closed): "}
+          {(data?.state?.pool ?? []).slice(0, 8).map((p, i) => (
+            <span key={i} className="bench-chip">{p.config.familyKey} <small>{p.pedigree.oosSharpe?.toFixed(2)}</small></span>
+          ))}
+        </p>
+      )}
 
       {error && <div className="paper-error">⚠ {error}</div>}
 

@@ -12,6 +12,19 @@ export interface RealTicker {
   volumes?: (number | null)[];
   highs?: (number | null)[];
   lows?: (number | null)[];
+  // point-in-time quarterly fundamentals (oldest -> newest), so a backtest can read
+  // the value/quality figures as they were KNOWN on each date (no lookahead).
+  // Populated by scripts/fetch-fundamentals.mjs (FMP); absent on price-only datasets.
+  fundamentals?: Array<{
+    date: string; // report/filing date
+    pe?: number; // price / earnings
+    pb?: number; // price / book
+    roe?: number; // return on equity
+    netMargin?: number;
+    debtToEquity?: number;
+  }>;
+  // most recent news headlines (for the research mind + UI), not used in the backtest
+  news?: Array<{ date: string; title: string; site?: string; url?: string }>;
 }
 
 export type DataFrequency = "minute" | "hourly" | "daily" | "weekly" | "monthly" | "irregular";

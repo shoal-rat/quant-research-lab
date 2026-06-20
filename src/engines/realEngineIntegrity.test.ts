@@ -128,7 +128,20 @@ function ohlcvData(): RealMarketData {
       highs.push(Number((c * 1.01).toFixed(4)));
       lows.push(Number((c * 0.99).toFixed(4)));
     }
-    tk[sym] = { name: sym, industry: industries[i], closes, volumes, highs, lows };
+    tk[sym] = {
+      name: sym,
+      industry: industries[i],
+      closes,
+      volumes,
+      highs,
+      lows,
+      // point-in-time quarterly fundamentals, distinct per name + varying over time
+      fundamentals: [
+        { date: "2015-02-15", pe: 10 + i, pb: 1 + i * 0.2, roe: 0.2 - i * 0.01, netMargin: 0.15, debtToEquity: 0.3 + i * 0.05 },
+        { date: "2015-08-15", pe: 11 + i, pb: 1.1 + i * 0.2, roe: 0.19 - i * 0.01, netMargin: 0.14, debtToEquity: 0.32 + i * 0.05 },
+        { date: "2016-02-15", pe: 9 + i, pb: 0.9 + i * 0.2, roe: 0.21 - i * 0.01, netMargin: 0.16, debtToEquity: 0.28 + i * 0.05 }
+      ]
+    };
   });
   return buildRealMarketData({
     source: "test", fetchedAt: "t", start: dates[0], end: dates[N - 1],
@@ -162,5 +175,26 @@ describe("OHLCV volume factors + measured capacity", () => {
     const rng = runRealBacktest(familyStrategy("range_volatility", "low_volatility", { rangeWindow: 20 }), params, data, ctx);
     expect(Number.isFinite(liq.result.full.sharpeRatio)).toBe(true);
     expect(Number.isFinite(rng.result.full.sharpeRatio)).toBe(true);
+  });
+
+  it("computes the fundamental value factor from point-in-time reports (backtestable, no lookahead)", () => {
+    const out = runRealBacktest(
+      familyStrategy("fundamental_value", "value", { valueWeight: 1, qualityWeight: 0.5, leveragePenalty: 0.1 }),
+      params,
+      data,
+      ctx
+    );
+    expect(out.extras.dailyReturns.length).toBeGreaterThan(50);
+    expect(out.extras.dailyReturns.every((v) => Number.isFinite(v))).toBe(true);
+    // a real time-varying cross-section -> factor analytics are computed
+    expect(out.result.factorAnalytics).toBeDefined();
+  });
+
+  it("fundamental factor produces no signal when there are no fundamentals (graceful)", () => {
+    const bare = ohlcvData();
+    for (const t of Object.keys(bare.tickers)) delete bare.tickers[t].fundamentals;
+    const out = runRealBacktest(familyStrategy("fundamental_value", "value", {}), params, bare, ctx);
+    // no fundamentals -> empty cross-sections -> no factor analytics (won't trade)
+    expect(out.result.factorAnalytics).toBeUndefined();
   });
 });

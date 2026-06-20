@@ -463,7 +463,8 @@ export type FactorKind =
   | "pairs"
   | "vol_managed"
   | "earnings_revision"
-  | "trend_overlay";
+  | "trend_overlay"
+  | "value";
 
 export interface StrategySpec {
   id: string;

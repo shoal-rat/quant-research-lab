@@ -81,6 +81,23 @@ gate, is in [docs/REVIEW.md](docs/REVIEW.md):
 - **Still illustrative** — execution-stress, latency, and partial-fill numbers (no microstructure feed); on a close-only upload (no volume) capacity falls back to the illustrative scaffold.
 - **Not promotable** — a family the active dataset cannot actually backtest (e.g. a news/earnings factor on price-only data) runs the mock simulator for illustration only, is labelled **"Illustrative — no real data"**, and is **never** scored, pooled, counted in NAV, or promoted.
 
+### Costs & richer data
+
+- **Transaction costs** are no longer a flat commission: the backtest pays
+  commission + half bid-ask spread + square-root market impact + daily short-borrow,
+  all widening for illiquid names (lower ADV) and sized point-in-time (no lookahead).
+  See `src/engines/costModel.ts`.
+- **Fundamentals + news (optional, FMP free key):** `node scripts/fetch-fundamentals.mjs`
+  (with `FMP_API_KEY`) adds **point-in-time** quarterly fundamentals (P/E, P/B, ROE,
+  margin, leverage) and recent news to the universe, enabling a real, backtestable
+  **value + quality** factor (`fundamental_value`). It also writes the
+  survivorship-free S&P 500 membership history + delisted list to `data/`.
+- **Honest data limits:** truly survivorship-free *price* history for delisted names
+  and historical *options* data are not available on free tiers — this reduces
+  survivorship bias and adds real fundamentals/news, but is not a substitute for a
+  paid survivorship-free database (Sharadar/Norgate) or an options-history feed.
+  Without an FMP key, the value factor self-filters (no data → not traded).
+
 ## Meet The Desk
 
 Each researcher owns one job.

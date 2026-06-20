@@ -585,6 +585,34 @@ export const STRATEGY_FAMILIES: StrategyFamily[] = [
     priceComputable: true,
     baseEdgeDaily: 0.00038,
     decayHalfLifeRuns: 11
+  },
+  {
+    key: "fundamental_value",
+    name: "Value + Quality (fundamentals)",
+    factorKind: "value",
+    rationaleKind: "behavioral",
+    rationale: "Cheap, profitable, low-leverage firms outperform expensive glamour names over the long run (value + quality premia).",
+    construction: "Score names by earnings/book yield + ROE/margin - leverage from point-in-time quarterly reports; long the best decile, hold 20 days. Needs a fundamentals feed (FMP).",
+    holdingPeriods: [20],
+    grossSharpe: [0.4, 0.9],
+    netSharpe: [0.2, 0.5],
+    costSensitivity: "low",
+    crowdingRisk: "medium",
+    failureModes: [
+      "Value can underperform for years in growth-led regimes",
+      "Stale/look-ahead fundamentals fake the edge if not point-in-time",
+      "Sector tilts (cheap = financials/energy) unless neutralized"
+    ],
+    parameters: [
+      { name: "valueWeight", min: 0, max: 2, default: 1, step: 0.1 },
+      { name: "qualityWeight", min: 0, max: 2, default: 0.5, step: 0.1 },
+      { name: "leveragePenalty", min: 0, max: 1, default: 0.1, step: 0.05 }
+    ],
+    keyPapers: ["Fama & French (1992) value", "Novy-Marx (2013) profitability", "Asness, Frazzini & Pedersen (2019) quality"],
+    newsDriven: false,
+    priceComputable: true,
+    baseEdgeDaily: 0.00034,
+    decayHalfLifeRuns: 12
   }
 ];
 

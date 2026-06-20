@@ -80,6 +80,8 @@ async function researchConfigs(computableKeys, deadlineMs) {
   const prompt = `You are the research mind for a paper-trading STRATEGY TOURNAMENT on US equities. You may web-search the
 current regime. Propose 3 DISTINCT candidate strategies drawn from these computable factor families:
 ${computableKeys.join(", ")}. Vary the family and the parameters; favour what should work in the current regime.
+Notes: price/volume families always work; "fundamental_value" works only if a fundamentals feed (FMP) has been
+loaded, otherwise it is skipped automatically — feel free to propose it, it self-filters if data is absent.
 Return ONLY JSON: {"configs":[{"familyKey":"<one of the list>","params":{"<paramName>":<number>},"holding":<5|10|20>,"why":"one line"}]}`;
   const K = Math.min(4, Math.ceil(SLEEVES / 2));
   const calls = Array.from({ length: K }, (_, i) =>

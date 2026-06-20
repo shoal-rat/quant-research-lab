@@ -180,6 +180,20 @@ function avgHighLowRange(data: RealMarketData, symbol: string, at: number, windo
   return count >= Math.max(5, window * 0.5) ? sum / count : null;
 }
 
+// fundamentals AS KNOWN on day `at` — the latest quarterly report dated <= the
+// current bar's date. No lookahead: never returns a report filed after `at`.
+function asOfFundamentals(data: RealMarketData, symbol: string, at: number) {
+  const series = data.tickers[symbol].fundamentals;
+  if (!series || series.length === 0) return null;
+  const asOf = data.dates[at];
+  let found: (typeof series)[number] | null = null;
+  for (const row of series) {
+    if (row.date <= asOf) found = row;
+    else break; // series is oldest -> newest
+  }
+  return found;
+}
+
 // signal per family for ticker `symbol` at day index `at` (data up to `at` only)
 function computeSignal(
   strategy: StrategySpec,
@@ -316,6 +330,18 @@ function computeSignal(
       const window = Math.round(num(p.rangeWindow, 20));
       const range = avgHighLowRange(data, symbol, at, window);
       return range === null ? null : -range;
+    }
+    case "fundamental_value": {
+      // value + quality - leverage, from point-in-time fundamentals (no lookahead).
+      // long cheap, profitable, low-debt names. null when no report is known yet.
+      const f = asOfFundamentals(data, symbol, at);
+      if (!f) return null;
+      const earningsYield = f.pe && f.pe > 0 ? 1 / f.pe : 0;
+      const bookYield = f.pb && f.pb > 0 ? 1 / f.pb : 0;
+      const value = earningsYield + 0.5 * bookYield;
+      const quality = (f.roe ?? 0) + (f.netMargin ?? 0);
+      const leverage = Math.max(0, f.debtToEquity ?? 0);
+      return value * num(p.valueWeight, 1) + quality * num(p.qualityWeight, 0.5) - leverage * num(p.leveragePenalty, 0.1);
     }
     default: {
       // Unknown / non-price family on real data: do NOT silently impersonate

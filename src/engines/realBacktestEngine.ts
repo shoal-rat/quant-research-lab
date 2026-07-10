@@ -13,6 +13,7 @@ import { annualizedReturn, annualizedSharpe, calmarRatio, maxDrawdown as maxDraw
 import { computeFactorAnalytics, FactorCrossSection } from "./factorAnalytics";
 import { preprocessSignal } from "./signalPreprocess";
 import { dailyBorrowFraction, rebalanceCostFraction } from "./costModel";
+import { AlphaExpr, evaluateAlpha, parseAlpha } from "./alphaDsl";
 
 // assumed deployed book size used to size square-root market impact in the backtest
 const REF_BOOK_USD = 5_000_000;
@@ -20,8 +21,8 @@ const REF_BOOK_USD = 5_000_000;
 // Real-data backtester: computes family signals from actual adjusted closes at
 // whatever frequency the dataset carries (hourly, daily, weekly, monthly...),
 // builds a cross-sectional long/short portfolio with costs, and reports honest
-// in-sample / out-of-sample metrics. Signals at bar t use only data up to t and
-// earn the return of bar t+1 - no lookahead by construction. Annualization uses
+// in-sample / out-of-sample metrics. Signals at bar t use only data up to t;
+// by default they execute at t+1 and first earn t+1 -> t+2. Annualization uses
 // the dataset's periodsPerYear, so Sharpe is correct for any frequency.
 
 const DEFAULT_PERIODS_PER_YEAR = 252;
@@ -29,6 +30,11 @@ const DEFAULT_PERIODS_PER_YEAR = 252;
 export interface RealBacktestExtras {
   dailyReturns: number[];
   returnsStartIndex: number;
+  // The promotion pool must only compare untouched working-OOS returns; using
+  // a candidate's in-sample development history here would leak selection
+  // information into correlation and pool-ΔSharpe gates.
+  oosDailyReturns?: number[];
+  oosReturnsStartIndex?: number;
   // transient (NOT persisted to the record): the aligned benchmark series, dates,
   // and annualization factor, so the validation panel can run walk-forward /
   // regime / decay on the true per-bar daily series instead of the decimated curve.
@@ -87,6 +93,72 @@ function trailingMax(closes: (number | null)[], at: number, window: number): num
     if (value !== null && value > max) max = value;
   }
   return Number.isFinite(max) ? max : null;
+}
+
+// Point-in-time market-stress multiplier used by the execution model. A short
+// realized-vol window is compared with a slower baseline, never with future
+// observations, and the cost model applies its own conservative bounds.
+function benchmarkVolMultiplier(data: RealMarketData, at: number): number {
+  const returns = data.returns[data.benchmark];
+  if (!returns) return 1;
+  const current = trailingVol(returns, at, 20);
+  const baseline = trailingVol(returns, at, 120);
+  if (current === null || baseline === null || baseline <= 1e-12) return 1;
+  return current / baseline;
+}
+
+function regimeAllows(strategy: StrategySpec, data: RealMarketData, at: number): boolean {
+  const rawGate = strategy.parameters.regimeGate;
+  const gate = typeof rawGate === "string" ? rawGate : "none";
+  if (gate === "none" || gate === "") return true;
+  const benchmark = data.tickers[data.benchmark];
+  const close = benchmark?.closes[at];
+  if (!benchmark || !close || at < 200) return false;
+
+  if (gate === "riskon" || gate === "riskoff") {
+    let sum = 0;
+    let count = 0;
+    for (let index = at - 199; index <= at; index += 1) {
+      const value = benchmark.closes[index];
+      if (value !== null && value !== undefined) {
+        sum += value;
+        count += 1;
+      }
+    }
+    if (count < 160) return false;
+    const riskOn = close >= sum / count;
+    return gate === "riskon" ? riskOn : !riskOn;
+  }
+
+  if (gate === "highvol" || gate === "lowvol") {
+    const returns = data.returns[data.benchmark];
+    const current = trailingVol(returns, at, 20);
+    if (current === null || at < 140) return false;
+    const history: number[] = [];
+    for (let index = at - 120; index <= at; index += 1) {
+      const value = trailingVol(returns, index, 20);
+      if (value !== null) history.push(value);
+    }
+    if (history.length < 60) return false;
+    history.sort((a, b) => a - b);
+    const low = history[Math.floor((history.length - 1) / 3)];
+    const high = history[Math.ceil(((history.length - 1) * 2) / 3)];
+    return gate === "highvol" ? current >= high : current <= low;
+  }
+  // An unrecognized gate must not create hidden exposure.
+  return false;
+}
+
+// A stale / delisted bar is not a flat return. With a volume-bearing dataset,
+// null or zero volume is untradable; fetch-market-data marks forward-filled
+// gaps this way. Close-only uploads keep their valid price-only behavior.
+function tradableAt(data: RealMarketData, symbol: string, at: number): boolean {
+  const ticker = data.tickers[symbol];
+  const close = ticker?.closes[at];
+  if (!ticker || close === null || close === undefined || !Number.isFinite(close) || close <= 0) return false;
+  const volume = ticker.volumes?.[at];
+  if (ticker.volumes && (volume === null || volume === undefined || volume <= 0)) return false;
+  return true;
 }
 
 // Rolling market beta of a name vs the benchmark over `window` bars ending at `at`
@@ -201,13 +273,18 @@ function computeSignal(
   symbol: string,
   at: number,
   industryPeers: Record<string, string[]>,
-  periodsPerYear: number
+  periodsPerYear: number,
+  formulaExpr?: AlphaExpr | null
 ): number | null {
   const closes = data.tickers[symbol].closes;
   const returns = data.returns[symbol];
   const p = strategy.parameters;
 
   switch (strategy.familyKey) {
+    case "formulaic_alpha":
+      return formulaExpr
+        ? evaluateAlpha(formulaExpr, { data, symbol, at, industryPeers, periodsPerYear })
+        : null;
     case "xs_momentum": {
       const lookback = Math.round(num(p.lookbackDays, 120));
       const skip = Math.round(num(p.skipDays, 5));
@@ -246,25 +323,35 @@ function computeSignal(
       return inWindow ? 1 : 0;
     }
     case "pairs_statarb": {
-      // relative-value vs industry peers: fade the 60d spread z-score
+      // relative-value vs industry peers: fade the formation-window spread z-score.
+      // entryZScore/exitZScore shape the response: no position inside the exit band,
+      // full fade beyond the entry band, linear ramp in between (stateless analogue
+      // of enter-at-entryZ / flatten-at-exitZ).
+      const formation = Math.round(num(p.formationDays, 250));
+      const entryZ = num(p.entryZScore, 2);
+      const exitZ = Math.min(num(p.exitZScore, 0.5), entryZ - 0.25);
       const peers = industryPeers[data.tickers[symbol].industry] ?? [];
       if (peers.length < 3) return null;
-      const own = trailingReturn(closes, at, 60);
+      const own = trailingReturn(closes, at, formation);
       if (own === null) return null;
-      let sum = 0;
-      let count = 0;
+      const peerReturns: number[] = [];
       for (const peer of peers) {
         if (peer === symbol) continue;
-        const peerReturn = trailingReturn(data.tickers[peer].closes, at, 60);
-        if (peerReturn !== null) {
-          sum += peerReturn;
-          count += 1;
-        }
+        const peerReturn = trailingReturn(data.tickers[peer].closes, at, formation);
+        if (peerReturn !== null) peerReturns.push(peerReturn);
       }
-      if (count < 2) return null;
-      return -(own - sum / count);
+      if (peerReturns.length < 2) return null;
+      const mean = peerReturns.reduce((sum, value) => sum + value, 0) / peerReturns.length;
+      const variance =
+        peerReturns.reduce((sum, value) => sum + (value - mean) ** 2, 0) / Math.max(1, peerReturns.length - 1);
+      const std = Math.sqrt(Math.max(variance, 1e-8));
+      const z = (own - mean) / std;
+      const az = Math.abs(z);
+      if (az <= exitZ) return 0;
+      const ramp = az >= entryZ ? 1 : (az - exitZ) / Math.max(entryZ - exitZ, 1e-6);
+      return -z * ramp;
     }
-    case "lead_lag": {
+    case "lead_lag_spillover": {
       // peers' lagged short-term return leads the laggard
       const lag = Math.round(num(p.lagDays, 1));
       const peers = industryPeers[data.tickers[symbol].industry] ?? [];
@@ -504,12 +591,14 @@ export function metricsFromReturnSeries(input: {
   dataUsed: string;
   splitFraction?: number;
   periodsPerYear?: number;
+  evaluateLockbox?: boolean;
 }): RealBacktestOutput {
   const { returns, dates } = input;
   const trials = Math.max(1, input.trials);
   const turnover = clamp(num(input.avgTurnover, 0.15), 0, 5);
   const concentration = clamp(num(input.concentration, 0.3), 0, 1);
   const periodsPerYear = Math.max(1, num(input.periodsPerYear, DEFAULT_PERIODS_PER_YEAR));
+  const lockboxStart = Math.max(0, Math.floor(returns.length * 0.88));
 
   const yearsFor = (from: number, to: number): Map<string, number> => {
     const map = new Map<string, number>();
@@ -534,28 +623,35 @@ export function metricsFromReturnSeries(input: {
   // series, so a mixed candidate pool never produces a bogus correlation;
   // bridge-vs-bridge series still align with each other.
   const BRIDGE_INDEX_BASE = 1_000_000;
+  const splitIndex = Math.floor(lockboxStart * (input.splitFraction ?? 0.58));
+  const oosDailyReturns = returns.slice(splitIndex, lockboxStart).map((value) => Number(value.toFixed(6)));
+  const oosReturnsStartIndex = BRIDGE_INDEX_BASE + splitIndex;
   const extras: RealBacktestExtras = {
-    dailyReturns: returns.map((value) => Number(value.toFixed(6))),
-    returnsStartIndex: BRIDGE_INDEX_BASE
+    dailyReturns: returns.slice(0, lockboxStart).map((value) => Number(value.toFixed(6))),
+    returnsStartIndex: BRIDGE_INDEX_BASE,
+    oosDailyReturns,
+    oosReturnsStartIndex
   };
-  const poolCorrelation = realPoolCorrelation(extras, input.priorCandidates);
+  const poolCorrelation = realPoolCorrelation(
+    { dailyReturns: oosDailyReturns, returnsStartIndex: oosReturnsStartIndex },
+    input.priorCandidates
+  );
 
-  const splitIndex = Math.floor(returns.length * (input.splitFraction ?? 0.58));
   const inSample = sliceMetrics(0, splitIndex, poolCorrelation);
-  const outOfSample = sliceMetrics(splitIndex, returns.length, poolCorrelation);
-  const full = sliceMetrics(0, returns.length, poolCorrelation);
+  const outOfSample = sliceMetrics(splitIndex, lockboxStart, poolCorrelation);
+  const full = sliceMetrics(0, lockboxStart, poolCorrelation);
 
   const benchmarkReturns = input.benchmarkReturns ?? [];
   const equityCurve: EquityPoint[] = [];
   let equity = 1;
   let benchmark = 1;
   let peak = 1;
-  const step = Math.max(1, Math.floor(returns.length / 320));
-  for (let index = 0; index < returns.length; index += 1) {
+  const step = Math.max(1, Math.floor(lockboxStart / 320));
+  for (let index = 0; index < lockboxStart; index += 1) {
     equity *= 1 + returns[index];
     benchmark *= 1 + (benchmarkReturns[index] ?? 0);
     peak = Math.max(peak, equity);
-    if (index % step === 0 || index === returns.length - 1) {
+    if (index % step === 0 || index === lockboxStart - 1) {
       equityCurve.push({
         date: dates[index] ?? `t${index}`,
         equity: round(equity, 4),
@@ -572,8 +668,20 @@ export function metricsFromReturnSeries(input: {
     full,
     equityCurve,
     generatedCode: "",
-    dataUsed: input.dataUsed
+    dataUsed: `${input.dataUsed}; final 12% lockbox withheld`
   };
+  if (input.evaluateLockbox && returns.length - lockboxStart >= 20) {
+    const metrics = sliceMetrics(lockboxStart, returns.length, poolCorrelation);
+    const denominator = Math.max(0.1, Math.abs(outOfSample.sharpeRatio));
+    const sharpeDecay = Math.max(0, (outOfSample.sharpeRatio - metrics.sharpeRatio) / denominator);
+    result.lockbox = {
+      metrics,
+      startDate: dates[lockboxStart] ?? `t${lockboxStart}`,
+      endDate: dates[dates.length - 1] ?? `t${dates.length - 1}`,
+      sharpeDecay: round(sharpeDecay, 3),
+      passed: metrics.sharpeRatio > 0 && sharpeDecay < 0.6
+    };
+  }
   return { result, extras };
 }
 
@@ -587,10 +695,11 @@ function randomRankBaselineOosSharpe(
   universe: string[],
   slice: Slice,
   holding: number,
-  costRate: number,
+  commissionBps: number,
   longOnly: boolean,
   periodsPerYear: number,
   splitFraction: number,
+  oosOffset = 0,
   seeds = 4
 ): number {
   const sharpes: number[] = [];
@@ -601,33 +710,58 @@ function randomRankBaselineOosSharpe(
     let pending = 0;
     for (let day = slice.start; day < slice.end - 1; day += 1) {
       if ((day - slice.start) % holding === 0) {
-        const order = universe.map((symbol) => [symbol, rng()] as [string, number]).sort((a, b) => b[1] - a[1]);
-        const next = new Map<string, number>();
-        const bucket = Math.max(2, Math.floor(order.length * 0.3));
-        const longWeight = 1 / bucket;
-        for (let index = 0; index < bucket; index += 1) next.set(order[index][0], longWeight);
-        if (!longOnly) {
-          for (let index = order.length - bucket; index < order.length; index += 1) {
-            next.set(order[index][0], (next.get(order[index][0]) ?? 0) - 1 / bucket);
+        const order = universe
+          .filter((symbol) => tradableAt(data, symbol, day))
+          .map((symbol) => [symbol, rng()] as [string, number])
+          .sort((a, b) => b[1] - a[1]);
+        if (order.length >= 4) {
+          const next = new Map<string, number>();
+          const bucket = Math.max(2, Math.floor(order.length * 0.3));
+          const longWeight = 1 / bucket;
+          for (let index = 0; index < bucket; index += 1) next.set(order[index][0], longWeight);
+          if (!longOnly) {
+            for (let index = order.length - bucket; index < order.length; index += 1) {
+              next.set(order[index][0], (next.get(order[index][0]) ?? 0) - 1 / bucket);
+            }
           }
+          // same cost model as the strategy (commission + spread + sqrt impact on
+          // point-in-time ADV) — the baseline must not compete at a cheaper rate
+          const deltas = new Map<string, number>();
+          new Set([...weights.keys(), ...next.keys()]).forEach((symbol) => {
+            const dw = Math.abs((next.get(symbol) ?? 0) - (weights.get(symbol) ?? 0));
+            if (dw > 0) deltas.set(symbol, dw);
+          });
+          const advAt = new Map<string, number | null>();
+          deltas.forEach((_, symbol) => advAt.set(symbol, avgDollarVolume(data, symbol, day, 60)));
+          pending += rebalanceCostFraction(
+            deltas,
+            advAt,
+            commissionBps,
+            REF_BOOK_USD,
+            benchmarkVolMultiplier(data, day)
+          );
+          weights = next;
         }
-        let turnover = 0;
-        new Set([...weights.keys(), ...next.keys()]).forEach((symbol) => {
-          turnover += Math.abs((next.get(symbol) ?? 0) - (weights.get(symbol) ?? 0));
-        });
-        pending += turnover * 0.5 * 2 * costRate;
-        weights = next;
       }
-      let dayReturn = -pending;
+      let borrowDrag = 0;
+      if (!longOnly) {
+        const borrowAdv = new Map<string, number | null>();
+        weights.forEach((w, symbol) => { if (w < 0) borrowAdv.set(symbol, avgDollarVolume(data, symbol, day, 60)); });
+        borrowDrag = dailyBorrowFraction(weights, borrowAdv, benchmarkVolMultiplier(data, day), periodsPerYear);
+      }
+      let dayReturn = -pending - borrowDrag;
       pending = 0;
+      const forcedExits: string[] = [];
       weights.forEach((weight, symbol) => {
         const ret = data.returns[symbol][day + 1];
-        if (ret !== null) dayReturn += weight * ret;
+        if (ret !== null && ret !== undefined && tradableAt(data, symbol, day + 1)) dayReturn += weight * ret;
+        else forcedExits.push(symbol);
       });
+      forcedExits.forEach((symbol) => weights.delete(symbol));
       rets.push(dayReturn);
     }
     const split = Math.floor(rets.length * splitFraction);
-    const oos = rets.slice(split);
+    const oos = rets.slice(Math.min(rets.length, split + Math.max(0, oosOffset)));
     if (oos.length < 5) continue;
     const mean = oos.reduce((sum, value) => sum + value, 0) / oos.length;
     const variance = oos.reduce((sum, value) => sum + (value - mean) ** 2, 0) / Math.max(1, oos.length - 1);
@@ -638,9 +772,9 @@ function randomRankBaselineOosSharpe(
 }
 
 // Current top-N long book for ANY family at the latest bar (data up to the last
-// date only — no lookahead): rank names by the family's signal, take the top N,
-// gated by the SPY-vs-200d-MA regime (cash when risk-off). Used by the live
-// strategy tournament to know what each sleeve would hold right now.
+// date only — no lookahead). It uses the same neutralization, explicit regimeGate,
+// and target count as the backtest so deployment cannot silently become a
+// different strategy.
 export function latestTargets(
   strategy: StrategySpec,
   data: RealMarketData,
@@ -653,27 +787,47 @@ export function latestTargets(
   for (const s of uni) (industryPeers[data.tickers[s].industry] = industryPeers[data.tickers[s].industry] ?? []).push(s);
   const last = data.dates.length - 1;
   const ppy = data.periodsPerYear ?? DEFAULT_PERIODS_PER_YEAR;
+  let formulaExpr: AlphaExpr | null = null;
+  if (strategy.familyKey === "formulaic_alpha" && typeof strategy.parameters.formula === "string") {
+    try {
+      formulaExpr = parseAlpha(strategy.parameters.formula);
+    } catch {
+      // Invalid external / hand-entered formulae are fail-closed: no targets.
+      return { targets: [], riskOn: false, asOf: data.dates[last] };
+    }
+  }
 
-  const spy = data.tickers[data.benchmark]?.closes ?? [];
-  let sum = 0;
-  let cnt = 0;
-  for (let k = Math.max(0, last - 199); k <= last; k += 1) if (spy[k]) { sum += spy[k] as number; cnt += 1; }
-  const ma = cnt > 0 ? sum / cnt : 0;
-  const riskOn = !!(spy[last] && ma && (spy[last] as number) >= ma);
-
-  const scored = uni
-    .map((s) => ({ s, v: computeSignal(strategy, data, s, last, industryPeers, ppy) }))
-    .filter((x) => x.v !== null && Number.isFinite(x.v as number))
-    .sort((a, b) => (b.v as number) - (a.v as number));
-  const targets = riskOn ? scored.slice(0, Math.max(1, top)).map((x) => x.s) : [];
-  return { targets, riskOn, asOf: data.dates[last] };
+  const allowed = regimeAllows(strategy, data, last);
+  const raw = uni
+    .filter((s) => tradableAt(data, s, last))
+    .map((s) => ({ s, v: computeSignal(strategy, data, s, last, industryPeers, ppy, formulaExpr) }))
+    .filter((x): x is { s: string; v: number } => x.v !== null && Number.isFinite(x.v));
+  const isTimeSeriesFamily = strategy.familyKey === "seasonality" || strategy.familyKey === "trend_overlay";
+  const neutral =
+    !isTimeSeriesFamily && raw.length >= 6
+      ? preprocessSignal(
+          raw.map((item) => item.v),
+          {
+            winsorize: 0.025,
+            groups: raw.map((item) => data.tickers[item.s].industry),
+            betas: raw.map((item) => rollingBeta(data.returns[item.s], data.returns[data.benchmark], last, 60))
+          }
+        )
+      : null;
+  const scored = neutral
+    ? raw.map((entry, index) => ({ s: entry.s, v: neutral[index] })).sort((a, b) => b.v - a.v)
+    : raw.sort((a, b) => b.v - a.v);
+  const active = isTimeSeriesFamily ? scored.filter((entry) => entry.v > 0) : scored;
+  const targetCount = Math.max(1, Math.round(num(strategy.parameters.targetCount, top)));
+  const targets = allowed ? active.slice(0, targetCount).map((x) => x.s) : [];
+  return { targets, riskOn: allowed, asOf: data.dates[last] };
 }
 
 export function runRealBacktest(
   strategy: StrategySpec,
   params: BacktestParameters,
   data: RealMarketData,
-  context: { totalTrials: number; priorCandidates: ExperimentRecord[] }
+  context: { totalTrials: number; priorCandidates: ExperimentRecord[]; evaluateLockbox?: boolean }
 ): RealBacktestOutput {
   const available = realUniverse(data);
   let universe = strategy.universe.filter((symbol) => available.includes(symbol));
@@ -685,6 +839,19 @@ export function runRealBacktest(
     (industryPeers[industry] = industryPeers[industry] ?? []).push(symbol);
   }
 
+  let formulaExpr: AlphaExpr | null = null;
+  if (strategy.familyKey === "formulaic_alpha") {
+    const formula = strategy.parameters.formula;
+    if (typeof formula === "string") {
+      try {
+        formulaExpr = parseAlpha(formula);
+      } catch {
+        // A bad formula is an invalid hypothesis, not a momentum fallback.
+        formulaExpr = null;
+      }
+    }
+  }
+
   const slice: Slice = {
     start: Math.max(dateIndex(data, params.dateRange.start), 260),
     end: Math.min(dateIndex(data, params.dateRange.end) + 1, data.dates.length - 1)
@@ -694,7 +861,8 @@ export function runRealBacktest(
   }
 
   const holding = Math.max(1, params.holdingPeriod);
-  const costRate = params.transactionCostBps / 10000;
+  const executionLag: 0 | 1 = params.executionLag === 0 ? 0 : 1;
+  const delistingHaircut = Math.max(0, num(params.delistingHaircutBps, 30)) / 10000;
   const longOnly = params.portfolioType === "long_only";
   const isTimeSeriesFamily = strategy.familyKey === "seasonality" || strategy.familyKey === "trend_overlay";
   const periodsPerYear = data.periodsPerYear ?? DEFAULT_PERIODS_PER_YEAR;
@@ -714,9 +882,14 @@ export function runRealBacktest(
   for (let day = slice.start; day < slice.end - 1; day += 1) {
     // rebalance on schedule
     if ((day - slice.start) % holding === 0) {
+      // A signal observed at close t cannot be filled at that same close. Use
+      // a prior bar for the decision, execute at `day`, then earn `day+1`.
+      // Lag-0 remains available only for diagnostic side-by-side comparisons.
+      const signalDay = day - executionLag;
       const raw: Array<[string, number]> = [];
       for (const symbol of universe) {
-        const signal = computeSignal(strategy, data, symbol, day, industryPeers, periodsPerYear);
+        if (!tradableAt(data, symbol, signalDay) || !tradableAt(data, symbol, day)) continue;
+        const signal = computeSignal(strategy, data, symbol, signalDay, industryPeers, periodsPerYear, formulaExpr);
         if (signal !== null && Number.isFinite(signal)) raw.push([symbol, signal]);
       }
       // Cross-sectional neutralization (Alphalens/Qlib): winsorize then strip the
@@ -724,10 +897,10 @@ export function runRealBacktest(
       // the IC we report are sector- & beta-neutral, not an uncontrolled tilt.
       // Time-series families (seasonality/trend overlay) are market-timing signals,
       // not cross-sectional ranks, so they are left untouched.
-      let signals: Array<[string, number]> = raw;
-      if (!isTimeSeriesFamily && raw.length >= 6) {
+      let signals: Array<[string, number]> = regimeAllows(strategy, data, signalDay) ? raw : [];
+      if (!isTimeSeriesFamily && signals.length >= 6) {
         const groups = raw.map(([symbol]) => data.tickers[symbol].industry);
-        const betas = raw.map(([symbol]) => rollingBeta(data.returns[symbol], data.returns[data.benchmark], day, 60));
+        const betas = raw.map(([symbol]) => rollingBeta(data.returns[symbol], data.returns[data.benchmark], signalDay, 60));
         const neutral = preprocessSignal(
           raw.map(([, value]) => value),
           { winsorize: 0.025, groups, betas }
@@ -739,12 +912,15 @@ export function runRealBacktest(
       // is after day. Record the returns-index so IS/OOS IC can be split later.
       if (signals.length >= 6) {
         const csSignal: number[] = [];
-        const fwd: Record<number, number[]> = { 1: [], 5: [], 10: [], 20: [] };
+        const fwd: Record<number, number[]> = { 1: [], 3: [], 5: [], 10: [], 20: [] };
         for (const [symbol, signal] of signals) {
           csSignal.push(signal);
           const c0 = data.tickers[symbol].closes[day];
-          for (const h of [1, 5, 10, 20]) {
-            const ch = data.tickers[symbol].closes[day + h];
+          for (const h of [1, 3, 5, 10, 20]) {
+            // Never let requested-range factor evidence borrow labels beyond
+            // the panel boundary. Development filtering below additionally
+            // removes labels that would touch the lockbox.
+            const ch = day + h < slice.end ? data.tickers[symbol].closes[day + h] : null;
             fwd[h].push(c0 && ch ? ch / c0 - 1 : NaN);
           }
         }
@@ -759,7 +935,10 @@ export function runRealBacktest(
         active.forEach(([symbol]) => next.set(symbol, weight));
       } else if (signals.length >= 6) {
         signals.sort((a, b) => b[1] - a[1]);
-        const bucket = Math.max(2, Math.floor(signals.length * 0.3));
+        const requestedTargetCount = Math.round(num(strategy.parameters.targetCount, 0));
+        const defaultBucket = Math.max(2, Math.floor(signals.length * 0.3));
+        const maxBucket = longOnly ? signals.length : Math.max(1, Math.floor(signals.length / 2));
+        const bucket = Math.min(maxBucket, requestedTargetCount > 0 ? Math.max(1, requestedTargetCount) : defaultBucket);
         const longWeight = 1 / bucket;
         for (let index = 0; index < bucket; index += 1) next.set(signals[index][0], longWeight);
         if (!longOnly) {
@@ -786,7 +965,13 @@ export function runRealBacktest(
       // point-in-time ADV (data up to `day` only — no lookahead) for the cost model
       const advAt = new Map<string, number | null>();
       deltas.forEach((_, symbol) => advAt.set(symbol, avgDollarVolume(data, symbol, day, 60)));
-      pendingCost += rebalanceCostFraction(deltas, advAt, params.transactionCostBps, REF_BOOK_USD);
+      pendingCost += rebalanceCostFraction(
+        deltas,
+        advAt,
+        params.transactionCostBps,
+        REF_BOOK_USD,
+        benchmarkVolMultiplier(data, day)
+      );
     }
 
     // earn next-bar returns with current weights, net of pending rebalance cost and
@@ -795,14 +980,23 @@ export function runRealBacktest(
     if (!longOnly) {
       const borrowAdv = new Map<string, number | null>();
       weights.forEach((w, symbol) => { if (w < 0) borrowAdv.set(symbol, avgDollarVolume(data, symbol, day, 60)); });
-      borrowDrag = dailyBorrowFraction(weights, borrowAdv);
+      borrowDrag = dailyBorrowFraction(weights, borrowAdv, benchmarkVolMultiplier(data, day), periodsPerYear);
     }
     let dayReturn = -pendingCost - borrowDrag;
     pendingCost = 0;
+    const forcedExits: string[] = [];
     weights.forEach((weight, symbol) => {
       const ret = data.returns[symbol][day + 1];
-      if (ret !== null) dayReturn += weight * ret;
+      if (ret !== null && ret !== undefined && tradableAt(data, symbol, day + 1)) {
+        dayReturn += weight * ret;
+      } else {
+        // The name stopped producing a tradable next bar. Close at the last
+        // known mark with a haircut instead of silently awarding a zero return.
+        dayReturn -= Math.abs(weight) * delistingHaircut;
+        forcedExits.push(symbol);
+      }
     });
+    forcedExits.forEach((symbol) => weights.delete(symbol));
     returns.push(dayReturn);
     const benchReturn = data.returns[data.benchmark][day + 1];
     benchmarkReturns.push(benchReturn ?? 0);
@@ -810,30 +1004,53 @@ export function runRealBacktest(
     yearsPnl.set(year, (yearsPnl.get(year) ?? 0) + dayReturn);
   }
 
-  const splitIndex = Math.floor(returns.length * 0.58);
+  // The final 12% is a hard lockbox. Ordinary research, factor analytics,
+  // pool correlation, walk-forward validation, and displayed curves only see
+  // the development region. A caller must explicitly request the lockbox after
+  // the pre-lockbox admission checks have already passed.
+  const lockboxStart = Math.max(0, Math.floor(returns.length * 0.88));
+  const developmentLength = lockboxStart;
+  const splitIndex = Math.floor(developmentLength * 0.58);
   // PURGE + EMBARGO the IS/OOS boundary (López de Prado): the strategy's labels are
   // holding-bar forward returns, so the first `holding` bars after the split share
   // return windows with the last in-sample rebalance — PURGE them. Then add a small
   // EMBARGO gap (serial-correlation buffer) before out-of-sample begins, so the OOS
   // metrics + OOS IC the admission gate trusts carry no leakage from in-sample.
   const embargo = Math.max(1, Math.round(returns.length * 0.01));
-  const oosStart = Math.min(returns.length, splitIndex + holding + embargo);
+  const oosStart = Math.min(developmentLength, splitIndex + holding + executionLag + embargo);
   const trials = context.totalTrials;
 
   const extras: RealBacktestExtras = {
-    dailyReturns: returns.map((value) => Number(value.toFixed(6))),
+    dailyReturns: returns.slice(0, developmentLength).map((value) => Number(value.toFixed(6))),
     returnsStartIndex: slice.start,
-    benchmarkReturns: benchmarkReturns.slice(),
-    dates: returns.map((_, index) => data.dates[slice.start + index + 1] ?? data.dates[data.dates.length - 1]),
+    benchmarkReturns: benchmarkReturns.slice(0, developmentLength),
+    dates: returns.slice(0, developmentLength).map((_, index) => data.dates[slice.start + index + 1] ?? data.dates[data.dates.length - 1]),
     periodsPerYear
   };
-  const poolCorrelation = realPoolCorrelation(extras, context.priorCandidates);
-  const randomBaseline = randomRankBaselineOosSharpe(data, universe, slice, holding, costRate, longOnly, periodsPerYear, 0.58);
+  const poolExtras: RealBacktestExtras = {
+    dailyReturns: returns.slice(oosStart, developmentLength).map((value) => Number(value.toFixed(6))),
+    returnsStartIndex: slice.start + oosStart
+  };
+  extras.oosDailyReturns = poolExtras.dailyReturns;
+  extras.oosReturnsStartIndex = poolExtras.returnsStartIndex;
+  const poolCorrelation = realPoolCorrelation(poolExtras, context.priorCandidates);
+  const developmentSlice: Slice = { start: slice.start, end: Math.min(slice.end, slice.start + developmentLength + 1) };
+  const randomBaseline = randomRankBaselineOosSharpe(
+    data,
+    universe,
+    developmentSlice,
+    holding,
+    params.transactionCostBps,
+    longOnly,
+    periodsPerYear,
+    0.58,
+    oosStart - splitIndex
+  );
 
   const splitYears = (from: number, to: number) => {
     const map = new Map<string, number>();
     for (let index = from; index < to; index += 1) {
-      const year = data.dates[slice.start + index]?.slice(0, 4) ?? "?";
+      const year = data.dates[slice.start + index + 1]?.slice(0, 4) ?? "?";
       map.set(year, (map.get(year) ?? 0) + returns[index]);
     }
     return map;
@@ -851,29 +1068,39 @@ export function runRealBacktest(
     randomBaseline
   );
   const outOfSample = computeRealMetrics(
-    returns.slice(oosStart),
+    returns.slice(oosStart, developmentLength),
     turnoverSeries.slice(Math.ceil(oosStart / holding)),
-    weightsHistory.slice(Math.ceil(oosStart / holding)),
-    splitYears(oosStart, returns.length),
+    weightsHistory.slice(Math.ceil(oosStart / holding), Math.ceil(developmentLength / holding)),
+    splitYears(oosStart, developmentLength),
     trials,
     poolCorrelation,
     undefined,
     periodsPerYear,
     randomBaseline
   );
-  const full = computeRealMetrics(returns, turnoverSeries, weightsHistory, yearsPnl, trials, poolCorrelation, undefined, periodsPerYear, randomBaseline);
+  const full = computeRealMetrics(
+    returns.slice(0, developmentLength),
+    turnoverSeries.slice(0, Math.ceil(developmentLength / holding)),
+    weightsHistory.slice(0, Math.ceil(developmentLength / holding)),
+    splitYears(0, developmentLength),
+    trials,
+    poolCorrelation,
+    undefined,
+    periodsPerYear,
+    randomBaseline
+  );
 
   // equity curve on real dates
   const equityCurve: EquityPoint[] = [];
   let equity = 1;
   let benchmark = 1;
   let peak = 1;
-  const step = Math.max(1, Math.floor(returns.length / 320));
-  for (let index = 0; index < returns.length; index += 1) {
+  const step = Math.max(1, Math.floor(developmentLength / 320));
+  for (let index = 0; index < developmentLength; index += 1) {
     equity *= 1 + returns[index];
     benchmark *= 1 + benchmarkReturns[index];
     peak = Math.max(peak, equity);
-    if (index % step === 0 || index === returns.length - 1) {
+    if (index % step === 0 || index === developmentLength - 1) {
       equityCurve.push({
         date: data.dates[slice.start + index + 1] ?? data.dates[data.dates.length - 1],
         equity: round(equity, 4),
@@ -888,13 +1115,19 @@ export function runRealBacktest(
   // PURGED+EMBARGOED OOS start (splitIndex + holding), so the admission gate's
   // "predictive skill" check cannot be satisfied by in-sample IC and carries no
   // label-window overlap with the last in-sample rebalance. Full-sample kept for display.
-  const oosCrossSections = crossSections.filter((_, index) => crossSectionReturnIndex[index] >= oosStart);
+  const developmentCrossSections = crossSections.filter(
+    (_, index) => crossSectionReturnIndex[index] + 20 <= developmentLength
+  );
+  const oosCrossSections = crossSections.filter(
+    (_, index) =>
+      crossSectionReturnIndex[index] >= oosStart && crossSectionReturnIndex[index] + 20 <= developmentLength
+  );
 
   // MEASURED capacity input: median recent (~60-bar) daily dollar volume across the
   // traded universe, when the dataset carries volume. Drives a real ADV-based
   // capacity model instead of a turnover heuristic.
   const advValues = universe
-    .map((symbol) => avgDollarVolume(data, symbol, slice.end - 1, 60))
+    .map((symbol) => avgDollarVolume(data, symbol, Math.min(slice.end - 1, slice.start + developmentLength), 60))
     .filter((value): value is number => value !== null && Number.isFinite(value) && value > 0)
     .sort((a, b) => a - b);
   const medianDollarVolume = advValues.length > 0 ? advValues[Math.floor(advValues.length / 2)] : undefined;
@@ -905,10 +1138,32 @@ export function runRealBacktest(
     full,
     equityCurve,
     generatedCode: "",
-    dataUsed: `${universe.length} names, ${data.dates[slice.start]} to ${data.dates[slice.end - 1]}, ${data.frequency ?? "daily"} adjusted closes (${data.source}), benchmark ${data.benchmark}; cross-sectional signals winsorized + sector/beta-neutralized before ranking`,
-    factorAnalytics: computeFactorAnalytics(crossSections, holding) ?? undefined,
+    dataUsed: `${universe.length} names, ${data.dates[slice.start]} to ${data.dates[Math.min(slice.end - 1, slice.start + developmentLength)]}, ${data.frequency ?? "daily"} adjusted closes (${data.source}), benchmark ${data.benchmark}; final 12% lockbox withheld; cross-sectional signals winsorized + sector/beta-neutralized before ranking`,
+    factorAnalytics: computeFactorAnalytics(developmentCrossSections, holding) ?? undefined,
     factorAnalyticsOOS: computeFactorAnalytics(oosCrossSections, holding) ?? undefined,
     medianDollarVolume
   };
+  if (context.evaluateLockbox && returns.length - developmentLength >= 20) {
+    const lockboxMetrics = computeRealMetrics(
+      returns.slice(developmentLength),
+      turnoverSeries.slice(Math.ceil(developmentLength / holding)),
+      weightsHistory.slice(Math.ceil(developmentLength / holding)),
+      splitYears(developmentLength, returns.length),
+      trials,
+      poolCorrelation,
+      undefined,
+      periodsPerYear,
+      randomBaseline
+    );
+    const denominator = Math.max(0.1, Math.abs(outOfSample.sharpeRatio));
+    const sharpeDecay = Math.max(0, (outOfSample.sharpeRatio - lockboxMetrics.sharpeRatio) / denominator);
+    result.lockbox = {
+      metrics: lockboxMetrics,
+      startDate: data.dates[slice.start + developmentLength + 1] ?? data.dates[data.dates.length - 1],
+      endDate: data.dates[slice.end - 1] ?? data.dates[data.dates.length - 1],
+      sharpeDecay: round(sharpeDecay, 3),
+      passed: lockboxMetrics.sharpeRatio > 0 && sharpeDecay < 0.6
+    };
+  }
   return { result, extras };
 }

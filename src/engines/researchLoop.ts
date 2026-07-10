@@ -10,11 +10,12 @@ import {
 import { makeMockMarketData } from "./mockMarketData";
 import { runBacktest } from "./backtestEngine";
 import { RealBacktestExtras } from "./realBacktestEngine";
-import { poolSharpeDelta } from "./poolAnalytics";
+import { computePbo, poolSharpeDelta } from "./poolAnalytics";
 import { decideExperimentStatus, reviewBacktestRisk } from "./riskReviewEngine";
 import { DatasetProvider } from "./dataset/types";
 import { buildResearchWorkflowAudit } from "./researchWorkflow";
 import { computeWalkForward } from "./walkForward";
+import { ensureTrialFloor, recordTrials, totalTrials } from "./trialRegistry";
 
 export interface IterationInput {
   settings: Settings;
@@ -82,7 +83,7 @@ export async function prepareIteration(
   input: Omit<IterationInput, "strictnessBias">
 ): Promise<IterationDraft> {
   const { settings, memory, iteration, experiments, bossDirective, explorationBias, datasetProvider } = input;
-  const strategy = await adapter.proposeHypothesis({
+  let strategy = await adapter.proposeHypothesis({
     settings,
     memory,
     iteration,
@@ -90,8 +91,41 @@ export async function prepareIteration(
     bossDirective,
     explorationBias,
     datasetProfile: datasetProvider?.profileText(),
-    computableFamilies: datasetProvider ? datasetProvider.computableFamilies() : null
+    computableFamilies: datasetProvider ? datasetProvider.computableFamilies() : null,
+    canMine: Boolean(datasetProvider?.mineFormula)
   });
+  if (strategy.ideaMode === "mine") {
+    const mined = await datasetProvider?.mineFormula?.({
+      experiments,
+      seed: `${settings.researchTaskName}-${iteration}-${experiments.length}`,
+      startDate: settings.startDate,
+      endDate: settings.endDate
+    });
+    if (mined) {
+      // The registry counts every miner fitness evaluation before the formula
+      // has a chance to reach the backtest gate.
+      recordTrials(Math.max(1, mined.evaluations), "formula_miner_fitness");
+      strategy = {
+        ...strategy,
+        parameters: { ...strategy.parameters, formula: mined.formula, regimeGate: strategy.parameters.regimeGate ?? "none" },
+        factorLogic: mined.formula,
+        hypothesis: `Mined formulaic alpha: ${mined.formula}`,
+        ideaReasoning: [
+          ...strategy.ideaReasoning,
+          `Miner generation selected ${mined.formula} (training fitness ${mined.fitness.toFixed(3)}; ${mined.evaluations} registered evaluations).`
+        ]
+      };
+    } else {
+      // A provider can disappear between proposal and execution. Do not leave a
+      // blank formula that the engine might silently treat as another family.
+      strategy = {
+        ...strategy,
+        parameters: { ...strategy.parameters, formula: "mom(120, 5)", regimeGate: "none" },
+        factorLogic: "mom(120, 5)",
+        ideaReasoning: [...strategy.ideaReasoning, "Miner unavailable at execution time; using a visible seed motif for a normal gated run."]
+      };
+    }
+  }
   const generatedCode = await adapter.generateStrategyLogic(strategy);
   return { iteration, strategy, generatedCode, provider: datasetProvider };
 }
@@ -110,10 +144,17 @@ export async function completeIteration(
     holdingPeriod: strategy.holdingPeriod,
     portfolioType: strategy.portfolioType,
     transactionCostBps: settings.transactionCostBps,
-    benchmark: "SPY"
+    benchmark: "SPY",
+    executionLag: 1,
+    delistingHaircutBps: 30
   };
   const familyAttempts = experiments.filter((experiment) => experiment.familyKey === strategy.familyKey).length;
   const priorCandidates = experiments.filter((experiment) => experiment.status === "candidate");
+  ensureTrialFloor(experiments.filter((experiment) => experiment.synthetic !== true && experiment.dataSource !== "mock").length);
+  // Count the current experiment before calculating DSR, including runs that
+  // ultimately fail data validation or are illustrative-only.
+  recordTrials(1, "lab_backtest");
+  const trialCount = Math.max(1, totalTrials());
 
   // The active dataset provider (bundled / your CSV / remote / a large source
   // read by the CLI) backtests price-computable families; anything else — or a
@@ -124,7 +165,7 @@ export async function completeIteration(
   let datasetLabel: string | undefined;
   const output =
     datasetProvider && datasetProvider.canBacktest(strategy.familyKey)
-      ? await datasetProvider.runBacktest(strategy, params, { totalTrials: experiments.length + 1, priorCandidates })
+      ? await datasetProvider.runBacktest(strategy, params, { totalTrials: trialCount, priorCandidates })
       : null;
   if (output) {
     backtest = output.result;
@@ -132,11 +173,6 @@ export async function completeIteration(
     backtest.synthetic = false;
     extras = output.extras;
     datasetLabel = datasetProvider?.meta().label;
-    // keep stored series bounded for localStorage (last ~6 years)
-    if (extras.dailyReturns.length > 1500) {
-      extras.returnsStartIndex += extras.dailyReturns.length - 1500;
-      extras.dailyReturns = extras.dailyReturns.slice(-1500);
-    }
   } else {
     // No real backtest is possible for this family on the active dataset (e.g. a
     // news/earnings factor on a close-only price panel). The mock simulator
@@ -146,16 +182,29 @@ export async function completeIteration(
     const marketRows = makeMockMarketData(settings.startDate, 430);
     backtest = runBacktest(strategy, params, marketRows, generatedCode, {
       familyAttempts,
-      totalTrials: experiments.length + 1,
+      totalTrials: trialCount,
       priorCandidates
     });
     backtest.synthetic = true;
     datasetLabel = "Illustrative mock simulator (no real data for this family)";
   }
-  const riskReview = reviewBacktestRisk(strategy, backtest);
+  const pboFor = (series: RealBacktestExtras | undefined) => {
+    if (!series?.oosDailyReturns || series.oosReturnsStartIndex === undefined) return computePbo(experiments);
+    const current = {
+      id: `PBO-${iteration}`,
+      dailyReturns: series.oosDailyReturns,
+      returnsStartIndex: series.oosReturnsStartIndex
+    } as ExperimentRecord;
+    return computePbo([...experiments, current]);
+  };
+  const pbo = pboFor(extras);
+  const riskReview = reviewBacktestRisk(strategy, backtest, { pbo: pbo ?? undefined });
   // the candidate gate uses the pool-ΔSharpe (does this alpha ADD to the pool?);
   // synthetic results are excluded from any real decision.
-  const poolDelta = extras ? poolSharpeDelta(extras, priorCandidates) : undefined;
+  const poolDelta =
+    extras?.oosDailyReturns && extras.oosReturnsStartIndex !== undefined
+      ? poolSharpeDelta({ dailyReturns: extras.oosDailyReturns, returnsStartIndex: extras.oosReturnsStartIndex }, priorCandidates)
+      : undefined;
   // purged + embargoed walk-forward on the true daily series, fed INTO the gate so
   // a single-regime fluke can't be promoted (previously this was display-only).
   const walkForwardPassRate =
@@ -167,7 +216,19 @@ export async function completeIteration(
       : undefined;
   const status: ExperimentRecord["status"] = backtest.synthetic
     ? "not_backtestable"
-    : decideExperimentStatus(backtest, riskReview, generatedCode, strictnessBias, poolDelta, walkForwardPassRate);
+    : decideExperimentStatus(backtest, riskReview, generatedCode, strictnessBias, poolDelta, walkForwardPassRate, pbo ?? undefined);
+
+  // Normal research never opens the final 12% lockbox. A candidate here means
+  // "eligible for an explicit frozen deployment review"; the paper validator is
+  // the sole consumer of the sealed holdout.
+  // Keep stored pool series bounded and OOS-only. Full development returns stay
+  // transient for workflow diagnostics; candidates never contribute IS data to
+  // another candidate's pool correlation or PBO.
+  if (extras?.oosDailyReturns && extras.oosReturnsStartIndex !== undefined && extras.oosDailyReturns.length > 1500) {
+    const trim = extras.oosDailyReturns.length - 1500;
+    extras.oosReturnsStartIndex += trim;
+    extras.oosDailyReturns = extras.oosDailyReturns.slice(-1500);
+  }
   const createdAt = new Date().toISOString();
   const workflowAudit = buildResearchWorkflowAudit({
     strategy,
@@ -202,11 +263,14 @@ export async function completeIteration(
     strategyParameters: strategy.parameters,
     dataSource: extras ? ("real" as const) : ("mock" as const),
     datasetLabel,
-    dailyReturns: extras?.dailyReturns,
-    returnsStartIndex: extras?.returnsStartIndex,
+    // Persist only working-OOS returns for pool/PBO alignment. The full
+    // development series remains in the UI-only audit built below.
+    dailyReturns: extras?.oosDailyReturns,
+    returnsStartIndex: extras?.oosReturnsStartIndex,
     poolSharpeDelta: poolDelta,
     factorAnalytics: backtest.factorAnalytics,
     factorAnalyticsOOS: backtest.factorAnalyticsOOS,
+    lockbox: backtest.lockbox,
     synthetic: backtest.synthetic,
     dataRange: `${settings.startDate} to ${settings.endDate}`,
     dataUsed: backtest.dataUsed,

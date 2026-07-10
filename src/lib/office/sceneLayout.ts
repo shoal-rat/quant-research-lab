@@ -1,5 +1,6 @@
 import { CSSProperties } from "react";
 import { OfficeAreaId } from "../../types";
+import { assetUrl } from "../assets/publicAsset";
 
 export interface SceneRegion {
   x: number;
@@ -26,7 +27,7 @@ export const sceneLayout = {
   background: {
     width: 1672,
     height: 941,
-    asset: "/assets/generated/office/office-bg.webp"
+    asset: assetUrl("assets/generated/office/office-bg.webp")
   },
   dynamicSurfaces: {
     leaderboardScreen: {

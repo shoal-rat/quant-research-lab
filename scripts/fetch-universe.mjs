@@ -105,9 +105,12 @@ for (const [sym, map] of series) {
   let present = 0;
   for (const d of dates) {
     const bar = map.get(d);
-    if (bar !== undefined) { last = bar; present += 1; }
+    const observed = bar !== undefined;
+    if (observed) { last = bar; present += 1; }
     closes.push(last === null ? null : Number(last.c.toFixed(4)));
-    volumes.push(last === null || last.v === null ? null : Math.round(last.v));
+    // A carried close is for valuation only. Zero volume marks the bar
+    // untradable so the backtester cannot rebalance into stale/delisted quotes.
+    volumes.push(!observed ? 0 : bar.v === null ? null : Math.round(bar.v));
     highs.push(last === null || last.h === null ? null : Number(last.h.toFixed(4)));
     lows.push(last === null || last.l === null ? null : Number(last.l.toFixed(4)));
   }
@@ -124,6 +127,8 @@ const bundle = {
   end: dates[dates.length - 1],
   dates,
   benchmark: "SPY",
+  membershipPointInTime: false,
+  missingBarsUntradable: true,
   tickers
 };
 

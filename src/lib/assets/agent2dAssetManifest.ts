@@ -1,4 +1,5 @@
 import { AgentRole } from "../../types";
+import { assetUrl } from "./publicAsset";
 
 export type Agent2DId =
   | "strategy-researcher"
@@ -98,11 +99,11 @@ export const expressionNames: Agent2DExpression[] = [
 ];
 
 function spritePath(agentId: Agent2DId, sprite: string): string {
-  return `/assets/generated/agents-2d/${agentId}/${sprite}.png`;
+  return assetUrl(`assets/generated/agents-2d/${agentId}/${sprite}.png`);
 }
 
 function expressionPath(agentId: Agent2DId, expression: Agent2DExpression): string {
-  return `/assets/generated/agents-2d/${agentId}/expressions/${expression}.png`;
+  return assetUrl(`assets/generated/agents-2d/${agentId}/expressions/${expression}.png`);
 }
 
 export const generatedAgent2DManifest: Agent2DManifest[] = agentDefinitions.map((definition) => ({
@@ -111,7 +112,7 @@ export const generatedAgent2DManifest: Agent2DManifest[] = agentDefinitions.map(
   displayName: definition.displayName,
   scale: 1,
   anchor: { x: 0.5, y: 0.9 },
-  avatar: `/assets/generated/agents-2d/${definition.id}/avatar.png`,
+  avatar: assetUrl(`assets/generated/agents-2d/${definition.id}/avatar.png`),
   sprites: Object.fromEntries(
     [...directionalSpriteNames, ...definition.workSprites].map((sprite) => [sprite, spritePath(definition.id, sprite)])
   ),
@@ -138,4 +139,3 @@ export function resolveAgent2DSprite(
   if (spriteName && manifest.sprites[spriteName]) return manifest.sprites[spriteName];
   return manifest.sprites[`idle-${facing}`] ?? manifest.sprites["idle-front"];
 }
-

@@ -145,7 +145,7 @@ export interface PboReport {
 }
 
 export function computePbo(experiments: ExperimentRecord[], blocks = 8): PboReport | null {
-  const trials = experiments.filter(hasSeries).slice(-20);
+  const trials = experiments.filter(hasSeries);
   if (trials.length < 5) return null;
   // align on the shared overlap window
   const start = Math.max(...trials.map((trial) => trial.returnsStartIndex));
@@ -154,12 +154,12 @@ export function computePbo(experiments: ExperimentRecord[], blocks = 8): PboRepo
   if (length < blocks * 20) return null;
 
   const blockSize = Math.floor(length / blocks);
-  const blockSharpe: number[][] = trials.map((trial) => {
+  const blockReturns: number[][][] = trials.map((trial) => {
     const offset = start - trial.returnsStartIndex;
-    const perBlock: number[] = [];
+    const perBlock: number[][] = [];
     for (let block = 0; block < blocks; block += 1) {
       const slice = trial.dailyReturns!.slice(offset + block * blockSize, offset + (block + 1) * blockSize);
-      perBlock.push(sharpeOf(slice));
+      perBlock.push(slice);
     }
     return perBlock;
   });
@@ -170,12 +170,15 @@ export function computePbo(experiments: ExperimentRecord[], blocks = 8): PboRepo
   let used = 0;
   for (const inBlocks of splits) {
     const outBlocks = indices.filter((index) => !inBlocks.includes(index));
-    const inScores = blockSharpe.map((perBlock) => inBlocks.reduce((sum, block) => sum + perBlock[block], 0));
-    const outScores = blockSharpe.map((perBlock) => outBlocks.reduce((sum, block) => sum + perBlock[block], 0));
+    // Recompute performance on the concatenated split returns. Adding separately
+    // annualized block Sharpes is not a valid Sharpe for the combined sample.
+    const inScores = blockReturns.map((perBlock) => sharpeOf(inBlocks.flatMap((block) => perBlock[block])));
+    const outScores = blockReturns.map((perBlock) => sharpeOf(outBlocks.flatMap((block) => perBlock[block])));
     const winner = inScores.indexOf(Math.max(...inScores));
-    const sortedOut = [...outScores].sort((a, b) => a - b);
-    const rank = sortedOut.indexOf(outScores[winner]);
-    const relative = rank / (sortedOut.length - 1);
+    const winnerOut = outScores[winner];
+    const below = outScores.filter((score) => score < winnerOut).length;
+    const equal = outScores.filter((score) => score === winnerOut).length;
+    const relative = (below + Math.max(0, equal - 1) / 2) / (outScores.length - 1);
     if (relative < 0.5) overfit += 1;
     used += 1;
   }

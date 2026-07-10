@@ -5,7 +5,11 @@ function check(id: string, label: string, status: RiskCheck["status"], detail: s
   return { id, label, status, detail };
 }
 
-export function reviewBacktestRisk(strategy: StrategySpec, backtest: BacktestResult): RiskReview {
+export function reviewBacktestRisk(
+  strategy: StrategySpec,
+  backtest: BacktestResult,
+  validation?: { pbo?: { pbo: number; trialsUsed: number } }
+): RiskReview {
   const is = backtest.inSample;
   const oos = backtest.outOfSample;
   const family = getFamily(strategy.familyKey);
@@ -21,6 +25,38 @@ export function reviewBacktestRisk(strategy: StrategySpec, backtest: BacktestRes
         : "Mock adapter flags this for timestamp audit before real data integration."
     )
   );
+
+  const pbo = validation?.pbo;
+  if (pbo && pbo.trialsUsed >= 20) {
+    checks.push(
+      check(
+        "pbo",
+        "CSCV probability of backtest overfitting",
+        pbo.pbo > 0.5 ? "fail" : pbo.pbo > 0.3 ? "warn" : "pass",
+        `CSCV PBO is ${(pbo.pbo * 100).toFixed(0)}% across ${pbo.trialsUsed} real OOS trials.`
+      )
+    );
+  } else {
+    checks.push(
+      check(
+        "pbo",
+        "CSCV probability of backtest overfitting",
+        "warn",
+        "PBO needs 20 aligned real OOS trials before it can be decisive."
+      )
+    );
+  }
+
+  if (backtest.lockbox) {
+    checks.push(
+      check(
+        "lockbox",
+        "Final lockbox holdout",
+        backtest.lockbox.passed ? "pass" : "fail",
+        `Lockbox Sharpe ${backtest.lockbox.metrics.sharpeRatio.toFixed(2)}; OOS-to-lockbox decay ${(backtest.lockbox.sharpeDecay * 100).toFixed(0)}%.`
+      )
+    );
+  }
 
   checks.push(
     check(
@@ -184,7 +220,9 @@ export function decideExperimentStatus(
   generatedCode: string,
   strictnessBias = 0,
   poolDelta?: number,
-  walkForwardPassRate?: number
+  walkForwardPassRate?: number,
+  pbo?: { pbo: number; trialsUsed: number },
+  requireLockbox = false
 ): ExperimentStatus {
   const failCount = review.checks.filter((item) => item.status === "fail").length;
   const warnCount = review.checks.filter((item) => item.status === "warn").length;
@@ -199,6 +237,7 @@ export function decideExperimentStatus(
   if (failCount >= rejectAt || backtest.outOfSample.returnAfterCosts < -0.08) {
     return "rejected";
   }
+  if (pbo && pbo.trialsUsed >= 20 && pbo.pbo > 0.5) return "rejected";
   if (failCount >= 1 || warnCount >= warnLimit || backtest.outOfSample.overfittingRiskScore > 72 - strictnessBias * 4) {
     return "retest_needed";
   }
@@ -223,7 +262,12 @@ export function decideExperimentStatus(
     // candidate must hold up across the majority of out-of-sample windows, so a
     // single-regime fluke that the panel would expose can't clear the gate.
     const wfWeak = walkForwardPassRate !== undefined && walkForwardPassRate < 0.6;
-    if (redundant || !additive || !hasOosSkill || wfWeak) return "retest_needed";
+    // PBO is a promotion prerequisite, not a display-only warning. Until the desk
+    // has 20 aligned real trials, selection-overfitting risk is unknown and the
+    // strategy stays in retest rather than graduating on missing evidence.
+    const pboReady = pbo !== undefined && pbo.trialsUsed >= 20;
+    const lockboxWeak = requireLockbox && (!backtest.lockbox || !backtest.lockbox.passed);
+    if (redundant || !additive || !hasOosSkill || wfWeak || !pboReady || lockboxWeak) return "retest_needed";
     return "candidate";
   }
   return "archived";

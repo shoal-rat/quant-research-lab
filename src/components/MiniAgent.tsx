@@ -1,5 +1,6 @@
 import { Bot, Coffee, FileSearch, MessageCircle, Terminal, Zap } from "lucide-react";
 import { CSSProperties } from "react";
+import { assetUrl } from "../lib/assets/publicAsset";
 import { AgentProfile, AgentRuntime } from "../types";
 
 function StateIcon({ state }: { state: AgentRuntime["state"] }): JSX.Element {
@@ -21,7 +22,7 @@ export function MiniAgent({
   onClick: () => void;
 }): JSX.Element | null {
   if (!agent.visible) return null;
-  const spriteSrc = agent.defaultAssetPath ?? agent.characterImageDataUrl;
+  const spriteSrc = agent.defaultAssetPath ? assetUrl(agent.defaultAssetPath) : agent.characterImageDataUrl;
   const hasCustomAvatar = Boolean(agent.avatarDataUrl);
   const style = {
     left: `${runtime.x}%`,

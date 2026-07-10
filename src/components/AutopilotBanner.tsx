@@ -7,10 +7,11 @@ import { navigate } from "../App";
 // mirror from the store (a single poller) — it does NOT start anything itself; the
 // green ▶ in the HUD is the single start. Here it just explains and shows progress.
 export function AutopilotBanner(): JSX.Element | null {
-  const { settings, raceState, stopRace } = useAppStore();
+  const { settings, raceState, cliStatus, stopRace } = useAppStore();
   const zh = settings.language === "zh";
   const [minimized, setMinimized] = useState(false);
   const { running, bridgeUp, strategies, activity } = raceState;
+  const bridgeOffline = bridgeUp === false || (!cliStatus.connected && !cliStatus.checking);
 
   if (minimized) {
     return (
@@ -36,7 +37,7 @@ export function AutopilotBanner(): JSX.Element | null {
             {zh ? `运行中 · ${strategies || "…"} 条策略 · ` : `Running · ${strategies || "…"} strategies · `}
             {activity}
           </span>
-        ) : bridgeUp === false ? (
+        ) : bridgeOffline ? (
           <span className="warn">
             {zh
               ? "引擎未启动 —— 双击项目里的 start.cmd（或运行 npm run dialogue-bridge），然后点上方绿色 ▶ 开始。"

@@ -108,7 +108,7 @@ export type DataSource = "mock" | "real";
 // This is an LLM-native project: the research brain is always one of the two
 // agentic CLIs. There is no offline/heuristic brain to select.
 export type ResearchBrain = "claude-code" | "codex";
-export type IdeaMode = "explore" | "refine" | "boss_directive" | "repair" | "recombine";
+export type IdeaMode = "explore" | "refine" | "boss_directive" | "repair" | "recombine" | "mine";
 export type Language = "en" | "zh";
 export type ResearchSourceKind =
   | "sec_filing"
@@ -496,6 +496,13 @@ export interface BacktestParameters {
   portfolioType: PortfolioType;
   transactionCostBps: number;
   benchmark: string;
+  // A signal observed at bar t cannot be traded at that same close. The
+  // production default is one full bar of execution delay; 0 is retained only
+  // for diagnostic comparisons.
+  executionLag?: 0 | 1;
+  // Applied when a held name stops printing a usable bar. This avoids silently
+  // treating a delisting / stale feed as a zero return.
+  delistingHaircutBps?: number;
 }
 
 export interface PerformanceMetrics {
@@ -538,7 +545,10 @@ export interface FactorAnalytics {
   icMean: number;
   icStd: number;
   icIR: number;
+  // Newey-West/HAC corrected t-statistic for the IC mean. `icTStat` remains
+  // the public admission metric and is HAC corrected as well.
   icTStat: number;
+  icHacLag?: number;
   hitRate: number;
   icDecay: Array<{ horizon: number; ic: number }>;
   quantiles: QuantileBucket[];
@@ -564,6 +574,15 @@ export interface BacktestResult {
   dataUsed: string;
   factorAnalytics?: FactorAnalytics; // full-sample, for display
   factorAnalyticsOOS?: FactorAnalytics; // out-of-sample only, used by the admission gate
+  // The final holdout is deliberately absent until a strategy has cleared all
+  // pre-lockbox gates. It is evaluated once, at promotion time.
+  lockbox?: {
+    metrics: PerformanceMetrics;
+    startDate: string;
+    endDate: string;
+    sharpeDecay: number;
+    passed: boolean;
+  };
   // true when produced by the mock simulator (no real backtest possible for this
   // family on the active dataset); such results are illustrative and never promoted.
   synthetic?: boolean;
@@ -612,6 +631,7 @@ export interface ExperimentRecord {
   poolSharpeDelta?: number;
   factorAnalytics?: FactorAnalytics;
   factorAnalyticsOOS?: FactorAnalytics;
+  lockbox?: BacktestResult["lockbox"];
   synthetic?: boolean;
   dataRange: string;
   dataUsed: string;
@@ -674,6 +694,10 @@ export interface ProposalContext {
   datasetProfile?: string;
   // family keys the active dataset can actually backtest (null = all)
   computableFamilies?: string[] | null;
+  // True only when the active provider can mine formulae against its sealed
+  // training region. A bridge that merely recognizes formulaic_alpha is not
+  // enough to expose this arm.
+  canMine?: boolean;
 }
 
 export interface LLMCapabilities {

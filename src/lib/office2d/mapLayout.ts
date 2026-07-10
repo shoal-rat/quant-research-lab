@@ -1,5 +1,6 @@
 import { CSSProperties } from "react";
 import { OfficeAreaId } from "../../types";
+import { assetUrl } from "../assets/publicAsset";
 
 export interface Office2DPoint {
   x: number;
@@ -27,11 +28,11 @@ export interface Office2DZone {
 export const office2DMapSize = { width: 1600, height: 900 };
 
 export const office2DAssets = {
-  base: "/assets/generated/office-2d/office-map-base.png",
-  foreground: "/assets/generated/office-2d/office-map-foreground.png",
-  preview: "/assets/generated/office-2d/office-map-preview.png",
-  zones: "/assets/generated/office-2d/office-map-zones.json",
-  collision: "/assets/generated/office-2d/office-map-collision.json"
+  base: assetUrl("assets/generated/office-2d/office-map-base.png"),
+  foreground: assetUrl("assets/generated/office-2d/office-map-foreground.png"),
+  preview: assetUrl("assets/generated/office-2d/office-map-preview.png"),
+  zones: assetUrl("assets/generated/office-2d/office-map-zones.json"),
+  collision: assetUrl("assets/generated/office-2d/office-map-collision.json")
 };
 
 export const office2DDisplays = {
@@ -179,4 +180,3 @@ export function pointToPercentStyle(point: Office2DPoint, zIndex?: number): CSSP
     zIndex
   };
 }
-

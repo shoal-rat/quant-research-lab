@@ -9,7 +9,8 @@ import { runRealBacktest } from "./realBacktestEngine";
 import { buildRealMarketData, RealMarketData } from "./realMarket";
 import { proposeStrategy } from "./hypothesisEngine";
 import { STRATEGY_FAMILIES } from "./strategyKnowledge";
-import { ExperimentRecord, ProposalContext } from "../types";
+import { decideExperimentStatus } from "./riskReviewEngine";
+import { BacktestResult, ExperimentRecord, ProposalContext } from "../types";
 
 const PRICE_FAMILIES = STRATEGY_FAMILIES.filter((family) => family.priceComputable).map((family) => family.key);
 
@@ -154,7 +155,19 @@ describe("real-data engine", () => {
     const b = chooseDirection([], { hasRefinable: false, hasRepairable: false, hasRecombinable: false, explorationBias: 0, seed: "x" });
     expect(a.arm).toBe(b.arm);
     expect(a.arm).toBe("explore");
-    expect(armPosteriors([]).length).toBe(4);
+    // Existing callers do not opt into mining, so it cannot perturb their four
+    // Thompson samples or become the selected arm.
+    expect(a.posteriors.some((posterior) => posterior.arm === "mine")).toBe(false);
+    const miningEnabled = chooseDirection([], {
+      hasRefinable: false,
+      hasRepairable: false,
+      hasRecombinable: false,
+      hasMine: true,
+      explorationBias: 0,
+      seed: "x"
+    });
+    expect(miningEnabled.posteriors.some((posterior) => posterior.arm === "mine")).toBe(true);
+    expect(armPosteriors([]).length).toBe(5);
   });
 
   it("pool ΔSharpe and PBO behave sanely on synthetic series", () => {
@@ -186,6 +199,34 @@ describe("real-data engine", () => {
     const niche = [...archive.values()][0];
     expect(niche.attempts).toBe(2);
     expect(niche.best?.id).toBe("S");
+  });
+
+  it("hard-rejects a mature desk when CSCV PBO says it is mining noise", () => {
+    const metrics = fakeExperiment({}).outOfSampleResult;
+    const backtest: BacktestResult = {
+      inSample: { ...metrics, sharpeRatio: 1.5 },
+      outOfSample: { ...metrics, sharpeRatio: 1.4, returnAfterCosts: 0.12 },
+      full: metrics,
+      equityCurve: [],
+      generatedCode: "working strategy implementation",
+      dataUsed: "test",
+      factorAnalyticsOOS: {
+        horizon: 5,
+        observations: 12,
+        icMean: 0.04,
+        icStd: 0.08,
+        icIR: 0.5,
+        icTStat: 2,
+        hitRate: 0.6,
+        icDecay: [],
+        quantiles: [],
+        quantileSpread: 0,
+        quantileMonotonic: true,
+        rankAutocorrelation: 0.2
+      }
+    };
+    const review = { checks: [], summary: "", retestRecommendation: "", passedRiskChecks: 0 };
+    expect(decideExperimentStatus(backtest, review, backtest.generatedCode, 0, 0.2, 1, { pbo: 0.7, trialsUsed: 20 })).toBe("rejected");
   });
 
   it("progression levels rise with achievements earnable", () => {

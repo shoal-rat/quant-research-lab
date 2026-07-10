@@ -1,4 +1,5 @@
 import { t } from "../i18n";
+import { assetUrl } from "../lib/assets/publicAsset";
 import { useAppStore } from "../store/AppStore";
 
 interface LoveWhipPanelProps {
@@ -30,7 +31,7 @@ export function LoveWhipPanel({ tool, onPickTool }: LoveWhipPanelProps): JSX.Ele
           onClick={() => onPickTool(tool === "love" ? null : "love")}
           title={t(lang, "loveTip")}
         >
-          <img src="/assets/generated/ui/love-whip/heart.png" alt="Love" draggable={false} />
+          <img src={assetUrl("assets/generated/ui/love-whip/heart.png")} alt="Love" draggable={false} />
           <span>{t(lang, "love")}</span>
         </button>
         <button
@@ -38,16 +39,16 @@ export function LoveWhipPanel({ tool, onPickTool }: LoveWhipPanelProps): JSX.Ele
           onClick={() => onPickTool(tool === "whip" ? null : "whip")}
           title={t(lang, "whipTip")}
         >
-          <img src="/assets/generated/ui/love-whip/whip.png" alt="Whip" draggable={false} />
+          <img src={assetUrl("assets/generated/ui/love-whip/whip.png")} alt="Whip" draggable={false} />
           <span>{t(lang, "whip")}</span>
         </button>
         <div className="love-whip-stats">
           <span title={t(lang, "morale")}>{avgMorale}% {t(lang, "morale")}</span>
           <span>
-            <img src="/assets/generated/ui/love-whip/heart-badge.png" alt="" /> {totalPraises}
+            <img src={assetUrl("assets/generated/ui/love-whip/heart-badge.png")} alt="" /> {totalPraises}
           </span>
           <span>
-            <img src="/assets/generated/ui/love-whip/whip-badge.png" alt="" /> {totalScolds}
+            <img src={assetUrl("assets/generated/ui/love-whip/whip-badge.png")} alt="" /> {totalScolds}
           </span>
         </div>
         {tool && <p className="love-whip-hint">{t(lang, "clickResearcher")}</p>}

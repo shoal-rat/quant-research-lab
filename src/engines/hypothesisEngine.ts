@@ -163,9 +163,13 @@ export function proposeStrategy(context: ProposalContext): StrategySpec {
   const computable = context.computableFamilies;
   const realData = Array.isArray(computable);
   const rng = seededRandom(`${settings.researchTaskName}-${iteration}-${experiments.length}-${bossDirective ?? ""}`);
-  const eligibleFamilies = computable
+  // Formulaic alpha is entered only through the miner arm, never via generic
+  // family exploration (which would create an empty `formula` parameter).
+  const eligibleFamilies = (computable
     ? getAllFamilies().filter((family) => computable.includes(family.key))
-    : getAllFamilies();
+    : getAllFamilies()
+  ).filter((family) => family.key !== "formulaic_alpha");
+  const mineAvailable = realData && context.canMine === true && computable?.includes("formulaic_alpha") === true;
   const stats = computeFamilyStats(experiments);
   const hints = bossDirective ? parseBossDirective(bossDirective) : undefined;
   const reasoning: string[] = [];
@@ -220,13 +224,17 @@ export function proposeStrategy(context: ProposalContext): StrategySpec {
       hasRefinable: refinable.length > 0,
       hasRepairable: repairable.length > 0,
       hasRecombinable: recombinable,
+      hasMine: mineAvailable,
       explorationBias,
       seed: `${iteration}-${experiments.length}`
     });
     mode = decision.arm;
     reasoning.push(decision.narration.en);
 
-    if (mode === "refine") {
+    if (mode === "mine") {
+      family = getFamily("formulaic_alpha");
+      reasoning.push("The formula miner will search the sealed training region, screen novelty against the pool, and send only its survivor to the normal gate.");
+    } else if (mode === "refine") {
       parent = refinable[0];
       family = getFamily(parent.familyKey);
       reasoning.push(
@@ -244,7 +252,7 @@ export function proposeStrategy(context: ProposalContext): StrategySpec {
       if (worst?.id === "turnover" || worst?.id === "transaction_costs") {
         onlyParameter = family.parameters.find((parameter) => /turnover|rebalance|hold/i.test(parameter.name))?.name;
       }
-      onlyParameter = onlyParameter ?? family.parameters[Math.floor(rng() * family.parameters.length)].name;
+      onlyParameter = onlyParameter ?? family.parameters[Math.floor(rng() * family.parameters.length)]?.name;
       reasoning.push(
         `Repairing ${parent.id}: the blocking gate was "${worst?.label ?? "out-of-sample decay"}". Changing only ${onlyParameter} and rerunning - one blamed node, one fix.`
       );
@@ -304,7 +312,19 @@ export function proposeStrategy(context: ProposalContext): StrategySpec {
   reasoning.push(`Known failure mode to watch: ${pick(family.failureModes, rng)}`);
 
   const wide = mode === "explore" || mode === "boss_directive";
-  const parameters = mutateParameters(family, blendBase ?? parent?.strategyParameters, rng, wide, onlyParameter);
+  const parameters: Record<string, number | string | boolean> =
+    mode === "mine"
+      ? { formula: "mom(120, 5)", regimeGate: "none" }
+      : mutateParameters(family, blendBase ?? parent?.strategyParameters, rng, wide, onlyParameter);
+  if (mode !== "mine" && family.key === "formulaic_alpha" && typeof parent?.strategyParameters.formula === "string") {
+    parameters.formula = parent.strategyParameters.formula;
+  }
+  // Regime conditioning is an explicit, auditable search dimension. Bias
+  // toward unconditional formulas so the desk does not overfit its way into a
+  // niche, while still allowing the bandit to gather real evidence on gates.
+  if (parameters.regimeGate === undefined) {
+    parameters.regimeGate = pick(["none", "none", "none", "riskon", "riskoff", "highvol", "lowvol"], rng);
+  }
   const holdingPeriod =
     hints?.holdingPeriod ??
     (parent ? parent.backtestParameters.holdingPeriod : pick(family.holdingPeriods, rng));
@@ -322,6 +342,8 @@ export function proposeStrategy(context: ProposalContext): StrategySpec {
         ? `Repair-${onlyParameter ?? "x"}`
         : mode === "recombine"
           ? "Hybrid"
+          : mode === "mine"
+            ? "Mined"
           : pick(["Alpha", "Probe", "Patient", "Strict-Cost", "Sector-Neutral", "Fresh"], rng);
 
   const strategy: StrategySpec = {

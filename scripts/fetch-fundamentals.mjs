@@ -79,13 +79,25 @@ async function membership() {
   }
 }
 
+// Quarterly ratios are reported for a period end, not known on that date. The
+// free FMP ratio endpoint does not reliably expose the actual filing timestamp,
+// so use a conservative 45-calendar-day availability lag before the engine may
+// consume each observation. This is deliberately visible in the stored record.
+const FUNDAMENTAL_FILING_LAG_DAYS = 45;
+function availableDate(reportDate) {
+  const stamp = Date.parse(`${reportDate}T00:00:00Z`);
+  if (!Number.isFinite(stamp)) return reportDate;
+  return new Date(stamp + FUNDAMENTAL_FILING_LAG_DAYS * 86_400_000).toISOString().slice(0, 10);
+}
+
 // quarterly ratios -> point-in-time fundamentals (oldest -> newest)
 async function fundamentalsFor(ticker) {
   const ratios = await fmp(`/v3/ratios/${ticker}?period=quarter&limit=80`).catch(() => []);
   const rows = (Array.isArray(ratios) ? ratios : [])
     .filter((r) => r && r.date)
     .map((r) => ({
-      date: r.date,
+      date: availableDate(r.date),
+      reportDate: r.date,
       pe: num(r.priceEarningsRatio),
       pb: num(r.priceToBookRatio),
       roe: num(r.returnOnEquity),
@@ -124,7 +136,7 @@ async function main() {
     await sleep(280); // stay under the free rate limit
     if ((ok + 1) % 25 === 0) process.stdout.write(`  ${ok}/${tickers.length} enriched\n`);
   }
-  bundle.fundamentalsSource = "FMP quarterly ratios (point-in-time) + stock news";
+  bundle.fundamentalsSource = `FMP quarterly ratios (45-day filing lag) + stock news`;
   fs.writeFileSync(universeFile, JSON.stringify(bundle));
   const mb = (fs.statSync(universeFile).size / 1e6).toFixed(2);
   console.log(`\nenriched ${ok}/${tickers.length} names; saved ${universeFile} (${mb} MB). The fundamental_value factor can now backtest.`);

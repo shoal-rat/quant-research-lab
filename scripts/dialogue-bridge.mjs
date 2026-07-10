@@ -32,6 +32,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadValidator } from "./_engine-bridge.mjs";
 import {
+  configuredBridgeOrigins,
+  isCrossSiteBrowserRequest,
+  isTrustedBridgeOrigin
+} from "./bridge-security.mjs";
+import { planEqualWeightRebalance } from "./paper-rebalance.mjs";
+import {
   cancelAllOrders,
   closePosition,
   getAccount,
@@ -41,6 +47,7 @@ import {
   getPositions,
   loadKeysFromFile,
   submitNotional,
+  toAlpacaSymbol,
   windowReturns
 } from "./alpaca-lib.mjs";
 
@@ -609,15 +616,29 @@ Only include families whose signalSpec is genuinely computable from price/return
 
 function send(res, status, payload) {
   res.writeHead(status, {
-    "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type"
+    "Content-Type": "application/json; charset=utf-8"
   });
   res.end(JSON.stringify(payload));
 }
 
+const EXTRA_BRIDGE_ORIGINS = configuredBridgeOrigins(process.env.QRL_ALLOWED_ORIGINS);
+
 const server = http.createServer(async (req, res) => {
+  const origin = req.headers.origin;
+  // When an Origin header is present it is the access control (browsers never
+  // let a page forge it); Sec-Fetch-Site only backstops origin-less requests
+  // (drive-by no-cors GETs). Some browsers classify loopback:port-A ->
+  // loopback:port-B as "cross-site", so gating trusted origins on it would
+  // lock out every legitimate frontend that is not on the bridge's own port.
+  const crossSiteWithoutOrigin = !origin && isCrossSiteBrowserRequest(req.headers["sec-fetch-site"]);
+  if (!isTrustedBridgeOrigin(origin, EXTRA_BRIDGE_ORIGINS) || crossSiteWithoutOrigin) {
+    send(res, 403, { error: "untrusted browser origin" });
+    return;
+  }
+  res.setHeader("Vary", "Origin");
+  if (origin) res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") {
     send(res, 204, {});
     return;
@@ -806,7 +827,9 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Validate on history, and ONLY if it passes (or force), rebalance the paper book.
+  // Validate on history and rebalance only when every non-waivable gate passes.
+  // `force` is deliberately narrow: the validator may use it to waive only the
+  // candidate-status requirement; it never bypasses IC, risk, or performance.
   if (req.method === "POST" && req.url === "/paper/deploy") {
     try {
       const payload = await readJson(req);
@@ -822,8 +845,8 @@ const server = http.createServer(async (req, res) => {
       }
       const top = Number(payload.top) || 8;
       const { validateMomentum } = await loadValidator();
-      const validation = validateMomentum(file, { top });
-      if (!validation.passed && !payload.force) {
+      const validation = validateMomentum(file, { top, force: payload.force === true });
+      if (!validation.passed) {
         send(res, 200, { traded: false, blocked: true, validation });
         return;
       }
@@ -832,17 +855,15 @@ const server = http.createServer(async (req, res) => {
       const stale = await getOpenOrders(keys.id, keys.secret);
       if (stale.length) await cancelAllOrders(keys.id, keys.secret);
       const positions = await getPositions(keys.id, keys.secret);
-      const targetSet = new Set(targets);
-      for (const p of positions) if (!targetSet.has(p.symbol)) await closePosition(keys.id, keys.secret, p.symbol).catch(() => {});
+      const alpacaTargets = targets.map(toAlpacaSymbol);
+      const plan = planEqualWeightRebalance({ equity: account.equity, targets: alpacaTargets, positions });
+      for (const symbol of plan.closes) await closePosition(keys.id, keys.secret, symbol).catch(() => {});
       const orders = [];
-      if (targets.length > 0) {
-        const notional = Math.floor(Number(account.equity) / targets.length);
-        for (const sym of targets) {
-          await submitNotional(keys.id, keys.secret, sym, notional, "buy");
-          orders.push({ symbol: sym, notional });
-        }
+      for (const order of plan.orders) {
+        await submitNotional(keys.id, keys.secret, order.symbol, order.notional, order.side);
+        orders.push(order);
       }
-      send(res, 200, { traded: true, blocked: false, validation, regime, orders });
+      send(res, 200, { traded: true, blocked: false, validation, regime, plan, orders });
     } catch (error) {
       send(res, 502, { error: String(error) });
     }

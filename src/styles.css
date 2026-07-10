@@ -2634,10 +2634,42 @@ button {
 .agent-2d-sprite img {
   width: 100%;
   height: auto;
-  transform: scale(var(--agent-scale));
+  transform: scale(calc(var(--agent-scale) * var(--agent-depth, 1)));
   transform-origin: 50% 90%;
-  filter: drop-shadow(0 12px 8px rgba(0, 0, 0, 0.28));
   user-select: none;
+  pointer-events: none;
+}
+
+/* stacked imgs so a pose swap crossfades instead of popping */
+.agent-2d-sprite .sprite-stack {
+  display: grid;
+  pointer-events: none;
+}
+
+.agent-2d-sprite .sprite-stack img {
+  grid-area: 1 / 1;
+}
+
+.agent-2d-sprite .sprite-stack .sprite-prev {
+  animation: sprite-fade-out 0.17s ease-out forwards !important;
+}
+
+@keyframes sprite-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* soft static contact shadow under the feet (replaces the per-frame
+   drop-shadow filter, which rasterized every animation frame) */
+.agent-2d-contact-shadow {
+  position: absolute;
+  left: calc(var(--agent-anchor-x, 0.5) * 100%);
+  top: calc(var(--agent-anchor-y, 0.9) * 100%);
+  width: 58%;
+  height: 12%;
+  transform: translate(-50%, -42%) scale(calc(var(--agent-scale, 1) * var(--agent-depth, 1)));
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(20, 14, 8, 0.34) 0%, rgba(20, 14, 8, 0.18) 48%, transparent 72%);
   pointer-events: none;
 }
 
@@ -2793,43 +2825,43 @@ button {
 @keyframes office2d-breathe {
   0%,
   100% {
-    transform: scale(var(--agent-scale)) translateY(0);
+    transform: scale(calc(var(--agent-scale) * var(--agent-depth, 1))) translateY(0);
   }
   50% {
-    transform: scale(var(--agent-scale)) translateY(-2px);
+    transform: scale(calc(var(--agent-scale) * var(--agent-depth, 1))) translateY(-2px);
   }
 }
 
 @keyframes office2d-walk {
   0%,
   100% {
-    transform: scale(var(--agent-scale)) translateY(0) rotate(-1deg);
+    transform: scale(calc(var(--agent-scale) * var(--agent-depth, 1))) translateY(0) rotate(-1deg);
   }
   50% {
-    transform: scale(var(--agent-scale)) translateY(-4px) rotate(1deg);
+    transform: scale(calc(var(--agent-scale) * var(--agent-depth, 1))) translateY(-4px) rotate(1deg);
   }
 }
 
 @keyframes office2d-react {
   0%,
   100% {
-    transform: scale(var(--agent-scale)) translateX(0);
+    transform: scale(calc(var(--agent-scale) * var(--agent-depth, 1))) translateX(0);
   }
   45% {
-    transform: scale(var(--agent-scale)) translateX(-3px);
+    transform: scale(calc(var(--agent-scale) * var(--agent-depth, 1))) translateX(-3px);
   }
   70% {
-    transform: scale(var(--agent-scale)) translateX(3px);
+    transform: scale(calc(var(--agent-scale) * var(--agent-depth, 1))) translateX(3px);
   }
 }
 
 @keyframes office2d-expression {
   0%,
   100% {
-    transform: scale(var(--agent-scale)) translateY(0) rotate(0);
+    transform: scale(calc(var(--agent-scale) * var(--agent-depth, 1))) translateY(0) rotate(0);
   }
   50% {
-    transform: scale(calc(var(--agent-scale) * 1.04)) translateY(-3px) rotate(-2deg);
+    transform: scale(calc(var(--agent-scale) * var(--agent-depth, 1) * 1.04)) translateY(-3px) rotate(-2deg);
   }
 }
 
@@ -3042,4 +3074,181 @@ button {
   .agent-sprite-button .art-agent-wrap {
     height: 112px;
   }
+}
+
+/* ---- cinematic layer (redesign v3, pillar C3) ------------------------------ */
+
+/* phase-keyed color grade over the office; slow crossfade, barely-there */
+.office2d-mood {
+  position: absolute;
+  inset: 0;
+  z-index: 900;
+  background: transparent;
+  opacity: 0;
+  transition: background 2.4s ease, opacity 2.4s ease;
+  pointer-events: none;
+}
+
+.office2d-mood.mood-proposing,
+.office2d-mood.mood-human_review {
+  background: linear-gradient(160deg, rgba(38, 166, 154, 0.5), transparent 65%);
+  opacity: 0.1;
+}
+
+.office2d-mood.mood-data_check,
+.office2d-mood.mood-coding {
+  background: linear-gradient(200deg, rgba(66, 133, 244, 0.45), transparent 60%);
+  opacity: 0.09;
+}
+
+.office2d-mood.mood-backtesting {
+  background: linear-gradient(180deg, rgba(233, 180, 85, 0.55), transparent 62%);
+  opacity: 0.12;
+}
+
+.office2d-mood.mood-risk_review,
+.office2d-mood.mood-debate {
+  background: linear-gradient(150deg, rgba(214, 108, 76, 0.5), transparent 64%);
+  opacity: 0.1;
+}
+
+.office2d-mood.mood-decision,
+.office2d-mood.mood-saved {
+  background: linear-gradient(170deg, rgba(255, 214, 130, 0.6), transparent 58%);
+  opacity: 0.12;
+}
+
+.office2d-mood.mood-idle {
+  background: linear-gradient(190deg, rgba(90, 110, 160, 0.5), transparent 66%);
+  opacity: 0.08;
+}
+
+.office2d-mood.reduced {
+  transition: none;
+  opacity: 0;
+}
+
+/* anime cut-in: diagonal band + speed lines + expression portrait sliding in */
+.cut-in {
+  position: absolute;
+  inset: 0;
+  z-index: 1400;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.cut-in-band {
+  position: absolute;
+  top: 18%;
+  left: -12%;
+  width: 124%;
+  height: 46%;
+  transform: skewY(-6deg) scaleX(0);
+  transform-origin: left center;
+  background: linear-gradient(100deg, rgba(123, 97, 255, 0.92), rgba(56, 190, 226, 0.88));
+  animation: cutin-band 1.65s cubic-bezier(0.16, 0.9, 0.24, 1) forwards;
+}
+
+.cut-in-promote .cut-in-band {
+  background: linear-gradient(100deg, rgba(240, 170, 50, 0.94), rgba(255, 118, 132, 0.9));
+}
+
+.cut-in-whip .cut-in-band {
+  background: linear-gradient(100deg, rgba(120, 30, 30, 0.94), rgba(214, 108, 76, 0.9));
+}
+
+.cut-in-lines {
+  position: absolute;
+  top: 14%;
+  left: 0;
+  width: 100%;
+  height: 54%;
+  background: repeating-linear-gradient(
+    100deg,
+    transparent 0 26px,
+    rgba(255, 255, 255, 0.28) 26px 30px
+  );
+  opacity: 0;
+  animation: cutin-lines 1.65s ease-out forwards;
+  mix-blend-mode: screen;
+}
+
+.cut-in-portrait {
+  position: absolute;
+  top: 8%;
+  right: 14%;
+  height: 68%;
+  transform: translateX(140%);
+  filter: drop-shadow(0 10px 24px rgba(20, 10, 40, 0.45));
+  animation: cutin-portrait 1.65s cubic-bezier(0.18, 0.85, 0.22, 1) forwards;
+}
+
+.cut-in-caption {
+  position: absolute;
+  top: 30%;
+  left: 9%;
+  display: grid;
+  gap: 4px;
+  transform: translateX(-60%);
+  opacity: 0;
+  animation: cutin-caption 1.65s cubic-bezier(0.18, 0.85, 0.22, 1) forwards;
+}
+
+.cut-in-caption strong {
+  color: white;
+  font-size: clamp(26px, 4.4vw, 54px);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-shadow: 3px 3px 0 rgba(30, 16, 60, 0.55);
+  font-style: italic;
+}
+
+.cut-in-caption span {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: clamp(13px, 1.6vw, 20px);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+@keyframes cutin-band {
+  0% { transform: skewY(-6deg) scaleX(0); }
+  14% { transform: skewY(-6deg) scaleX(1.02); }
+  18%, 82% { transform: skewY(-6deg) scaleX(1); }
+  100% { transform: skewY(-6deg) scaleX(1); opacity: 0; }
+}
+
+@keyframes cutin-lines {
+  0% { opacity: 0; transform: translateX(-4%); }
+  16%, 74% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(6%); }
+}
+
+@keyframes cutin-portrait {
+  0% { transform: translateX(140%); }
+  20% { transform: translateX(-4%); }
+  26%, 80% { transform: translateX(0); }
+  100% { transform: translateX(10%); opacity: 0; }
+}
+
+@keyframes cutin-caption {
+  0% { transform: translateX(-60%); opacity: 0; }
+  22% { transform: translateX(2%); opacity: 1; }
+  28%, 80% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(-6%); opacity: 0; }
+}
+
+/* new ticker lines slide in instead of list-jumping */
+.ticker-bubble {
+  animation: ticker-enter 0.34s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes ticker-enter {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-bubble { animation: none; }
+  .cut-in { display: none; }
 }

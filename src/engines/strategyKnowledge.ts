@@ -613,6 +613,32 @@ export const STRATEGY_FAMILIES: StrategyFamily[] = [
     priceComputable: true,
     baseEdgeDaily: 0.00034,
     decayHalfLifeRuns: 12
+  },
+  {
+    key: "formulaic_alpha",
+    name: "Formulaic Alpha (mined)",
+    factorKind: "momentum",
+    rationaleKind: "structural",
+    rationale:
+      "A genetic miner composes price/volume expressions from proven factor motifs; survivors must be novel vs the pool and pass the same gate as every hand-written family.",
+    construction:
+      "Evaluate a mined alpha-DSL expression per name at bar t (trailing windows only), winsorize + neutralize the cross-section, long top / short bottom bucket. The formula rides in parameters.formula.",
+    holdingPeriods: [1, 3, 5, 20],
+    grossSharpe: [0.3, 1.2],
+    netSharpe: [0.1, 0.8],
+    costSensitivity: "medium",
+    crowdingRisk: "low",
+    failureModes: [
+      "Data-mined formulas overfit: only the trial-registry-deflated Sharpe and the lockbox can be trusted",
+      "Complex expressions decay faster than simple motifs once conditions shift",
+      "Formula soup can converge onto a known factor wearing a costume (novelty screen must hold)"
+    ],
+    parameters: [],
+    keyPapers: ["Kakushadze (2016) 101 formulaic alphas", "Lopez de Prado (2018) backtest overfitting"],
+    newsDriven: false,
+    priceComputable: true,
+    baseEdgeDaily: 0.0003,
+    decayHalfLifeRuns: 6
   }
 ];
 

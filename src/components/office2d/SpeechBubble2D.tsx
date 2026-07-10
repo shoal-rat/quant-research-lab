@@ -1,14 +1,15 @@
 import { Bubble2DType } from "../../lib/office2d/agentMovement";
+import { assetUrl } from "../../lib/assets/publicAsset";
 
 const bubbleFrames: Record<Bubble2DType, string> = {
-  normal: "/assets/generated/ui/bubbles-2d/bubble-normal.png",
-  thought: "/assets/generated/ui/bubbles-2d/bubble-thought.png",
-  whisper: "/assets/generated/ui/bubbles-2d/bubble-whisper.png",
-  shout: "/assets/generated/ui/bubbles-2d/bubble-shout.png",
-  explosion: "/assets/generated/ui/bubbles-2d/bubble-explosion.png",
-  sweat: "/assets/generated/ui/bubbles-2d/bubble-sweat.png",
-  debate: "/assets/generated/ui/bubbles-2d/bubble-debate.png",
-  system: "/assets/generated/ui/bubbles-2d/bubble-system.png"
+  normal: assetUrl("assets/generated/ui/bubbles-2d/bubble-normal.png"),
+  thought: assetUrl("assets/generated/ui/bubbles-2d/bubble-thought.png"),
+  whisper: assetUrl("assets/generated/ui/bubbles-2d/bubble-whisper.png"),
+  shout: assetUrl("assets/generated/ui/bubbles-2d/bubble-shout.png"),
+  explosion: assetUrl("assets/generated/ui/bubbles-2d/bubble-explosion.png"),
+  sweat: assetUrl("assets/generated/ui/bubbles-2d/bubble-sweat.png"),
+  debate: assetUrl("assets/generated/ui/bubbles-2d/bubble-debate.png"),
+  system: assetUrl("assets/generated/ui/bubbles-2d/bubble-system.png")
 };
 
 // The text lives inside a per-balloon-type "safe box" so it never spills over

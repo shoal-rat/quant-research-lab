@@ -19,6 +19,13 @@ describe("transaction cost model", () => {
     expect(nameTradeCostBps(100e6, 10, 0) - nameTradeCostBps(100e6, 0, 0)).toBeCloseTo(10, 6);
   });
 
+  it("widens spread and borrow costs in a volatile market at the data frequency", () => {
+    expect(nameTradeCostBps(100e6, 0, 0.02, 2.5)).toBeGreaterThan(nameTradeCostBps(100e6, 0, 0.02, 1));
+    // A weekly bar accrues a larger per-bar borrow charge than a daily bar for
+    // the same annual borrow rate.
+    expect(borrowBpsPerDay(50e6, 1, 52)).toBeGreaterThan(borrowBpsPerDay(50e6, 1, 252));
+  });
+
   it("borrow is positive and higher for illiquid names", () => {
     expect(borrowBpsPerDay(500e6)).toBeGreaterThan(0);
     expect(borrowBpsPerDay(2e6)).toBeGreaterThan(borrowBpsPerDay(500e6));

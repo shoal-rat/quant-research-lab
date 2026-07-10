@@ -14,7 +14,7 @@ export interface FactorCrossSection {
   forwardByHorizon: Record<number, number[]>; // horizon (bars) -> per-name fwd return
 }
 
-const HORIZONS = [1, 5, 10, 20];
+const HORIZONS = [1, 3, 5, 10, 20];
 
 function mean(values: number[]): number {
   if (values.length === 0) return 0;
@@ -25,6 +25,39 @@ function std(values: number[]): number {
   if (values.length < 2) return 0;
   const m = mean(values);
   return Math.sqrt(values.reduce((sum, value) => sum + (value - m) ** 2, 0) / (values.length - 1));
+}
+
+// Newey-West's common automatic bandwidth rule.  IC observations can be
+// serially correlated (most visibly when forward-return horizons overlap), so
+// the iid standard error materially overstates the evidence in the signal.
+// Bartlett weights keep the long-run variance non-negative in theory; the
+// sample-size cap also keeps the estimator well-defined on short histories.
+function neweyWestLag(sampleSize: number): number {
+  if (sampleSize < 2) return 0;
+  const automatic = Math.floor(4 * (sampleSize / 100) ** (2 / 9));
+  return Math.min(sampleSize - 1, Math.max(0, automatic));
+}
+
+function neweyWestMeanStandardError(values: number[], valueMean: number): number | null {
+  const n = values.length;
+  if (n < 2) return null;
+  const lag = neweyWestLag(n);
+  let longRunVariance = 0;
+  for (let offset = 0; offset <= lag; offset += 1) {
+    let covariance = 0;
+    for (let index = offset; index < n; index += 1) {
+      covariance += (values[index] - valueMean) * (values[index - offset] - valueMean);
+    }
+    covariance /= n;
+    if (offset === 0) {
+      longRunVariance += covariance;
+    } else {
+      const bartlettWeight = 1 - offset / (lag + 1);
+      longRunVariance += 2 * bartlettWeight * covariance;
+    }
+  }
+  if (!Number.isFinite(longRunVariance) || longRunVariance <= 1e-18) return null;
+  return Math.sqrt(longRunVariance / n);
 }
 
 // fractional (average-tie) ranks, like scipy.stats.rankdata
@@ -140,7 +173,9 @@ export function computeFactorAnalytics(
   const icMean = mean(ics);
   const icStd = std(ics);
   const icIR = icStd > 1e-9 ? icMean / icStd : 0;
-  const icTStat = icStd > 1e-9 ? icMean / (icStd / Math.sqrt(ics.length)) : 0;
+  const icHacLag = neweyWestLag(ics.length);
+  const icMeanSe = neweyWestMeanStandardError(ics, icMean);
+  const icTStat = icMeanSe !== null ? icMean / icMeanSe : 0;
   const sign = Math.sign(icMean) || 1;
   const hitRate = ics.filter((ic) => Math.sign(ic) === sign).length / ics.length;
 
@@ -166,6 +201,7 @@ export function computeFactorAnalytics(
     icStd: round(icStd, 4),
     icIR: round(icIR, 3),
     icTStat: round(icTStat, 2),
+    icHacLag,
     hitRate: round(hitRate, 3),
     icDecay,
     quantiles,

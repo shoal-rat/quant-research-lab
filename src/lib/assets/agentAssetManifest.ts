@@ -1,4 +1,5 @@
 import { AgentRole, AgentState } from "../../types";
+import { assetUrl } from "./publicAsset";
 
 export interface GeneratedAgentManifest {
   id: string;
@@ -10,109 +11,83 @@ export interface GeneratedAgentManifest {
   sprites: Record<string, string>;
 }
 
+function legacyAsset(agentId: string, file: string): string {
+  return assetUrl(`assets/generated/agents/${agentId}/${file}.png`);
+}
+
+function legacyAgent(
+  id: string,
+  displayName: string,
+  role: AgentRole,
+  scale: number,
+  spriteNames: string[]
+): GeneratedAgentManifest {
+  return {
+    id,
+    displayName,
+    role,
+    scale,
+    anchor: { x: 0.5, y: 0.92 },
+    avatar: legacyAsset(id, "avatar"),
+    sprites: Object.fromEntries(spriteNames.map((name) => [name, legacyAsset(id, name)]))
+  };
+}
+
 export const generatedAgentManifest: GeneratedAgentManifest[] = [
-  {
-    id: "strategy-researcher",
-    displayName: "Strategy Researcher",
-    role: "strategy_researcher",
-    scale: 1.03,
-    anchor: { x: 0.5, y: 0.92 },
-    avatar: "/assets/generated/agents/strategy-researcher/avatar.png",
-    sprites: {
-      idle: "/assets/generated/agents/strategy-researcher/idle.png",
-      walk: "/assets/generated/agents/strategy-researcher/walk.png",
-      thinking: "/assets/generated/agents/strategy-researcher/thinking.png",
-      "writing-whiteboard": "/assets/generated/agents/strategy-researcher/writing-whiteboard.png",
-      debating: "/assets/generated/agents/strategy-researcher/debating.png",
-      excited: "/assets/generated/agents/strategy-researcher/excited.png",
-      confused: "/assets/generated/agents/strategy-researcher/confused.png"
-    }
-  },
-  {
-    id: "code-engineer",
-    displayName: "Code Engineer",
-    role: "code_engineer",
-    scale: 1.02,
-    anchor: { x: 0.5, y: 0.92 },
-    avatar: "/assets/generated/agents/code-engineer/avatar.png",
-    sprites: {
-      idle: "/assets/generated/agents/code-engineer/idle.png",
-      walk: "/assets/generated/agents/code-engineer/walk.png",
-      coding: "/assets/generated/agents/code-engineer/coding.png",
-      frustrated: "/assets/generated/agents/code-engineer/frustrated.png",
-      tired: "/assets/generated/agents/code-engineer/tired.png",
-      "fixed-bug": "/assets/generated/agents/code-engineer/fixed-bug.png",
-      "drinking-coffee": "/assets/generated/agents/code-engineer/drinking-coffee.png"
-    }
-  },
-  {
-    id: "risk-reviewer",
-    displayName: "Risk Reviewer",
-    role: "risk_reviewer",
-    scale: 1.04,
-    anchor: { x: 0.5, y: 0.92 },
-    avatar: "/assets/generated/agents/risk-reviewer/avatar.png",
-    sprites: {
-      idle: "/assets/generated/agents/risk-reviewer/idle.png",
-      walk: "/assets/generated/agents/risk-reviewer/walk.png",
-      reviewing: "/assets/generated/agents/risk-reviewer/reviewing.png",
-      angry: "/assets/generated/agents/risk-reviewer/angry.png",
-      rejecting: "/assets/generated/agents/risk-reviewer/rejecting.png",
-      "table-slam": "/assets/generated/agents/risk-reviewer/table-slam.png",
-      serious: "/assets/generated/agents/risk-reviewer/serious.png"
-    }
-  },
-  {
-    id: "skeptic-researcher",
-    displayName: "Skeptic Researcher",
-    role: "skeptic_researcher",
-    scale: 1.02,
-    anchor: { x: 0.5, y: 0.92 },
-    avatar: "/assets/generated/agents/skeptic-researcher/avatar.png",
-    sprites: {
-      idle: "/assets/generated/agents/skeptic-researcher/idle.png",
-      walk: "/assets/generated/agents/skeptic-researcher/walk.png",
-      skeptical: "/assets/generated/agents/skeptic-researcher/skeptical.png",
-      whispering: "/assets/generated/agents/skeptic-researcher/whispering.png",
-      smirking: "/assets/generated/agents/skeptic-researcher/smirking.png",
-      "deep-thinking": "/assets/generated/agents/skeptic-researcher/deep-thinking.png",
-      debating: "/assets/generated/agents/skeptic-researcher/debating.png"
-    }
-  },
-  {
-    id: "experiment-manager",
-    displayName: "Experiment Manager",
-    role: "experiment_manager",
-    scale: 1.05,
-    anchor: { x: 0.5, y: 0.92 },
-    avatar: "/assets/generated/agents/experiment-manager/avatar.png",
-    sprites: {
-      idle: "/assets/generated/agents/experiment-manager/idle.png",
-      walk: "/assets/generated/agents/experiment-manager/walk.png",
-      presenting: "/assets/generated/agents/experiment-manager/presenting.png",
-      "calling-meeting": "/assets/generated/agents/experiment-manager/calling-meeting.png",
-      deciding: "/assets/generated/agents/experiment-manager/deciding.png",
-      "updating-screen": "/assets/generated/agents/experiment-manager/updating-screen.png",
-      confident: "/assets/generated/agents/experiment-manager/confident.png"
-    }
-  },
-  {
-    id: "data-manager",
-    displayName: "Data Manager",
-    role: "data_manager",
-    scale: 1.02,
-    anchor: { x: 0.5, y: 0.92 },
-    avatar: "/assets/generated/agents/data-manager/avatar.png",
-    sprites: {
-      idle: "/assets/generated/agents/data-manager/idle.png",
-      walk: "/assets/generated/agents/data-manager/walk.png",
-      "checking-data": "/assets/generated/agents/data-manager/checking-data.png",
-      "carrying-files": "/assets/generated/agents/data-manager/carrying-files.png",
-      confused: "/assets/generated/agents/data-manager/confused.png",
-      "problem-solved": "/assets/generated/agents/data-manager/problem-solved.png",
-      "inspecting-timestamp": "/assets/generated/agents/data-manager/inspecting-timestamp.png"
-    }
-  }
+  legacyAgent("strategy-researcher", "Strategy Researcher", "strategy_researcher", 1.03, [
+    "idle",
+    "walk",
+    "thinking",
+    "writing-whiteboard",
+    "debating",
+    "excited",
+    "confused"
+  ]),
+  legacyAgent("code-engineer", "Code Engineer", "code_engineer", 1.02, [
+    "idle",
+    "walk",
+    "coding",
+    "frustrated",
+    "tired",
+    "fixed-bug",
+    "drinking-coffee"
+  ]),
+  legacyAgent("risk-reviewer", "Risk Reviewer", "risk_reviewer", 1.04, [
+    "idle",
+    "walk",
+    "reviewing",
+    "angry",
+    "rejecting",
+    "table-slam",
+    "serious"
+  ]),
+  legacyAgent("skeptic-researcher", "Skeptic Researcher", "skeptic_researcher", 1.02, [
+    "idle",
+    "walk",
+    "skeptical",
+    "whispering",
+    "smirking",
+    "deep-thinking",
+    "debating"
+  ]),
+  legacyAgent("experiment-manager", "Experiment Manager", "experiment_manager", 1.05, [
+    "idle",
+    "walk",
+    "presenting",
+    "calling-meeting",
+    "deciding",
+    "updating-screen",
+    "confident"
+  ]),
+  legacyAgent("data-manager", "Data Manager", "data_manager", 1.02, [
+    "idle",
+    "walk",
+    "checking-data",
+    "carrying-files",
+    "confused",
+    "problem-solved",
+    "inspecting-timestamp"
+  ])
 ];
 
 const baseStateMap: Record<AgentState, string> = {

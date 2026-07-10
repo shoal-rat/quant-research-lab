@@ -2,12 +2,14 @@ import { ArrowUpRight } from "lucide-react";
 import { CSSProperties, useMemo, useState, useSyncExternalStore } from "react";
 import { navigate } from "../../App";
 import { getGeneratedAgent2DManifest } from "../../lib/assets/agent2dAssetManifest";
+import { assetUrl } from "../../lib/assets/publicAsset";
 import { office2DAssets, office2DDisplays, office2DMapSize, office2DZones, rectToPercentStyle } from "../../lib/office2d/mapLayout";
 import { t } from "../../i18n";
 import { useAppStore } from "../../store/AppStore";
 import { AgentProfile, OfficeAreaId } from "../../types";
 import { StatusBadge } from "../StatusBadge";
 import { Agent2DSprite } from "./Agent2DSprite";
+import { CutInOverlay } from "./CutInOverlay";
 import { InWorldBacktestRig2D } from "./InWorldBacktestRig2D";
 import { InWorldDataDisplay2D } from "./InWorldDataDisplay2D";
 import { InWorldLeaderboard2D } from "./InWorldLeaderboard2D";
@@ -49,8 +51,8 @@ const areaRoutes: Partial<Record<OfficeAreaId, string>> = {
 };
 
 const effectArt = {
-  love: "/assets/generated/ui/love-whip/heart-burst.png",
-  whip: "/assets/generated/ui/love-whip/whip-burst.png"
+  love: assetUrl("assets/generated/ui/love-whip/heart-burst.png"),
+  whip: assetUrl("assets/generated/ui/love-whip/whip-burst.png")
 };
 
 interface OfficeMap2DProps {
@@ -59,7 +61,7 @@ interface OfficeMap2DProps {
 }
 
 export function OfficeMap2D({ bossTool, onBossToolUsed }: OfficeMap2DProps): JSX.Element {
-  const { agents, currentExperiment, setActiveObject, addManualBubble, settings, director, applyBossAction, wallpaperMode } =
+  const { agents, currentExperiment, loop, setActiveObject, addManualBubble, settings, director, applyBossAction, wallpaperMode } =
     useAppStore();
   const [selectedAgent, setSelectedAgent] = useState<AgentProfile | null>(null);
   const lang = settings.language;
@@ -139,22 +141,21 @@ export function OfficeMap2D({ bossTool, onBossToolUsed }: OfficeMap2DProps): JSX
           );
         })}
 
-        {snapshot.agents
-          .slice()
-          .sort((a, b) => a.y - b.y)
-          .map((state) => {
-            const agent = visibleAgents.find((item) => item.id === state.agentId);
-            if (!agent) return null;
-            return (
-              <Agent2DSprite
-                key={state.agentId}
-                agent={agent}
-                state={state}
-                reducedMotion={settings.reducedAnimation}
-                onClick={() => clickAgent(agent)}
-              />
-            );
-          })}
+        {/* stacking comes from per-sprite zIndex; keeping DOM order stable
+            preserves the rAF interpolators across snapshots */}
+        {snapshot.agents.map((state) => {
+          const agent = visibleAgents.find((item) => item.id === state.agentId);
+          if (!agent) return null;
+          return (
+            <Agent2DSprite
+              key={state.agentId}
+              agent={agent}
+              state={state}
+              reducedMotion={settings.reducedAnimation}
+              onClick={() => clickAgent(agent)}
+            />
+          );
+        })}
 
         {snapshot.effects.map((effect) => {
           if (effect.kind === "confetti") {
@@ -191,6 +192,13 @@ export function OfficeMap2D({ bossTool, onBossToolUsed }: OfficeMap2DProps): JSX
         })}
 
         <img className="office2d-map-foreground" src={office2DAssets.foreground} alt="" draggable={false} />
+        {/* cinematic color grade keyed to the loop phase; foreground stays crisp
+            because the wash sits below it in stacking but above the floor/agents */}
+        <div
+          className={`office2d-mood mood-${loop.phase} ${settings.reducedAnimation ? "reduced" : ""}`}
+          aria-hidden="true"
+        />
+        {!settings.reducedAnimation && !wallpaperMode && <CutInOverlay />}
         <OfficeDebug2D visible={debugVisible} agents={snapshot.agents} />
       </div>
 

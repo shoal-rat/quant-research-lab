@@ -21,6 +21,20 @@ export interface DatasetMeta {
 export interface DatasetBacktestContext {
   totalTrials: number;
   priorCandidates: ExperimentRecord[];
+  evaluateLockbox?: boolean;
+}
+
+export interface DatasetMineRequest {
+  experiments: ExperimentRecord[];
+  seed: string;
+  startDate: string;
+  endDate: string;
+}
+
+export interface DatasetMineResult {
+  formula: string;
+  fitness: number;
+  evaluations: number;
 }
 
 export interface DatasetProvider {
@@ -37,4 +51,7 @@ export interface DatasetProvider {
     params: BacktestParameters,
     context: DatasetBacktestContext
   ): Promise<RealBacktestOutput | null>;
+  // In-memory price panels can expose a deterministic, train-region-only
+  // formula miner. Remote bridge sources may omit this capability.
+  mineFormula?(request: DatasetMineRequest): Promise<DatasetMineResult | null>;
 }

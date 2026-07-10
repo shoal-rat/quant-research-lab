@@ -64,6 +64,10 @@ export class BridgeResearchAdapter implements LLMCapabilities {
     // overrides the family/parameter choice with its own reasoning, grounded in
     // a profile of the dataset actually loaded
     const local = proposeStrategy(context);
+    // The formula miner owns its own sealed training-region search. Letting a
+    // free-form model replace its expression here would bypass trial counting
+    // and novelty checks, so mine proposals are deliberately not overridden.
+    if (local.ideaMode === "mine") return local;
     const computable = context.computableFamilies;
     const families = computable
       ? getAllFamilies().filter((family) => computable.includes(family.key))

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/media/banner.svg" alt="Quant Research Lab" width="100%"/>
+<img src="docs/media/banner-anime.png" alt="Quant Research Lab" width="100%"/>
 
 <br/>
 
@@ -13,7 +13,7 @@
 [![Vite](https://img.shields.io/badge/Vite-7-646cff?logo=vite&logoColor=white)](https://vite.dev)
 [![Brain](https://img.shields.io/badge/brain-Claude%20Code%20%2F%20Codex-7b61ff)](#research-brain)
 [![Data](https://img.shields.io/badge/data-bring%20your%20own-c792ea)](#bring-your-own-data)
-[![Tests](https://img.shields.io/badge/tests-64%20passing-2f9c95)](#verify)
+[![Tests](https://img.shields.io/badge/tests-111%20passing-2f9c95)](#verify)
 [![Review](https://img.shields.io/badge/senior--quant%20review-9%2F10-2f9c95)](docs/REVIEW.md)
 [![Wallpaper](https://img.shields.io/badge/desktop-wallpaper%20ready-e9b455)](#desktop-mode)
 [![License](https://img.shields.io/badge/license-MIT-8f5a2a)](LICENSE)
@@ -68,6 +68,38 @@ The important part is not the animation. It is the audit trail:
 - promoted candidates are judged by what they add to the combined fund, not by a pretty isolated chart.
 
 Historical simulations only. No brokerage connection. Not investment advice.
+
+### What's new in the v3 redesign
+
+The alpha engine, the honesty layer, and the art were rebuilt end to end:
+
+- **A formula miner joins the desk.** A safe alpha-expression DSL (trailing windows only — no
+  lookahead by construction) plus a genetic miner breed price/volume alphas from proven factor
+  motifs. A cross-sectional novelty screen keeps clones of the existing pool out; the Thompson
+  bandit gained a `mine` arm so the desk decides *when* mining beats refining. Mined formulas
+  face the exact same admission gate as every hand-written family.
+- **Every search is counted.** A persistent trial registry counts *all* backtests — lab
+  iterations, every miner fitness evaluation, race sleeves — so the deflated Sharpe can never
+  be flattered by searches that happened off the books.
+- **A lockbox the search can't touch.** The final ~12% of history is excluded from all
+  research; it is evaluated exactly once, at promotion time. In-sample IC now carries a
+  Newey-West (HAC) t-statistic, and CSCV PBO gates the pool.
+- **Backtests moved closer to the real world.** One-bar execution lag on every trade,
+  delisting haircuts instead of silent zero-returns, and transaction costs that widen with
+  benchmark volatility (2008/2020 no longer trade at calm-market spreads). Regime gates
+  (`riskon`/`riskoff` by benchmark trend) are explicit, tested strategy parameters.
+- **Live results feed back into research.** The race reconciles each sleeve's live paper
+  marks against its backtest expectation; degrading sleeves become eviction priorities, and
+  the reconciliation summary rides in the next research prompt.
+- **The race ledger got honest.** Missing price snapshots can no longer liquidate a position
+  at $0, unchanged books no longer pay a full round of costs at eviction, and only
+  validation-passing challengers can enter the field.
+- **The research brain has a fallback ladder.** Claude opus → Claude sonnet → **Codex CLI**:
+  research keeps running when one CLI is logged out or rate-limited.
+- **The office became an anime film.** All six researchers were regenerated in tall
+  anime-movie proportions (144 sprites + expressions), agents glide on a 60 fps
+  requestAnimationFrame layer with perspective depth scaling and contact shadows, pose changes
+  crossfade, promotions fire an anime cut-in, and a phase-keyed color grade washes the room.
 
 ### What's measured vs. illustrative
 

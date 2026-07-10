@@ -1,6 +1,7 @@
 import { Download, RotateCcw, Upload } from "lucide-react";
 import { CSSProperties, ChangeEvent, useMemo, useRef, useState } from "react";
 import { defaultAgents } from "../data/defaultAgents";
+import { assetUrl } from "../lib/assets/publicAsset";
 import { useAppStore } from "../store/AppStore";
 import { downloadJson } from "../store/persistence";
 import { AgentProfile } from "../types";
@@ -57,7 +58,7 @@ export function AgentManagementPage(): JSX.Element {
   }
 
   const catchphrases = selected.catchphrases.join("\n");
-  const previewImage = draftImage ?? selected.characterImageDataUrl ?? selected.defaultAssetPath;
+  const previewImage = draftImage ?? selected.characterImageDataUrl ?? (selected.defaultAssetPath ? assetUrl(selected.defaultAssetPath) : undefined);
 
   return (
     <div className="agents-page">
@@ -90,7 +91,7 @@ export function AgentManagementPage(): JSX.Element {
                 {agent.avatarDataUrl ? (
                   <img src={agent.avatarDataUrl} alt="" />
                 ) : agent.defaultAssetPath ? (
-                  <img src={agent.defaultAssetPath} alt="" />
+                  <img src={assetUrl(agent.defaultAssetPath)} alt="" />
                 ) : (
                   agent.name.slice(0, 1)
                 )}
@@ -183,7 +184,7 @@ export function AgentManagementPage(): JSX.Element {
           {selected.designSheetPath && (
             <details className="sheet-reference">
               <summary>Provided design sheet</summary>
-              <img src={selected.designSheetPath} alt={`${selected.name} design sheet`} />
+              <img src={assetUrl(selected.designSheetPath)} alt={`${selected.name} design sheet`} />
             </details>
           )}
 

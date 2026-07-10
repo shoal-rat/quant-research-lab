@@ -26,12 +26,12 @@ describe("factor analytics (Alphalens-style IC)", () => {
     const out: FactorCrossSection[] = [];
     for (let t = 0; t < 12; t += 1) {
       const signal: number[] = [];
-      const fwd: Record<number, number[]> = { 1: [], 5: [], 10: [], 20: [] };
+      const fwd: Record<number, number[]> = { 1: [], 3: [], 5: [], 10: [], 20: [] };
       for (let n = 0; n < 10; n += 1) {
         const s = n; // rank 0..9
         signal.push(s);
         const noise = (((t * 7 + n * 13) % 7) - 3) * 0.0005; // small vs the 0.01 signal step
-        for (const h of [1, 5, 10, 20]) fwd[h].push(sign * s * 0.01 + noise);
+        for (const h of [1, 3, 5, 10, 20]) fwd[h].push(sign * s * 0.01 + noise);
       }
       out.push({ signal, forwardByHorizon: fwd });
     }
@@ -47,7 +47,7 @@ describe("factor analytics (Alphalens-style IC)", () => {
     expect(fa.observations).toBe(12);
     expect(fa.quantileMonotonic).toBe(true);
     expect(fa.quantileSpread).toBeGreaterThan(0);
-    expect(fa.icDecay.length).toBe(4);
+    expect(fa.icDecay.length).toBe(5);
   });
 
   it("flips IC sign when the signal predicts the opposite", () => {
@@ -56,8 +56,38 @@ describe("factor analytics (Alphalens-style IC)", () => {
     expect(fa.quantileSpread).toBeLessThan(0);
   });
 
+  it("uses a Newey-West IC t-stat rather than an iid t-stat for serially correlated ICs", () => {
+    const signal = Array.from({ length: 10 }, (_, index) => index);
+    const forward = [...signal].reverse();
+    const crossSections: FactorCrossSection[] = [];
+    // Twenty positive ICs followed by four negative ICs, repeated, has substantial
+    // positive serial correlation. Treating the 96 observations as iid would
+    // materially overstate the evidence.
+    for (let index = 0; index < 96; index += 1) {
+      const positive = index % 24 < 20;
+      crossSections.push({
+        signal,
+        forwardByHorizon: { 1: positive ? [...signal] : [...forward], 3: positive ? [...signal] : [...forward], 5: positive ? [...signal] : [...forward], 10: positive ? [...signal] : [...forward], 20: positive ? [...signal] : [...forward] }
+      });
+    }
+    const ics = crossSections.map((crossSection) => spearmanIC(crossSection.signal, crossSection.forwardByHorizon[1])!);
+    const average = ics.reduce((sum, value) => sum + value, 0) / ics.length;
+    const iidStd = Math.sqrt(ics.reduce((sum, value) => sum + (value - average) ** 2, 0) / (ics.length - 1));
+    const iidTStat = average / (iidStd / Math.sqrt(ics.length));
+
+    const analytics = computeFactorAnalytics(crossSections, 1)!;
+    expect(analytics.icTStat).toBeLessThan(iidTStat - 0.5);
+    expect(analytics.icTStat).toBeGreaterThan(0);
+    expect(analytics.icHacLag).toBe(3);
+  });
+
   it("returns null when there are too few cross-sections", () => {
     expect(computeFactorAnalytics(predictiveCrossSections(1).slice(0, 3), 5)).toBeNull();
+  });
+
+  it("uses the exact three-bar IC horizon for a three-bar strategy", () => {
+    const analytics = computeFactorAnalytics(predictiveCrossSections(1), 3)!;
+    expect(analytics.horizon).toBe(3);
   });
 });
 

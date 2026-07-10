@@ -145,10 +145,14 @@ for (const [symbol, name, industry] of UNIVERSE) {
   let missing = 0;
   for (const date of dates) {
     const bar = map.get(date);
-    if (bar !== undefined) last = bar;
+    const observed = bar !== undefined;
+    if (observed) last = bar;
     else missing += 1;
     closes.push(last === null ? null : Number(last.c.toFixed(4)));
-    volumes.push(last === null || last.v === null ? null : Math.round(last.v));
+    // Preserve the last close only as a valuation mark, never as a tradable
+    // bar. A zero volume lets the engine force-close stale/delisted positions
+    // with its configured haircut instead of silently earning a flat return.
+    volumes.push(!observed || last === null || last.v === null ? 0 : Math.round(last.v));
     highs.push(last === null || last.h === null ? null : Number(last.h.toFixed(4)));
     lows.push(last === null || last.l === null ? null : Number(last.l.toFixed(4)));
   }

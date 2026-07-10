@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { generatedAgent2DManifest, directionalSpriteNames } from "../lib/assets/agent2dAssetManifest";
 import { generatedAgentManifest } from "../lib/assets/agentAssetManifest";
+import { assetUrl } from "../lib/assets/publicAsset";
 import {
   office2DAssets,
   office2DCollision,
@@ -19,14 +20,14 @@ interface ImageMeta {
 }
 
 const bubbleFrames = {
-  normal: "/assets/generated/ui/bubbles-2d/bubble-normal.png",
-  thought: "/assets/generated/ui/bubbles-2d/bubble-thought.png",
-  whisper: "/assets/generated/ui/bubbles-2d/bubble-whisper.png",
-  shout: "/assets/generated/ui/bubbles-2d/bubble-shout.png",
-  explosion: "/assets/generated/ui/bubbles-2d/bubble-explosion.png",
-  sweat: "/assets/generated/ui/bubbles-2d/bubble-sweat.png",
-  debate: "/assets/generated/ui/bubbles-2d/bubble-debate.png",
-  system: "/assets/generated/ui/bubbles-2d/bubble-system.png"
+  normal: assetUrl("assets/generated/ui/bubbles-2d/bubble-normal.png"),
+  thought: assetUrl("assets/generated/ui/bubbles-2d/bubble-thought.png"),
+  whisper: assetUrl("assets/generated/ui/bubbles-2d/bubble-whisper.png"),
+  shout: assetUrl("assets/generated/ui/bubbles-2d/bubble-shout.png"),
+  explosion: assetUrl("assets/generated/ui/bubbles-2d/bubble-explosion.png"),
+  sweat: assetUrl("assets/generated/ui/bubbles-2d/bubble-sweat.png"),
+  debate: assetUrl("assets/generated/ui/bubbles-2d/bubble-debate.png"),
+  system: assetUrl("assets/generated/ui/bubbles-2d/bubble-system.png")
 };
 
 function useImageMeta(paths: string[]): Record<string, ImageMeta> {
@@ -89,7 +90,7 @@ export function AssetPreviewPage(): JSX.Element {
       ...Object.values(bubbleFrames),
       ...generatedAgent2DManifest.flatMap((agent) => [agent.avatar, ...Object.values(agent.sprites), ...Object.values(agent.expressions)]),
       sceneLayout.background.asset,
-      "/assets/generated/office/office-bg-thumb.webp",
+      assetUrl("assets/generated/office/office-bg-thumb.webp"),
       ...generatedAgentManifest.flatMap((agent) => [agent.avatar, ...Object.values(agent.sprites)])
     ],
     []

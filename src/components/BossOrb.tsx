@@ -2,6 +2,7 @@ import { Crown, Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { readStored, writeStored } from "../store/persistence";
 import { t } from "../i18n";
+import { assetUrl } from "../lib/assets/publicAsset";
 import { useAppStore } from "../store/AppStore";
 
 interface BossOrbProps {
@@ -102,9 +103,9 @@ export function BossOrb({ tool, onPickTool }: BossOrbProps): JSX.Element {
         title="Boss menu (drag to move)"
       >
         {tool === "love" ? (
-          <img src="/assets/generated/ui/love-whip/heart-badge.png" alt="" draggable={false} />
+          <img src={assetUrl("assets/generated/ui/love-whip/heart-badge.png")} alt="" draggable={false} />
         ) : tool === "whip" ? (
-          <img src="/assets/generated/ui/love-whip/whip-badge.png" alt="" draggable={false} />
+          <img src={assetUrl("assets/generated/ui/love-whip/whip-badge.png")} alt="" draggable={false} />
         ) : (
           <Crown size={22} />
         )}
@@ -114,11 +115,11 @@ export function BossOrb({ tool, onPickTool }: BossOrbProps): JSX.Element {
         <div className={`boss-orb-menu ${menuAbove ? "above" : "below"} ${menuLeft ? "left" : "right"}`}>
           <div className="boss-orb-tools">
             <button className={`boss-orb-tool ${tool === "love" ? "active" : ""}`} onClick={() => arm("love")} title="Praise a researcher">
-              <img src="/assets/generated/ui/love-whip/heart.png" alt="Love" draggable={false} />
+              <img src={assetUrl("assets/generated/ui/love-whip/heart.png")} alt="Love" draggable={false} />
               <span>{t(lang, "love")}</span>
             </button>
             <button className={`boss-orb-tool ${tool === "whip" ? "active" : ""}`} onClick={() => arm("whip")} title="Criticize a researcher">
-              <img src="/assets/generated/ui/love-whip/whip.png" alt="Whip" draggable={false} />
+              <img src={assetUrl("assets/generated/ui/love-whip/whip.png")} alt="Whip" draggable={false} />
               <span>{t(lang, "whip")}</span>
             </button>
           </div>

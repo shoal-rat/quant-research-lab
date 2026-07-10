@@ -1,12 +1,13 @@
 import { AgentProfile } from "../types";
+import { assetUrl } from "../lib/assets/publicAsset";
 
 export const defaultAgents: AgentProfile[] = [
   {
     id: "agent-strategy",
     role: "strategy_researcher",
     name: "Mira Signal",
-    defaultAssetPath: "/assets/design/agents/strategy.png",
-    designSheetPath: "/assets/design/agents/strategy-sheet.png",
+    defaultAssetPath: assetUrl("assets/design/agents/strategy.png"),
+    designSheetPath: assetUrl("assets/design/agents/strategy-sheet.png"),
     crop: { scale: 1, x: 0, y: 0 },
     appearance: {
       themeColor: "#ef6f6c",
@@ -31,8 +32,8 @@ export const defaultAgents: AgentProfile[] = [
     id: "agent-code",
     role: "code_engineer",
     name: "Ren Compile",
-    defaultAssetPath: "/assets/design/agents/code.png",
-    designSheetPath: "/assets/design/agents/code-sheet.png",
+    defaultAssetPath: assetUrl("assets/design/agents/code.png"),
+    designSheetPath: assetUrl("assets/design/agents/code-sheet.png"),
     crop: { scale: 1, x: 0, y: 0 },
     appearance: {
       themeColor: "#3f88c5",
@@ -57,8 +58,8 @@ export const defaultAgents: AgentProfile[] = [
     id: "agent-risk",
     role: "risk_reviewer",
     name: "Sana Risk",
-    defaultAssetPath: "/assets/design/agents/risk.png",
-    designSheetPath: "/assets/design/agents/risk-sheet.png",
+    defaultAssetPath: assetUrl("assets/design/agents/risk.png"),
+    designSheetPath: assetUrl("assets/design/agents/risk-sheet.png"),
     crop: { scale: 1, x: 0, y: 0 },
     appearance: {
       themeColor: "#8f5a2a",
@@ -83,8 +84,8 @@ export const defaultAgents: AgentProfile[] = [
     id: "agent-skeptic",
     role: "skeptic_researcher",
     name: "Ivo Doubt",
-    defaultAssetPath: "/assets/design/agents/skeptic.png",
-    designSheetPath: "/assets/design/agents/skeptic-sheet.png",
+    defaultAssetPath: assetUrl("assets/design/agents/skeptic.png"),
+    designSheetPath: assetUrl("assets/design/agents/skeptic-sheet.png"),
     crop: { scale: 1, x: 0, y: 0 },
     appearance: {
       themeColor: "#6c6f7d",
@@ -109,8 +110,8 @@ export const defaultAgents: AgentProfile[] = [
     id: "agent-manager",
     role: "experiment_manager",
     name: "Noa Ledger",
-    defaultAssetPath: "/assets/design/agents/manager.png",
-    designSheetPath: "/assets/design/agents/manager-sheet.png",
+    defaultAssetPath: assetUrl("assets/design/agents/manager.png"),
+    designSheetPath: assetUrl("assets/design/agents/manager-sheet.png"),
     crop: { scale: 1, x: 0, y: 0 },
     appearance: {
       themeColor: "#2f9c95",
@@ -135,8 +136,8 @@ export const defaultAgents: AgentProfile[] = [
     id: "agent-data",
     role: "data_manager",
     name: "Kira Timestamp",
-    defaultAssetPath: "/assets/design/agents/data.png",
-    designSheetPath: "/assets/design/agents/data-sheet.png",
+    defaultAssetPath: assetUrl("assets/design/agents/data.png"),
+    designSheetPath: assetUrl("assets/design/agents/data-sheet.png"),
     crop: { scale: 1, x: 0, y: 0 },
     appearance: {
       themeColor: "#7b61ff",

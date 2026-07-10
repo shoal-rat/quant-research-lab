@@ -214,7 +214,8 @@ export class BridgeDatasetProvider implements DatasetProvider {
         concentration: result.concentration,
         periodsPerYear,
         universeSize: result.universe ?? this.inspectResult.tickers ?? 20,
-        dataUsed: `${this.config.label} via ${this.backend} CLI (${result.universe ?? "?"} names, ${frequency}${result.note ? `, ${result.note}` : ""})`
+        dataUsed: `${this.config.label} via ${this.backend} CLI (${result.universe ?? "?"} names, ${frequency}${result.note ? `, ${result.note}` : ""})`,
+        evaluateLockbox: context.evaluateLockbox
       });
     } catch {
       return null;

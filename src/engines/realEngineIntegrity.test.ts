@@ -149,7 +149,11 @@ function ohlcvData(): RealMarketData {
   });
 }
 
-function familyStrategy(familyKey: string, factorKind: StrategySpec["factorKind"], params: Record<string, number>): StrategySpec {
+function familyStrategy(
+  familyKey: string,
+  factorKind: StrategySpec["factorKind"],
+  params: Record<string, number | string | boolean>
+): StrategySpec {
   return {
     id: `STR-${familyKey}`, name: familyKey, hypothesis: familyKey, factorLogic: familyKey,
     factorKind, familyKey, holdingPeriod: 20, portfolioType: "long_short", universe: [],
@@ -196,5 +200,23 @@ describe("OHLCV volume factors + measured capacity", () => {
     const out = runRealBacktest(familyStrategy("fundamental_value", "value", {}), params, bare, ctx);
     // no fundamentals -> empty cross-sections -> no factor analytics (won't trade)
     expect(out.result.factorAnalytics).toBeUndefined();
+  });
+
+  it("executes formulaic alpha with a delayed fill and keeps the lockbox hidden until requested", () => {
+    const strategy = familyStrategy("formulaic_alpha", "momentum", { formula: "mom(60, 5)", regimeGate: "none" });
+    const defaultLag = runRealBacktest(strategy, { ...params }, data, ctx);
+    const delayed = runRealBacktest(strategy, { ...params, executionLag: 1 }, data, ctx);
+    const withLockbox = runRealBacktest(strategy, { ...params, executionLag: 1 }, data, {
+      ...ctx,
+      evaluateLockbox: true
+    });
+
+    // Production defaults to t+1 execution; a caller must opt into lag-0.
+    expect(defaultLag.extras.dailyReturns).toEqual(delayed.extras.dailyReturns);
+    expect(delayed.extras.dailyReturns.every((value) => Number.isFinite(value))).toBe(true);
+    expect(delayed.result.factorAnalytics).toBeDefined();
+    expect(delayed.result.lockbox).toBeUndefined();
+    expect(withLockbox.result.lockbox).toBeDefined();
+    expect(withLockbox.result.lockbox!.startDate > (withLockbox.extras.dates?.at(-1) ?? "")).toBe(true);
   });
 });

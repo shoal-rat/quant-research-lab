@@ -19,6 +19,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadValidator } from "./_engine-bridge.mjs";
+import { toAlpacaSymbol } from "./alpaca-lib.mjs";
+import { planEqualWeightRebalance } from "./paper-rebalance.mjs";
 
 const PAPER_BASE = "https://paper-api.alpaca.markets"; // paper ONLY — never the live endpoint
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -182,25 +184,17 @@ async function rebalance(dryRun) {
     await api(PAPER_BASE, "/v2/orders", { method: "DELETE" });
   }
   const positions = await api(PAPER_BASE, "/v2/positions");
-  const targetSet = new Set(targets);
-
-  // 1) close positions no longer in the target book (and everything when risk-off)
-  for (const p of positions) {
-    if (!targetSet.has(p.symbol)) {
-      console.log(`  close ${p.symbol} (${p.qty} sh)`);
-      await api(PAPER_BASE, `/v2/positions/${p.symbol}`, { method: "DELETE" });
-    }
+  const plan = planEqualWeightRebalance({ equity: account.equity, targets: targets.map(toAlpacaSymbol), positions });
+  for (const symbol of plan.closes) {
+    console.log(`  close ${symbol}`);
+    await api(PAPER_BASE, `/v2/positions/${symbol}`, { method: "DELETE" });
   }
-  // 2) equal-weight notional into each target name (paper, fractional notional)
-  if (targets.length > 0) {
-    const notional = Math.floor(Number(account.equity) / targets.length);
-    for (const sym of targets) {
-      console.log(`  buy ${sym} ~ $${notional} (market, day)`);
-      await api(PAPER_BASE, "/v2/orders", {
-        method: "POST",
-        body: JSON.stringify({ symbol: sym, notional, side: "buy", type: "market", time_in_force: "day" })
-      });
-    }
+  for (const order of plan.orders) {
+    console.log(`  ${order.side} ${order.symbol} delta ~$${order.notional} (market, day)`);
+    await api(PAPER_BASE, "/v2/orders", {
+      method: "POST",
+      body: JSON.stringify({ ...order, type: "market", time_in_force: "day" })
+    });
   }
   console.log("\nPaper orders submitted. Run `status` to see fills + P&L.\n");
 }

@@ -14,6 +14,22 @@ import { poolSharpeDelta } from "../src/engines/poolAnalytics";
 import { getAllFamilies, getFamily } from "../src/engines/strategyKnowledge";
 import type { BacktestParameters, HoldingPeriod, StrategySpec } from "../src/types";
 
+// A deployment check is itself a selection event, not a single innocent
+// backtest. Count a conservative number of effective trials by default so the
+// deflated-Sharpe bar cannot be relaxed merely because this wrapper used to pass
+// `1` into the real engine.
+export const DEFAULT_VALIDATION_TRIALS = 50;
+export const MIN_VALIDATION_TRIALS = 20;
+const MAX_VALIDATION_TRIALS = 10_000;
+const MIN_OOS_IC_OBSERVATIONS = 10;
+const MIN_OOS_IC_HAC_T_STAT = 1.5;
+
+export function resolveValidationTrials(value?: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return DEFAULT_VALIDATION_TRIALS;
+  return Math.min(MAX_VALIDATION_TRIALS, Math.max(MIN_VALIDATION_TRIALS, Math.floor(parsed)));
+}
+
 // the price-computable factor families the engine can actually backtest in-browser
 export function computableFamilies(): Array<{ key: string; name: string; factorKind: string }> {
   return getAllFamilies()
@@ -27,6 +43,10 @@ export interface ValidateOptions {
   skip?: number;
   holding?: number;
   costBps?: number;
+  // Bypasses only the lab-candidate-status requirement. It never bypasses the
+  // explicit OOS IC, risk, or performance checks and cannot place an order.
+  force?: boolean;
+  trials?: number;
 }
 
 export interface ValidateResult {
@@ -43,11 +63,48 @@ export interface ValidateResult {
     walkForwardPassRate: number | null;
     randomBaselineSharpe: number;
     maxDrawdown: number;
+    trials: number;
   };
   regime: { riskOn: boolean; asOf: string };
   targets: string[];
   universeSize: number;
   dataRange: string;
+}
+
+// The displayed `oosICt` is the engine's Newey-West/HAC-corrected IC t-stat.
+// Keep this wrapper's deployment gate pinned to the exact same OOS evidence
+// rather than relying on the lab-status side effect or an in-sample fallback.
+export function deploymentGateReasons(input: {
+  labStatus: string;
+  metrics: ValidateResult["metrics"];
+  force?: boolean;
+}): string[] {
+  const { labStatus, metrics } = input;
+  const reasons: string[] = [];
+  if (labStatus === "failed_to_run") reasons.push("strategy failed to run");
+  if (labStatus !== "candidate" && input.force !== true) {
+    reasons.push(`real lab status ${labStatus} is not candidate`);
+  }
+  if (metrics.oosSharpe < 0.5) reasons.push(`OOS Sharpe ${metrics.oosSharpe.toFixed(2)} < 0.50`);
+  if (metrics.returnAfterCosts <= 0) reasons.push(`OOS return after costs ${(metrics.returnAfterCosts * 100).toFixed(1)}% <= 0`);
+  if (metrics.deflatedSharpe < 0.5) reasons.push(`deflated Sharpe ${(metrics.deflatedSharpe * 100).toFixed(0)}% < 50% over ${metrics.trials} trials`);
+  if (metrics.walkForwardPassRate !== null && metrics.walkForwardPassRate < 0.5) {
+    reasons.push(`walk-forward pass rate ${(metrics.walkForwardPassRate * 100).toFixed(0)}% < 50%`);
+  }
+  // Fail closed: missing/null/non-finite OOS IC data cannot satisfy a paper
+  // deployment gate. `icTStat` is HAC corrected in factorAnalytics.ts.
+  if (metrics.oosICobs === null || !Number.isFinite(metrics.oosICobs) || metrics.oosICobs < MIN_OOS_IC_OBSERVATIONS) {
+    reasons.push(`OOS IC observations ${metrics.oosICobs ?? "n/a"} < ${MIN_OOS_IC_OBSERVATIONS}`);
+  }
+  if (metrics.oosICt === null || !Number.isFinite(metrics.oosICt) || metrics.oosICt < MIN_OOS_IC_HAC_T_STAT) {
+    const shown = metrics.oosICt === null ? "n/a" : metrics.oosICt.toFixed(2);
+    reasons.push(`HAC OOS IC t-stat ${shown} < ${MIN_OOS_IC_HAC_T_STAT.toFixed(1)}`);
+  }
+  if (metrics.oosSharpe <= metrics.randomBaselineSharpe + 0.1) {
+    reasons.push(`does not beat random baseline (${metrics.randomBaselineSharpe.toFixed(2)})`);
+  }
+  if (metrics.maxDrawdown < -0.6) reasons.push(`catastrophic max drawdown ${(metrics.maxDrawdown * 100).toFixed(0)}%`);
+  return reasons;
 }
 
 export function validateMomentum(universeFile: string, opts: ValidateOptions = {}): ValidateResult {
@@ -56,6 +113,7 @@ export function validateMomentum(universeFile: string, opts: ValidateOptions = {
   const skip = opts.skip ?? 5;
   const holding = opts.holding ?? 5;
   const costBps = opts.costBps ?? 5;
+  const trials = resolveValidationTrials(opts.trials);
 
   const bundle = JSON.parse(fs.readFileSync(universeFile, "utf-8"));
   const data = buildRealMarketData(bundle);
@@ -71,7 +129,7 @@ export function validateMomentum(universeFile: string, opts: ValidateOptions = {
     holdingPeriod: holding as StrategySpec["holdingPeriod"],
     portfolioType: "long_only",
     universe: symbols,
-    parameters: { lookbackDays: lookback, skipDays: skip, volatilityPenalty: 0.35 },
+    parameters: { lookbackDays: lookback, skipDays: skip, volatilityPenalty: 0.35, regimeGate: "riskon", targetCount: top },
     generation: 0,
     ideaMode: "explore",
     ideaReasoning: []
@@ -82,17 +140,26 @@ export function validateMomentum(universeFile: string, opts: ValidateOptions = {
     holdingPeriod: holding as BacktestParameters["holdingPeriod"],
     portfolioType: "long_only",
     transactionCostBps: costBps,
-    benchmark: data.benchmark
+    benchmark: data.benchmark,
+    executionLag: 1,
+    delistingHaircutBps: 30
   };
 
-  const { result, extras } = runRealBacktest(strategy, params, data, { totalTrials: 1, priorCandidates: [] });
+  const { result, extras } = runRealBacktest(strategy, params, data, {
+    totalTrials: trials,
+    priorCandidates: [],
+    evaluateLockbox: true
+  });
   const review = reviewBacktestRisk(strategy, result);
   const wf = computeWalkForward(extras.dailyReturns, extras.dates, {
     holding,
     periodsPerYear: extras.periodsPerYear ?? 252
   });
-  const poolDelta = poolSharpeDelta(extras, []);
-  const labStatus = decideExperimentStatus(result, review, strategy.factorLogic.repeat(3), 0, poolDelta, wf?.passRate);
+  const poolDelta =
+    extras.oosDailyReturns && extras.oosReturnsStartIndex !== undefined
+      ? poolSharpeDelta({ dailyReturns: extras.oosDailyReturns, returnsStartIndex: extras.oosReturnsStartIndex }, [])
+      : undefined;
+  const labStatus = decideExperimentStatus(result, review, strategy.factorLogic.repeat(3), 0, poolDelta, wf?.passRate, undefined, true);
 
   const oos = result.outOfSample;
   const oosIC = result.factorAnalyticsOOS;
@@ -105,51 +172,28 @@ export function validateMomentum(universeFile: string, opts: ValidateOptions = {
     oosICobs: oosIC ? oosIC.observations : null,
     walkForwardPassRate: wf ? wf.passRate : null,
     randomBaselineSharpe: oos.randomBaselineSharpe,
-    maxDrawdown: oos.maxDrawdown
+    maxDrawdown: oos.maxDrawdown,
+    trials
   };
 
-  // Deployment bar: does the SIGNAL have a genuine, robust OUT-OF-SAMPLE edge?
-  // Every check below is real and out-of-sample. We deliberately do NOT hard-fail
-  // on the lab's "rejected" pool-promotion status: that strict gate is dominated by
-  // the always-invested 2008/2020 drawdown, which the trend-filter overlay applied
-  // at deploy time is specifically designed to avoid. failed_to_run (no working
-  // implementation) IS a hard fail. labStatus is still reported for transparency.
-  const reasons: string[] = [];
-  if (labStatus === "failed_to_run") reasons.push("strategy failed to run");
-  if (metrics.oosSharpe < 0.5) reasons.push(`OOS Sharpe ${metrics.oosSharpe.toFixed(2)} < 0.50`);
-  if (metrics.returnAfterCosts <= 0) reasons.push(`OOS return after costs ${(metrics.returnAfterCosts * 100).toFixed(1)}% <= 0`);
-  if (metrics.deflatedSharpe < 0.5) reasons.push(`deflated Sharpe ${(metrics.deflatedSharpe * 100).toFixed(0)}% < 50%`);
-  if (wf && wf.passRate < 0.5) reasons.push(`walk-forward pass rate ${(wf.passRate * 100).toFixed(0)}% < 50%`);
-  if (metrics.oosSharpe <= metrics.randomBaselineSharpe + 0.1) reasons.push(`does not beat random baseline (${metrics.randomBaselineSharpe.toFixed(2)})`);
-  if (metrics.maxDrawdown < -0.6) reasons.push(`catastrophic max drawdown ${(metrics.maxDrawdown * 100).toFixed(0)}%`);
+  // Deployment is fail-closed: it must have cleared the real lab's candidate
+  // gate and independently show the same displayed OOS HAC-IC evidence. `force`
+  // is intentionally narrow: it can waive only the status requirement.
+  const reasons = deploymentGateReasons({ labStatus, metrics, force: opts.force === true });
   const passed = reasons.length === 0;
 
-  // current top-N positive-momentum targets + market regime (SPY vs 200d MA)
+  // Use the engine's exact neutralized ranking / regime implementation — the
+  // deployed book must not be a different raw-momentum portfolio.
+  const book = latestTargets(strategy, data, top);
   const last = data.dates.length - 1;
-  const closeAt = (sym: string, i: number) => data.tickers[sym].closes[i];
-  const spy = data.tickers[data.benchmark].closes;
-  let sum = 0;
-  let cnt = 0;
-  for (let k = Math.max(0, last - 199); k <= last; k += 1) if (spy[k]) { sum += spy[k] as number; cnt += 1; }
-  const ma200 = cnt > 0 ? sum / cnt : 0;
-  const riskOn = !!(spy[last] && ma200 && (spy[last] as number) >= ma200);
-  const scored = symbols
-    .map((sym) => {
-      const r = closeAt(sym, last - skip);
-      const p = closeAt(sym, last - skip - lookback);
-      return { sym, m: r && p ? r / p - 1 : null };
-    })
-    .filter((x) => x.m !== null && (x.m as number) > 0)
-    .sort((a, b) => (b.m as number) - (a.m as number));
-  const targets = riskOn ? scored.slice(0, top).map((x) => x.sym) : [];
 
   return {
     passed,
     labStatus,
     reasons,
     metrics,
-    regime: { riskOn, asOf: data.dates[last] },
-    targets,
+    regime: { riskOn: book.riskOn, asOf: book.asOf },
+    targets: book.targets,
     universeSize: symbols.length,
     dataRange: `${data.dates[0]} -> ${data.dates[last]}`
   };
@@ -157,10 +201,14 @@ export function validateMomentum(universeFile: string, opts: ValidateOptions = {
 
 export interface ConfigOptions {
   familyKey: string;
-  params?: Record<string, number>;
+  params?: Record<string, number | string | boolean>;
   top?: number;
   holding?: number;
   costBps?: number;
+  // Narrow override: waive only the lab-status requirement, never the direct
+  // OOS HAC-IC / risk / performance evidence.
+  force?: boolean;
+  trials?: number;
 }
 
 // Validate ANY computable family + parameters through the same real engine gate,
@@ -171,6 +219,7 @@ export function validateConfig(universeFile: string, opts: ConfigOptions): Valid
   const top = opts.top ?? 8;
   const holding = (opts.holding ?? family.holdingPeriods[0] ?? 5) as HoldingPeriod;
   const costBps = opts.costBps ?? 5;
+  const trials = resolveValidationTrials(opts.trials);
   const bundle = JSON.parse(fs.readFileSync(universeFile, "utf-8"));
   const data = buildRealMarketData(bundle);
   const symbols = Object.keys(data.tickers).filter((s) => s !== data.benchmark);
@@ -187,7 +236,7 @@ export function validateConfig(universeFile: string, opts: ConfigOptions): Valid
     holdingPeriod: holding,
     portfolioType: "long_only",
     universe: symbols,
-    parameters: { ...defaults, ...(opts.params ?? {}) },
+    parameters: { ...defaults, regimeGate: "riskon", ...(opts.params ?? {}), targetCount: top },
     generation: 0,
     ideaMode: "explore",
     ideaReasoning: []
@@ -198,14 +247,23 @@ export function validateConfig(universeFile: string, opts: ConfigOptions): Valid
     holdingPeriod: holding,
     portfolioType: "long_only",
     transactionCostBps: costBps,
-    benchmark: data.benchmark
+    benchmark: data.benchmark,
+    executionLag: 1,
+    delistingHaircutBps: 30
   };
 
-  const { result, extras } = runRealBacktest(strategy, params, data, { totalTrials: 1, priorCandidates: [] });
+  const { result, extras } = runRealBacktest(strategy, params, data, {
+    totalTrials: trials,
+    priorCandidates: [],
+    evaluateLockbox: true
+  });
   const review = reviewBacktestRisk(strategy, result);
   const wf = computeWalkForward(extras.dailyReturns, extras.dates, { holding, periodsPerYear: extras.periodsPerYear ?? 252 });
-  const poolDelta = poolSharpeDelta(extras, []);
-  const labStatus = decideExperimentStatus(result, review, strategy.factorLogic.repeat(3), 0, poolDelta, wf?.passRate);
+  const poolDelta =
+    extras.oosDailyReturns && extras.oosReturnsStartIndex !== undefined
+      ? poolSharpeDelta({ dailyReturns: extras.oosDailyReturns, returnsStartIndex: extras.oosReturnsStartIndex }, [])
+      : undefined;
+  const labStatus = decideExperimentStatus(result, review, strategy.factorLogic.repeat(3), 0, poolDelta, wf?.passRate, undefined, true);
 
   const oos = result.outOfSample;
   const oosIC = result.factorAnalyticsOOS;
@@ -218,16 +276,10 @@ export function validateConfig(universeFile: string, opts: ConfigOptions): Valid
     oosICobs: oosIC ? oosIC.observations : null,
     walkForwardPassRate: wf ? wf.passRate : null,
     randomBaselineSharpe: oos.randomBaselineSharpe,
-    maxDrawdown: oos.maxDrawdown
+    maxDrawdown: oos.maxDrawdown,
+    trials
   };
-  const reasons: string[] = [];
-  if (labStatus === "failed_to_run") reasons.push("strategy failed to run");
-  if (metrics.oosSharpe < 0.5) reasons.push(`OOS Sharpe ${metrics.oosSharpe.toFixed(2)} < 0.50`);
-  if (metrics.returnAfterCosts <= 0) reasons.push(`OOS return after costs ${(metrics.returnAfterCosts * 100).toFixed(1)}% <= 0`);
-  if (metrics.deflatedSharpe < 0.5) reasons.push(`deflated Sharpe ${(metrics.deflatedSharpe * 100).toFixed(0)}% < 50%`);
-  if (wf && wf.passRate < 0.5) reasons.push(`walk-forward pass rate ${(wf.passRate * 100).toFixed(0)}% < 50%`);
-  if (metrics.oosSharpe <= metrics.randomBaselineSharpe + 0.1) reasons.push(`does not beat random baseline (${metrics.randomBaselineSharpe.toFixed(2)})`);
-  if (metrics.maxDrawdown < -0.6) reasons.push(`catastrophic max drawdown ${(metrics.maxDrawdown * 100).toFixed(0)}%`);
+  const reasons = deploymentGateReasons({ labStatus, metrics, force: opts.force === true });
   const passed = reasons.length === 0;
 
   const book = latestTargets(strategy, data, top);

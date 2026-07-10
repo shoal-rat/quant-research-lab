@@ -3,8 +3,27 @@ import { armPosteriors } from "../engines/banditEngine";
 import { ACHIEVEMENTS } from "../engines/progression";
 import { buildArchive, computePbo, poolEquitySeries, poolSharpe } from "../engines/poolAnalytics";
 import { getAllFamilies, getFamily } from "../engines/strategyKnowledge";
+import { totalTrials, trialBreakdown } from "../engines/trialRegistry";
 import { number, percent } from "../components/format";
+import { assetUrl } from "../lib/assets/publicAsset";
 import { useAppStore } from "../store/AppStore";
+import type { ExperimentRecord } from "../types";
+
+interface PersistedLockbox {
+  metrics?: { sharpeRatio?: number };
+  startDate?: string;
+  endDate?: string;
+  sharpeDecay?: number;
+  passed?: boolean;
+}
+
+function latestLockbox(experiments: ExperimentRecord[]): PersistedLockbox | undefined {
+  for (let index = experiments.length - 1; index >= 0; index -= 1) {
+    const lockbox = (experiments[index] as ExperimentRecord & { lockbox?: PersistedLockbox }).lockbox;
+    if (lockbox && Number.isFinite(lockbox.metrics?.sharpeRatio)) return lockbox;
+  }
+  return undefined;
+}
 
 // The fund & research board: virtual fund stats, the MAP-Elites niche
 // archive, the direction bandit's posteriors, the desk PBO, and trophies.
@@ -34,6 +53,14 @@ export function BoardPage(): JSX.Element {
     }
     return null;
   }, [experiments]);
+  const integrity = useMemo(() => {
+    const sources = Object.entries(trialBreakdown())
+      .filter(([, count]) => Number.isFinite(count) && count > 0)
+      .sort(([, left], [, right]) => right - left)
+      .slice(0, 2)
+      .map(([source, count]) => `${source.replace(/[_-]+/g, " ")} ${count}`);
+    return { trials: totalTrials(), sources, lockbox: latestLockbox(experiments) };
+  }, [experiments]);
 
   const sparkline = useMemo(() => {
     if (equity.length < 2) return "";
@@ -46,11 +73,22 @@ export function BoardPage(): JSX.Element {
   }, [equity]);
 
   const armLabels: Record<string, string> = zh
-    ? { explore: "探索", refine: "精修", repair: "修复", recombine: "杂交" }
-    : { explore: "explore", refine: "refine", repair: "repair", recombine: "recombine" };
+    ? { explore: "探索", refine: "精修", repair: "修复", recombine: "杂交", mine: "挖掘" }
+    : { explore: "explore", refine: "refine", repair: "repair", recombine: "recombine", mine: "mine" };
 
   return (
     <div className="board-page">
+      <section
+        className="board-cinematic-hero"
+        style={{ backgroundImage: `url(${assetUrl("assets/design/anime-lab-cinematic-v2.png")})` }}
+        aria-label={zh ? "量化研究团队" : "Quant research team"}
+      >
+        <div>
+          <small>{zh ? "电影式研究台" : "Cinematic research desk"}</small>
+          <h2>{zh ? "把好奇心变成可检验的信号" : "Turn curiosity into testable signals."}</h2>
+          <p>{zh ? "每一条策略都要经过真实成本、样本外检验和最终锁箱。" : "Every idea faces real costs, out-of-sample evidence, and the final lockbox."}</p>
+        </div>
+      </section>
       <section className="page-card board-fund">
         <div>
           <small>{zh ? "虚拟基金" : "Virtual fund"}</small>
@@ -66,6 +104,42 @@ export function BoardPage(): JSX.Element {
             <polyline points={sparkline} fill="none" stroke="var(--teal)" strokeWidth="2.4" strokeLinejoin="round" />
           </svg>
         )}
+      </section>
+
+      <section className="page-card research-integrity">
+        <h2>{zh ? "研究完整性" : "Research integrity"}</h2>
+        <p className="board-hint">
+          {zh
+            ? "搜索次数会持久记录；最终 12% 的锁箱只会在预锁箱门槛通过后启封。"
+            : "Search attempts persist across sessions; the final 12% lockbox is opened only after the pre-lockbox gates pass."}
+        </p>
+        <div className="workflow-grid integrity-grid">
+          <div className="workflow-item">
+            <small>{zh ? "试验登记" : "Trial registry"}</small>
+            <strong>{integrity.trials.toLocaleString()}</strong>
+            <span>{zh ? "所有回测与挖掘评估都计入 DSR" : "all backtests and miner evaluations count toward DSR"}</span>
+          </div>
+          <div className="workflow-item">
+            <small>{zh ? "主要来源" : "Top sources"}</small>
+            <strong>{integrity.sources.length > 0 ? integrity.sources.join(" · ") : zh ? "等待首次评估" : "awaiting first evaluation"}</strong>
+            <span>{zh ? "保存在本地研究台" : "persisted in this local desk"}</span>
+          </div>
+          {integrity.lockbox ? (
+            <div className={`workflow-item integrity-lockbox ${integrity.lockbox.passed ? "passed" : "hold"}`}>
+              <small>{zh ? "最终锁箱" : "Final lockbox"}</small>
+              <strong>{integrity.lockbox.passed ? (zh ? "通过" : "passed") : zh ? "暂缓" : "hold"}</strong>
+              <span>
+                Sh {number(integrity.lockbox.metrics?.sharpeRatio ?? 0)} · {zh ? "衰减" : "decay"} {percent(integrity.lockbox.sharpeDecay ?? 0, 0)}
+              </span>
+            </div>
+          ) : (
+            <div className="workflow-item integrity-lockbox sealed">
+              <small>{zh ? "最终锁箱" : "Final lockbox"}</small>
+              <strong>{zh ? "未启封" : "sealed"}</strong>
+              <span>{zh ? "等待预锁箱门槛通过" : "waiting for pre-lockbox gates"}</span>
+            </div>
+          )}
+        </div>
       </section>
 
       {latestAudit && (

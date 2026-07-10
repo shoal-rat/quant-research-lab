@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/media/banner.svg" alt="量化研究室" width="100%"/>
+<img src="docs/media/banner-anime.png" alt="量化研究室" width="100%"/>
 
 <br/>
 
@@ -13,7 +13,7 @@
 [![Vite](https://img.shields.io/badge/Vite-7-646cff?logo=vite&logoColor=white)](https://vite.dev)
 [![研究大脑](https://img.shields.io/badge/大脑-Claude%20Code%20%2F%20Codex-7b61ff)](#研究大脑)
 [![自带数据](https://img.shields.io/badge/数据-自带数据集-c792ea)](#自带数据)
-[![Tests](https://img.shields.io/badge/tests-64%20passing-2f9c95)](#验证)
+[![Tests](https://img.shields.io/badge/tests-111%20passing-2f9c95)](#验证)
 [![评审](https://img.shields.io/badge/资深量化评审-9%2F10-2f9c95)](docs/REVIEW.md)
 [![壁纸](https://img.shields.io/badge/桌面-动态壁纸-e9b455)](#桌面模式)
 [![License](https://img.shields.io/badge/license-MIT-8f5a2a)](LICENSE)
@@ -58,6 +58,31 @@ Quant Research Lab 是一个套在量化研究循环外面的办公室模拟器�
 - 候选策略按它给组合基金增加的价值评分，而不是按单条漂亮曲线评分。
 
 仅做历史模拟（应用内）。模拟交易部分一律走 Alpaca **paper（模拟盘）**端点——没有真金白银的通路。不构成投资建议。
+
+### v3 重设计的新东西
+
+阿尔法引擎、诚实层和美术全部重造：
+
+- **公式挖掘员入职。** 一套安全的阿尔法表达式 DSL（只允许回看窗口——从构造上排除未来函数）+ 遗传搜索，
+  从经过验证的因子母题里"育种"新的价量公式；横截面新颖度筛查挡住池子里已有信号的克隆；
+  Thompson 老虎机新增 `mine` 臂，由桌面自己决定什么时候挖掘比精修更值。挖出的公式走和手写家族
+  完全相同的准入闸门。
+- **每一次搜索都被记账。** 持久化的试验注册表统计所有回测（实验室迭代、挖掘器的每次适应度评估、赛马袖子），
+  防缩水夏普(deflated Sharpe)再也不会因为"帐外搜索"而虚高。
+- **搜索碰不到的保险箱。** 最后约 12% 的历史对所有研究隐藏，只在晋升时刻打开一次评估。
+  样本内 IC 配上 Newey-West (HAC) t 统计量，CSCV PBO 把守组合池。
+- **回测更贴近实盘。** 每笔交易一根 K 线的执行延迟；退市按折价处理而不是悄悄记零收益；
+  交易成本随基准波动率放大（2008/2020 不再按风平浪静的点差成交）；`riskon`/`riskoff`
+  制度闸门成为显式、可检验的策略参数。
+- **实盘结果反哺研究。** 赛马把每个袖子的模拟盘实测和回测预期对账，退化的袖子优先淘汰，
+  对账摘要写进下一轮研究提示词。
+- **赛马账本更诚实。** 缺价快照不再把持仓按 $0 清算；没变的账本不再在淘汰轮白付一轮成本；
+  只有通过验证的挑战者才能进场。
+- **研究大脑有了后备梯队。** Claude opus → Claude sonnet → **Codex CLI**：某个 CLI
+  掉线或限流时研究照常进行。
+- **办公室变成了动画电影。** 六位研究员全部按剧场版动画比例重绘（144 张立绘+表情），
+  角色在 60fps requestAnimationFrame 层上滑行，带透视景深缩放和接触阴影，换姿势有交叉淡化，
+  晋升触发动画风 cut-in 特写，整个房间随研究阶段变换色调。
 
 ## 应用里：一键搞定一切
 

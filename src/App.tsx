@@ -80,6 +80,7 @@ export function App(): JSX.Element {
     { label: t(lang, "navAssets"), path: "/asset-preview", icon: Images },
     { label: t(lang, "navSettings"), path: "/settings", icon: Settings }
   ];
+  const activePanelPath = navItems.find((item) => item.path === `/${route.name}`)?.path ?? "/office";
 
   return (
     <div className={`game-shell ${wallpaperMode ? "wallpaper" : ""}`}>
@@ -111,6 +112,19 @@ export function App(): JSX.Element {
               <small>{experiments.length} {t(lang, "experiments")}</small>
             </span>
             <LoopControls />
+            <select
+              className="mobile-panel-select"
+              aria-label={lang === "zh" ? "打开面板" : "Open panel"}
+              value={activePanelPath}
+              onChange={(event) => navigate(event.target.value)}
+            >
+              <option value="/office">{lang === "zh" ? "办公室" : "Office"}</option>
+              {navItems.map((item) => (
+                <option key={item.path} value={item.path}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
             <nav className="hud-nav" aria-label="Panels">
               {navItems.map((item) => {
                 const Icon = item.icon;

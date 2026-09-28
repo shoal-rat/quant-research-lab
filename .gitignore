@@ -1,15 +1,16 @@
-node_modules/
-dist/
-# tsc-emitted artifacts from the vite config (source of truth is vite.config.ts)
-vite.config.js
-vite.config.d.ts
-# large locally-fetched trading universe (S&P 500 + NASDAQ-100); not shipped/committed
-data/
-scripts/.engine-*.mjs
-wallpaper-package/
-*.zip
+# python
+engine/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# node
+app/node_modules/
+app/dist/
 *.tsbuildinfo
-work/*
-!work/RESEARCH_DESIGN_DOC.md
-!work/strategy_knowledge_research.json
+# runtime state: market data, trial registry, paper book
+var/
+# raw art generations (large); processed assets live in app/public/art
+art/work/
 .claude/
+.DS_Store
+.vite/

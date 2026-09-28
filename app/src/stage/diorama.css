@@ -1,0 +1,150 @@
+.diorama {
+  position: absolute; inset: 0; overflow: hidden;
+  background: #8fb8dc;
+  transition: filter 0.6s ease;
+}
+.diorama.dim { filter: blur(3px) brightness(0.72) saturate(0.9); }
+.world {
+  position: absolute; left: 50%; top: 50%;
+  width: 1536px; height: 1024px;
+  transform-origin: 50% 50%;
+  transition: transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.world-bg { position: absolute; inset: 0; width: 1536px; height: 1024px; pointer-events: none; }
+
+/* ---------- time-of-day grading (US market clock) ---------- */
+.light { position: absolute; inset: 0; pointer-events: none; transition: background 2s, opacity 2s; mix-blend-mode: multiply; }
+.mood-dawn .light { background: linear-gradient(180deg, rgba(255, 190, 200, 0.35), rgba(255, 230, 210, 0.15)); }
+.mood-day .light { background: transparent; }
+.mood-sunset .light { background: linear-gradient(200deg, rgba(255, 150, 90, 0.42), rgba(255, 200, 150, 0.12)); }
+.mood-night .light {
+  background:
+    radial-gradient(ellipse 220px 140px at 770px 290px, rgba(120, 190, 255, 0.0), rgba(40, 50, 120, 0) 70%),
+    linear-gradient(180deg, rgba(40, 55, 130, 0.62), rgba(70, 70, 150, 0.5));
+}
+.mood-night .world::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen;
+  background:
+    radial-gradient(ellipse 200px 120px at 420px 180px, rgba(90, 170, 255, 0.35), transparent 70%),
+    radial-gradient(ellipse 160px 90px at 770px 270px, rgba(90, 170, 255, 0.3), transparent 70%),
+    radial-gradient(ellipse 160px 90px at 1070px 260px, rgba(90, 170, 255, 0.3), transparent 70%),
+    radial-gradient(ellipse 120px 120px at 330px 230px, rgba(255, 200, 120, 0.35), transparent 70%);
+}
+
+/* floating dust motes in the sunbeam */
+.motes span {
+  position: absolute; width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(255, 250, 220, 0.85); box-shadow: 0 0 8px rgba(255, 240, 200, 0.9);
+  left: calc(700px + var(--i) * 53px); top: calc(300px + var(--i) * 29px);
+  animation: mote calc(9s + var(--i) * 0.7s) ease-in-out infinite;
+  animation-delay: calc(var(--i) * -1.3s);
+  pointer-events: none; opacity: 0.7;
+}
+.mood-night .motes { display: none; }
+@keyframes mote {
+  0%, 100% { transform: translate(0, 0); opacity: 0; }
+  20% { opacity: 0.8; }
+  50% { transform: translate(40px, -60px); opacity: 0.6; }
+  80% { opacity: 0.8; }
+}
+
+/* ---------- chibis ---------- */
+.chibi { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: transform; }
+.chibi-img {
+  position: absolute; left: 0; top: 0;
+  transform-origin: 50% 100%;
+  cursor: pointer; pointer-events: auto;
+  filter: drop-shadow(0 2px 0 rgba(255, 255, 255, 0.35));
+  image-rendering: auto;
+}
+.chibi-img:hover { filter: drop-shadow(0 0 6px var(--c)) drop-shadow(0 0 2px #fff); }
+.chibi.speaking .chibi-img { filter: drop-shadow(0 0 8px var(--c)) drop-shadow(0 0 3px #fff); }
+.chibi-shadow {
+  position: absolute; left: 0; top: 0;
+  width: calc(var(--h) * 0.5); height: calc(var(--h) * 0.12);
+  transform: translate(-50%, -50%) scale(calc(1 - var(--hop) / 60px));
+  background: radial-gradient(ellipse, rgba(40, 30, 60, 0.42), transparent 70%);
+  border-radius: 50%; pointer-events: none;
+}
+.chibi-name {
+  position: absolute; left: 0; top: 6px; transform: translateX(-50%);
+  font-size: 13px; font-weight: 800; color: #fff; white-space: nowrap;
+  padding: 0 8px; border-radius: 999px; background: var(--c);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.15); opacity: 0; transition: opacity 0.2s;
+  pointer-events: none;
+}
+.chibi:hover .chibi-name, .chibi.speaking .chibi-name { opacity: 1; }
+
+.emote {
+  position: absolute; left: 22px; top: calc(-1 * var(--h) - 26px);
+  min-width: 46px; height: 42px; padding: 0 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff; border-radius: 20px;
+  border: 3px solid #1b2a4a;
+  box-shadow: 0 3px 0 rgba(27, 42, 74, 0.25);
+  pointer-events: none;
+}
+.emote::after {
+  content: ""; position: absolute; left: 8px; bottom: -11px;
+  border: 7px solid transparent; border-top: 10px solid #1b2a4a; border-left-width: 3px;
+}
+.emote.gloom { background: transparent; border: none; box-shadow: none; left: -18px; top: calc(-1 * var(--h) + 4px); }
+.emote.gloom::after { display: none; }
+.emo-text { font-family: var(--font-cute); font-weight: 800; font-size: 30px; line-height: 1; }
+.emo-text.zzz { font-size: 22px; font-style: italic; animation: float 1.6s ease-in-out infinite; }
+
+.say {
+  position: absolute; left: 0; bottom: calc(var(--h) + 18px);
+  transform-origin: 50% 100%;
+  translate: -50% 0;
+  width: max-content; max-width: 300px;
+  padding: 9px 14px; border-radius: 16px;
+  background: #fff; color: var(--ink);
+  font-size: 17px; font-weight: 700; line-height: 1.4;
+  border: 3px solid var(--c);
+  box-shadow: 0 6px 0 rgba(27, 42, 74, 0.12), var(--shadow-sm);
+  pointer-events: none;
+}
+.say::after {
+  content: ""; position: absolute; left: 50%; bottom: -13px; translate: -50% 0;
+  border: 9px solid transparent; border-top: 12px solid var(--c);
+}
+
+.chibi-menu {
+  position: absolute; left: 0; top: calc(-1 * var(--h) - 70px); translate: -50% 0;
+  display: flex; gap: 6px; padding: 6px; border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96); box-shadow: var(--shadow);
+  z-index: 10;
+}
+.chibi-menu button {
+  border: none; background: var(--sky-soft); color: var(--navy);
+  font-size: 15px; font-weight: 800; padding: 8px 12px; border-radius: 12px; white-space: nowrap;
+}
+.chibi-menu button:hover { background: var(--sky); color: #fff; }
+
+/* ---------- pat / bonk effects ---------- */
+.fx { position: absolute; width: 0; height: 0; pointer-events: none; }
+.fx-hand { position: absolute; left: -33px; top: -225px; animation: pat 0.35s ease-in-out 4 alternate; transform-origin: 80% 50%; }
+@keyframes pat { from { transform: translateX(-10px) rotate(-8deg); } to { transform: translateX(10px) rotate(8deg); } }
+.fx-heart {
+  position: absolute; left: calc(-30px + var(--i) * 18px); top: -200px; color: #ff5f97; font-size: 26px;
+  animation: heartUp 1.4s ease-out forwards; animation-delay: calc(var(--i) * 0.15s); opacity: 0;
+  text-shadow: 0 0 4px #fff;
+}
+@keyframes heartUp { 0% { opacity: 0; transform: translateY(0) scale(0.5); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-80px) scale(1.2); } }
+.fx-hammer { position: absolute; left: 10px; top: -280px; transform-origin: 50% 100%; animation: swing 0.35s cubic-bezier(0.5, 0, 0.9, 0.6) forwards; }
+@keyframes swing { from { transform: rotate(60deg); } to { transform: rotate(-35deg); } }
+.fx-boing {
+  position: absolute; left: -40px; top: -260px; font-family: var(--font-cute); font-weight: 800; font-size: 34px;
+  color: #ff4d6d; -webkit-text-stroke: 2px #fff; paint-order: stroke fill;
+  animation: boing 1s ease-out forwards; animation-delay: 0.3s; opacity: 0;
+}
+@keyframes boing { 0% { opacity: 0; transform: scale(0.3) rotate(-10deg); } 30% { opacity: 1; transform: scale(1.2) rotate(-6deg); } 100% { opacity: 0; transform: scale(1) translateY(-20px); } }
+.fx-star {
+  position: absolute; left: 0; top: -200px; color: #ffd23d; font-size: 22px; -webkit-text-stroke: 1px #c98a00;
+  animation: starBurst 0.9s ease-out forwards; animation-delay: 0.32s; opacity: 0;
+}
+@keyframes starBurst {
+  0% { opacity: 1; transform: rotate(calc(var(--i) * 72deg)) translateY(0); }
+  100% { opacity: 0; transform: rotate(calc(var(--i) * 72deg)) translateY(-60px); }
+}

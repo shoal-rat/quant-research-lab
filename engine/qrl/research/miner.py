@@ -125,8 +125,8 @@ def mutate(r, t, ts):
 
 
 class Miner:
-    def __init__(self, universe: str, mode: str, seed: int | None = None):
-        self.panel = load_panel(universe)
+    def __init__(self, universe: str, mode: str, seed: int | None = None, panel=None):
+        self.panel = panel or load_panel(universe)
         self.universe = universe
         self.ts = mode == "time_series"
         self.mode = mode
@@ -165,7 +165,9 @@ class Miner:
             f = t / 4.0 - 0.6 * max(0.0, 0.8 - ac)  # fast signals die on costs
         return float(f - 0.012 * a.nodes)
 
-    def run(self, pop: int = 14, gens: int = 3, seeds: list[str] | None = None, on_progress=None) -> dict:
+    def run(self, pop: int = 14, gens: int = 3, seeds: list[str] | None = None, on_progress=None,
+            exclude=lambda expr: False) -> dict:
+        """Evolve; return the fittest formula for which ``exclude(expr)`` is False."""
         r = self.r
         popn = [random_tree(r, 2, self.ts) for _ in range(pop - len(seeds or []))] + list(seeds or [])
         scored = []
@@ -188,5 +190,14 @@ class Miner:
                 except DSLError:
                     continue
             popn = nxt
-        best_f, best = scored[0]
-        return {"expr": render(best), "fitness": best_f, "evals": self.evals}
+        seen = set()
+        for f, t in scored:
+            e = render(t)
+            if e in seen:
+                continue
+            seen.add(e)
+            if not exclude(e):
+                return {"expr": e, "fitness": f, "evals": self.evals}
+        # everything already tested: hand back a fresh mutation of the champion
+        child = mutate(r, scored[0][1], self.ts)
+        return {"expr": render(child), "fitness": self.fitness(child), "evals": self.evals}

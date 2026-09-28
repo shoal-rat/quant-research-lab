@@ -110,7 +110,7 @@
 
 /* ---------- log ---------- */
 .timeline { display: flex; flex-direction: column; gap: 4px; max-height: 60vh; overflow: auto; }
-.tl { display: grid; grid-template-columns: 54px 70px 64px 1fr; gap: 8px; align-items: center; padding: 6px 10px; border-radius: 10px; background: #f6f9fd; cursor: pointer; font-size: 13px; font-weight: 700; }
+.tl { display: grid; grid-template-columns: 54px 70px 64px 1fr 34px; gap: 8px; align-items: center; padding: 6px 10px; border-radius: 10px; background: #f6f9fd; cursor: pointer; font-size: 13px; font-weight: 700; }
 .tl:hover { background: #eaf4ff; }
 .tl.v-promote { background: #fff6dc; } .tl.v-reject .tl-v { color: var(--bad); } .tl.v-promote .tl-v { color: #c47a00; } .tl.v-reserve .tl-v { color: var(--sky-deep); }
 .tl-t { color: var(--muted); font-size: 12px; text-align: right; }
@@ -200,3 +200,5 @@
   .alloc-tag, .alloc-bar { display: none; }
   .title-logo { bottom: 26vh; }
 }
+.tl-play { border: none; width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #4cc3ff, #1a8fff); color: #fff; font-size: 12px; }
+.tl-play:hover { transform: scale(1.1); }

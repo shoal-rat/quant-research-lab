@@ -130,6 +130,8 @@ function Fx() {
 export function Diorama() {
   const wrap = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [vw, setVw] = useState(window.innerWidth);
+  const [focus, setFocus] = useState<[number, number]>([768, 560]);
   const mood = useDaylight();
   const vn = useStore((s) => !!s.vn);
   const speaker = useStore((s) => s.beat?.who);
@@ -150,18 +152,39 @@ export function Diorama() {
       const w = wrap.current?.clientWidth ?? window.innerWidth;
       const h = wrap.current?.clientHeight ?? window.innerHeight;
       setScale(Math.max(w / 1536, h / 1024));
+      setVw(w);
     };
     f();
     window.addEventListener("resize", f);
     return () => window.removeEventListener("resize", f);
   }, []);
 
+  const narrow = vw / (wrap.current?.clientHeight ?? window.innerHeight) < 1.2;
+
+  // On narrow (phone) screens the room doesn't fit: follow the speaker, or the
+  // centre of the group, so the action stays in frame.
+  useEffect(() => {
+    if (!narrow) return;
+    const f = () => {
+      if (speaker) return setFocus(world.pos(speaker));
+      const ps = ORDER.map((id) => world.pos(id));
+      setFocus([ps.reduce((a, p) => a + p[0], 0) / ps.length, ps.reduce((a, p) => a + p[1], 0) / ps.length]);
+    };
+    f();
+    const id = window.setInterval(f, 1200);
+    return () => window.clearInterval(id);
+  }, [narrow, speaker]);
+
   // gentle camera push toward whoever speaks in a wide shot
   const cam = useMemo(() => {
+    if (narrow) {
+      const half = (1536 - vw / scale) / 2;
+      return { x: Math.max(-half, Math.min(half, 768 - focus[0])), y: 0, z: 1 };
+    }
     if (!speaker || shot !== "wide") return { x: 0, y: 0, z: 1 };
     const [x, y] = world.pos(speaker);
     return { x: (768 - x) * 0.18, y: (560 - y) * 0.12, z: 1.06 };
-  }, [speaker, shot]);
+  }, [speaker, shot, narrow, focus, vw, scale]);
 
   return (
     <div className={`diorama mood-${mood} ${vn ? "dim" : ""}`} ref={wrap} onClick={() => useWorldUI.getState().set({ menu: null })}>

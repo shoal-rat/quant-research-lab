@@ -306,10 +306,16 @@ def evaluate_candidate(c: Candidate, reg: Registry | None = None, gate: GateConf
         if len(mats) >= 8:
             lab_pbo = pbo(np.column_stack(mats + [cur.to_numpy()]))
     t_stat = sr / se if se > 0 else 0.0
+    # Survivorship: the panel lacks members that were later delisted, and those are
+    # disproportionately small and illiquid. A book that earns its keep by leaning
+    # into small names is therefore flattered by the data itself.
+    size = ((attr or {}).get("loadings") or {}).get("SIZE") or {}
+    size_tilt = panel.kind == "cross_section" and size.get("t", 0) > 3 and size.get("beta", 0) > 0.25
     sk_fail = d_prob < gate.min_dsr * min(s, 1.05) or post["mean"] < gate.min_post * s
     stage("skeptic", "iori", "fail" if sk_fail else "pass", se=se, t=t_stat, psr=psr(ex_r.to_numpy()),
           dsr=d_prob, dsr_bar=d_bar, trials=n_trials, trials_eff=n_eff, posterior=post, attribution=attr,
-          pool_corr=pool_corr, pool_twin=pool_best, lab_pbo=lab_pbo, mintrl_years=min_track_record(sr, ex_r.to_numpy()))
+          pool_corr=pool_corr, pool_twin=pool_best, lab_pbo=lab_pbo, mintrl_years=min_track_record(sr, ex_r.to_numpy()),
+          size_tilt=bool(size_tilt))
 
     # ---- verdict --------------------------------------------------------------------
     checks = [
@@ -322,6 +328,7 @@ def evaluate_candidate(c: Candidate, reg: Registry | None = None, gate: GateConf
         ("posterior", post["mean"] >= gate.min_post * s and post["p_positive"] >= gate.min_p_pos,
          f"E[live SR] {post['mean']:.2f}, P(>0) {post['p_positive']:.0%}", True),
         ("novelty", pool_corr < gate.max_pool_corr, f"max corr with fund {pool_corr:.2f}", False),
+        ("survivorship", not size_tilt, f"SIZE loading {size.get('beta', 0):.2f} (t={size.get('t', 0):.1f})", False),
     ]
     hard_fail = [k for k, okk, _, hard in checks if hard and not okk]
     soft_fail = [k for k, okk, _, hard in checks if not hard and not okk]
@@ -365,6 +372,7 @@ def evaluate_candidate(c: Candidate, reg: Registry | None = None, gate: GateConf
                   "lockbox_start": panel.dates[lock_start].strftime("%Y-%m-%d")},
         "book": spec.to_dict(), "mechanism": mech, "family": c.family,
         "names_held": float(np.mean(list(book.names_held.values()))),
+        "pool_twin": pool_best, "pool_corr": pool_corr,
     }
     stage("verdict", "mio", ev.verdict, tier=ev.tier, reasons=ev.reasons, lockbox=lockbox,
           hard_fail=hard_fail, soft_fail=soft_fail)

@@ -60,3 +60,29 @@ def test_duplicate_pulls_still_count(reg, panel):
 def test_tiers_follow_expected_live_sharpe():
     assert tier_of(1.0) == "SSR" and tier_of(0.7) == "SR" and tier_of(0.4) == "R" and tier_of(0.1) == "N"
     assert np.isfinite(ops.ANN)
+
+
+def test_refinement_never_repeats_a_parent(reg, panel):
+    import random
+
+    from qrl.research.proposer import refine_candidate
+
+    ev = evaluate_candidate(Candidate("rev(3)", universe="synthetic"), reg, panel=panel)
+    reg.update(ev.trial_id, status="reserve", post_mean=0.3,
+               reasons=[{"gate": "costs", "pass": False, "hard": True, "detail": ""}])
+    first = refine_candidate(reg, random.Random(0))
+    assert first is not None and first.expr.startswith("ts_decay(") and first.parent == ev.trial_id
+    assert refine_candidate(reg, random.Random(0)) is None
+
+
+def test_miner_returns_an_untested_valid_formula(panel):
+    from qrl.alpha.dsl import parse
+    from qrl.research.miner import Miner
+
+    m = Miner("synthetic", "long_short", seed=1, panel=panel)
+    first = m.run(pop=6, gens=1)
+    parse(first["expr"])
+    assert first["evals"] >= 1
+    m2 = Miner("synthetic", "long_short", seed=1, panel=panel)
+    second = m2.run(pop=6, gens=1, exclude=lambda e: e == first["expr"])
+    assert second["expr"] != first["expr"]

@@ -169,6 +169,11 @@ class Registry:
                                    (limit,)).fetchall()
         return [dict(r) for r in rows]
 
+    def episode_events(self, eid: int) -> list | None:
+        with _LOCK:
+            r = self.db.execute("SELECT events FROM episodes WHERE id=?", (eid,)).fetchone()
+        return json.loads(r[0]) if r else None
+
     def add_lesson(self, family: str, universe: str, zh: str, en: str, kind: str) -> None:
         with _LOCK:
             self.db.execute("INSERT INTO lessons (created, family, universe, text_zh, text_en, kind) VALUES (?,?,?,?,?,?)",

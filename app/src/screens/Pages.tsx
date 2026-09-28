@@ -5,7 +5,14 @@ import { CAST, art } from "../lib/cast";
 import { SOURCE_NAME, t } from "../lib/i18n";
 import { setLang, useStore } from "../lib/store";
 import type { CharId, Face } from "../lib/types";
+import { director } from "../story/director";
 import { Sheet } from "./Sheet";
+
+export async function replayEpisode(id: number) {
+  const events = await api.get<any[]>(`/api/episodes/${id}`);
+  useStore.getState().set({ tab: "room", tearsheet: null });
+  director.replay(events);
+}
 
 // ------------------------------------------------------------------ log
 export function Log() {
@@ -31,6 +38,8 @@ export function Log() {
                 <span className="tl-src">{SOURCE_NAME[e.source]?.[lang] ?? e.source}</span>
                 <span className="tl-v">{e.verdict === "promote" ? (zh ? "采用" : "adopted") : e.verdict === "reserve" ? (zh ? "候补" : "reserve") : zh ? "驳回" : "rejected"}</span>
                 <span className="tl-t num">{new Date(e.created * 1000).toLocaleString()}</span>
+                <button className="tl-play" title={zh ? "重播这次会议" : "Replay this meeting"}
+                  onClick={(ev) => { ev.stopPropagation(); replayEpisode(e.id); }}>▶</button>
               </div>
             ))}
           </div>

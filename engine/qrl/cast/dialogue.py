@@ -38,6 +38,7 @@ GATE_TEXT = {
     "deflation": ("没能跨过多重检验的门槛", "fails the multiple-testing bar"),
     "posterior": ("预期实盘夏普太低", "expected live Sharpe too low"),
     "novelty": ("和基金里已有的策略太像", "too similar to a fund member"),
+    "survivorship": ("收益可能来自幸存者偏差", "returns may come from survivorship bias"),
     "lockbox": ("在保险箱数据上失效", "fails in the lockbox"),
 }
 
@@ -149,6 +150,10 @@ def stage(st: dict, rng: random.Random) -> list[dict]:
         if big:
             f = big[0]
             lines.append(b("iori", f"我的右眼看穿了……它不过是穿了马甲的 {f} 因子。", f"My right eye sees through it... just the {f} factor in disguise.", "special", "sig", "!", "vn"))
+        if st.get("size_tilt"):
+            lines.append(b("iori", "它押的是小而冷门的股票……可惜那些后来消失的公司，根本不在我们的数据里。幸存者的亡魂在替它说话。",
+                           "It leans on small, quiet stocks... and the ones that later vanished aren't in our data. The ghosts of survivorship are speaking for it.",
+                           "special", "sig", "gloom", "vn"))
         if st["status"] == "fail":
             lines.append(b("iori", "多重检验的诅咒……它没能逃脱。", "The curse of multiple testing... it could not escape.", "joy", "sig", "gloom", "vn"))
         elif st.get("pool_corr", 0) > 0.7:

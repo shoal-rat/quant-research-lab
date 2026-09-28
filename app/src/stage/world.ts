@@ -308,3 +308,5 @@ class World {
 }
 
 export const world = new World();
+
+if (import.meta.env.DEV) (window as any).__world = world;

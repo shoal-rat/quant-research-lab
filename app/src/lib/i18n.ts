@@ -84,4 +84,5 @@ export const GATE_NAME: Record<string, { zh: string; en: string }> = {
   posterior: { zh: "后验夏普", en: "Posterior" },
   novelty: { zh: "新颖性", en: "Novelty" },
   lockbox: { zh: "保险箱", en: "Lockbox" },
+  survivorship: { zh: "幸存者偏差", en: "Survivorship" },
 };

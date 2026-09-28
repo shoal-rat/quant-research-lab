@@ -24,7 +24,8 @@ from ..llm.brain import BRAIN
 from . import fund as F
 from .evaluate import Candidate, GateConfig, evaluate_candidate
 from .miner import Miner
-from .proposer import directive_families, library_candidate, llm_candidate, refine_candidate
+from .knowledge import FAMILY_BY_KEY
+from .proposer import directive_families, infer_family, library_candidate, llm_candidate, refine_candidate
 from .registry import Registry
 
 SOURCES = ["llm", "library", "miner", "refine"]
@@ -193,10 +194,24 @@ class Lab:
                 send({"type": "mining", "generation": g, "fitness": f, "expr": e, "beats": [
                     D.b("ren", f"第 {g + 1} 代……最优适应度 {f:.2f}", f"Generation {g + 1}... best fitness {f:.2f}", "special", "type", "zzz")]})
 
-            out = miner.run(on_progress=prog)
+            from ..alpha.dsl import parse as _parse
+
+            def tested(expr):
+                try:
+                    return self.reg.seen(_parse(expr).canonical, u, m) is not None
+                except Exception:
+                    return True
+
+            out = miner.run(on_progress=prog, exclude=tested)
             key = f"shadow:{u}"
             self.reg.kv_set(key, int(self.reg.kv_get(key, 0)) + max(0, out["evals"] - 1))
-            return Candidate(expr=out["expr"], universe=u, mode=m, mechanism="statistical", source="miner",
+            # A miner that rediscovers a single known mechanism inherits its prior;
+            # anything more elaborate is data-mined and starts from zero.
+            from ..alpha.dsl import MACROS, parse
+            n_macros = sum(1 for x in parse(out["expr"]).uses() if x in MACROS)
+            fam = infer_family(out["expr"], u) if n_macros <= 1 else None
+            return Candidate(expr=out["expr"], universe=u, mode=m, family=fam, source="miner",
+                             mechanism=FAMILY_BY_KEY[fam].mechanism if fam else "statistical",
                              title_zh="遗传挖掘信号", title_en="Mined signal",
                              thesis_zh=f"遗传算法在训练段挖出的公式（{out['evals']} 次评估，全部计入抽卡数）。",
                              thesis_en=f"Found by the GP miner on the train region ({out['evals']} evaluations, all counted as pulls).")

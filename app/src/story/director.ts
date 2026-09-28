@@ -49,8 +49,28 @@ class Director {
     }
     if (ev.type === "chatter" && this.queue.length > 2) return; // chatter is filler; drop when busy
     this.queue.push(ev);
+    if (this.queue.length > 60) this.trim();
     useStore.getState().set({ backlog: this.queue.length });
     if (!this.playing) void this.run();
+  }
+
+  /** Replay a stored meeting (events as recorded by the engine). */
+  replay(events: LabEvent[]) {
+    this.queue = [];
+    for (const ev of events) this.push({ ...ev, replay: true });
+  }
+
+  /** Way behind (e.g. the tab sat in the background): jump to the newest meeting. */
+  private trim() {
+    let start = -1;
+    for (let i = this.queue.length - 1; i >= 0; i--) {
+      if (this.queue[i].type === "episode_start") {
+        start = i;
+        break;
+      }
+    }
+    this.queue = start > 0 ? this.queue.slice(start) : this.queue.slice(-30);
+    useStore.getState().set({ dataVersion: useStore.getState().dataVersion + 1 });
   }
 
   advance() {
@@ -290,3 +310,5 @@ class Director {
 }
 
 export const director = new Director();
+
+if (import.meta.env.DEV) (window as any).__director = director;

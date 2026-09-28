@@ -166,41 +166,58 @@ def candidate_from_json(data: dict, source: str, parent: str | None = None) -> C
 
 
 def refine_candidate(reg: Registry, r: random.Random) -> Candidate | None:
-    """Rule-based refinement of the most promising near miss."""
-    near = [t for t in reg.list(limit=80) if t["status"] in ("reserve", "rejected") and (t.get("post_mean") or -1) > 0.1]
-    if not near:
-        return None
-    t = max(near, key=lambda x: x.get("post_mean") or 0)
-    failed = [x["gate"] for x in (t.get("reasons") or []) if isinstance(x, dict) and not x.get("pass")]
+    """Rule-based refinement of the most promising near miss that hasn't been refined yet.
+
+    Each parent is refined at most once and a transformation is never stacked on
+    itself, so the club can't burn pulls re-wrapping the same idea.
+    """
+    refined = set(reg.kv_get("refined", []))
+    promoted = [t for t in reg.list(status="promoted")]
+    near = [t for t in reg.list(limit=120)
+            if t["status"] in ("reserve", "rejected") and (t.get("post_mean") or -1) > 0.1
+            and t["id"] not in refined and t.get("source") != "refine"]
+    for t in sorted(near, key=lambda x: -(x.get("post_mean") or 0)):
+        failed = [x["gate"] for x in (t.get("reasons") or []) if isinstance(x, dict) and not x.get("pass")]
+        out = _refine_once(t, failed, promoted, r)
+        if out is None:
+            continue
+        expr, book, note_zh, note_en = out
+        try:
+            parse(expr)
+        except DSLError:
+            continue
+        if reg.seen(parse(expr).canonical, t["universe"], t["mode"]):
+            continue
+        reg.kv_set("refined", sorted(refined | {t["id"]}))
+        return Candidate(expr=expr, universe=t["universe"], mode=t["mode"], book=book, family=t.get("family"),
+                         mechanism=t.get("mechanism") or "statistical", source="refine", parent=t["id"],
+                         title_zh=f"{t.get('title_zh') or '候补'}·改", title_en=f"{t.get('title_en') or 'Reserve'} (refined)",
+                         thesis_zh=note_zh, thesis_en=note_en)
+    return None
+
+
+def _refine_once(t: dict, failed: list[str], promoted: list[dict], r: random.Random):
     expr, book = t["expr"], dict(t.get("book") or {})
-    note_zh, note_en = "", ""
-    if "costs" in failed:
-        expr = f"ts_decay({expr}, 5)"
+    ts = t["mode"] == "time_series"
+    if "costs" in failed and not expr.startswith("ts_decay("):
         book["rebalance"] = max(int(book.get("rebalance") or 5) * 2, 10)
-        note_zh, note_en = "放慢信号、拉长调仓以降低成本。", "Slowed the signal and the rebalance to cut costs."
-    elif "novelty" in failed and t["mode"] != "time_series":
-        fam = FAMILY_BY_KEY.get(t.get("family") or "")
-        base = fam.templates[0] if fam else "mom(252, 21)"
-        expr = f"neutralize({expr}, {base})"
-        note_zh, note_en = "对已知因子做正交化，只保留新的部分。", "Orthogonalized against the known factor."
-    elif t["mode"] == "time_series":
-        expr = f"where(trend(200) > 0, {expr}, 0)"
-        note_zh, note_en = "加一个趋势状态过滤。", "Added a trend regime filter."
-    else:
-        mates = [f for f in FAMILIES if f.universe == t["universe"] and f.mode == t["mode"] and f.key != t.get("family")]
-        g = r.choice(mates) if mates else None
-        if not g:
-            return None
-        expr = f"rank({expr}) + rank({g.templates[0]})"
-        note_zh, note_en = f"叠加低相关的{g.zh}。", f"Blended with low-correlation {g.en.lower()}."
-    try:
-        parse(expr)
-    except DSLError:
+        return f"ts_decay({expr}, 5)", book, "放慢信号、拉长调仓以降低成本。", "Slowed the signal and the rebalance to cut costs."
+    if "novelty" in failed:
+        twin_id = (t.get("report") or {}).get("pool_twin")
+        twin = next((p for p in promoted if p["id"] == twin_id), None)
+        if not ts and twin and twin["universe"] == t["universe"] and twin["mode"] != "time_series":
+            return (f"neutralize({expr}, {twin['expr']})", book,
+                    "对基金里的相似策略做正交化，只保留新的部分。", "Orthogonalized against its twin in the fund.")
+        return None  # a time-series twin can't be orthogonalized; don't waste a pull
+    if ts and "trend(200)" not in expr:
+        return f"where(trend(200) > 0, {expr}, 0)", book, "加一个长期趋势状态过滤。", "Added a long-term trend regime filter."
+    mates = [f for f in FAMILIES if f.universe == t["universe"] and f.mode == t["mode"] and f.key != t.get("family")
+             and f.templates[0] not in expr]
+    if not mates:
         return None
-    return Candidate(expr=expr, universe=t["universe"], mode=t["mode"], book=book, family=t.get("family"),
-                     mechanism=t.get("mechanism") or "statistical", source="refine", parent=t["id"],
-                     title_zh=f"{t.get('title_zh') or '候补'}·改", title_en=f"{t.get('title_en') or 'Reserve'} (refined)",
-                     thesis_zh=note_zh, thesis_en=note_en)
+    g = r.choice(mates)
+    blend = f"(sign({expr}) + sign({g.templates[0]})) / 2" if ts else f"rank({expr}) + rank({g.templates[0]})"
+    return blend, book, f"叠加低相关的{g.zh}。", f"Blended with low-correlation {g.en.lower()}."
 
 
 def directive_families(text: str) -> list[str]:

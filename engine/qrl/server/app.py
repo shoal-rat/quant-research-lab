@@ -186,6 +186,14 @@ def episodes():
     return LAB.reg.episodes()
 
 
+@app.get("/api/episodes/{eid}")
+def episode_events(eid: int):
+    ev = LAB.reg.episode_events(eid)
+    if ev is None:
+        raise HTTPException(404)
+    return ev
+
+
 @app.get("/api/lessons")
 def lessons():
     return LAB.reg.lessons()
